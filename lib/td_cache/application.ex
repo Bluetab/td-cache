@@ -7,13 +7,19 @@ defmodule TdCache.Application do
 
   def start(_type, _args) do
     redis_host = Application.get_env(:td_cache, :redis_host)
+    config1 = Application.get_env(:td_cache, :concept_event_stream)
+    config2 = Application.get_env(:td_cache, :field_event_stream)
 
-    # List all child processes to be supervised
-    children = [
-      {Redix, host: redis_host, name: :redix}
-      # Starts a worker by calling: TdCache.Worker.start_link(arg)
-      # {TdCache.Worker, arg},
-    ] ++ cache_cleaner_workers()
+    children =
+      [
+        {Redix, host: redis_host, name: :redix},
+        Supervisor.child_spec({TdCache.EventStream.Supervisor, config1}, id: :worker_1),
+        Supervisor.child_spec({TdCache.EventStream.Supervisor, config2}, id: :worker_2),
+        {TdCache.LinkCache.Supervisor, redis_host: redis_host},
+        {TdCache.FieldCache.Supervisor, redis_host: redis_host},
+        {TdCache.StructureCache.Supervisor, redis_host: redis_host},
+        {TdCache.SystemCache.Supervisor, redis_host: redis_host}
+      ] ++ cache_cleaner_workers()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
@@ -26,5 +32,4 @@ defmodule TdCache.Application do
     config = Application.get_env(:td_cache, :cache_cleaner, [])
     [worker(TdCache.CacheCleaner, [config])]
   end
-
 end

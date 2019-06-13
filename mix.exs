@@ -13,7 +13,7 @@ defmodule TdCache.MixProject do
 
   # Run "mix help compile.app" to learn about applications.
   def application do
-    if Mix.env() == :test do
+    if Mix.env() != :prod do
       [
         extra_applications: [:logger, :redix],
         mod: {TdCache.Application, []}

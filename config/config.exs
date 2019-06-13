@@ -29,6 +29,18 @@ config :td_cache, :cache_cleaner,
     "TD_CACHE_TEST:REMOVE:*"
   ]
 
+config :td_cache, :concept_event_stream,
+  name: :concept_event_stream,
+  stream: "concept:events",
+  group: "test_consumer_group",
+  consumer: "consumer1"
+
+config :td_cache, :field_event_stream,
+  name: :field_event_stream,
+  stream: "field:events",
+  group: "test_consumer_group",
+  consumer: "consumer1"
+
 # It is also possible to import configuration files, relative to this
 # directory. For example, you can emulate configuration per environment
 # by uncommenting the line below and defining dev.exs, test.exs and such.
