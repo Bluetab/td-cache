@@ -1,4 +1,4 @@
  - [x] Tests
- - [ ] Umbrella project
+ - [x] Connection pooling for Redis
+ - [ ] Improve documentation
  - [ ] :error or :ok if not found??
- - [ ] Connection pooling for Redis

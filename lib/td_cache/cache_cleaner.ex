@@ -5,6 +5,7 @@ defmodule TdCache.CacheCleaner do
 
   use GenServer
   require Logger
+  alias TdCache.Redix, as: Redis
 
   def start_link(config, name \\ __MODULE__) do
     GenServer.start_link(__MODULE__, config, name: name)
@@ -53,10 +54,10 @@ defmodule TdCache.CacheCleaner do
   end
 
   defp clean_entries(pattern) do
-    {:ok, keys} = Redix.command(:redix, ["KEYS", pattern])
+    {:ok, keys} = Redis.command(["KEYS", pattern])
 
     unless Enum.empty?(keys) do
-      {:ok, count} = Redix.command(:redix, ["DEL" | keys])
+      {:ok, count} = Redis.command(["DEL" | keys])
       Logger.info("Deleted #{count} cache entries for pattern '#{pattern}'")
     end
   end

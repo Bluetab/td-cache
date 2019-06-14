@@ -1,13 +1,7 @@
-defmodule TdCache.Redis do
+defmodule TdCache.Redix.Commands do
   @moduledoc """
-  Redis utility functions
+  A module providing functions to create Redix commands.
   """
-
-  def hash_to_map(hash) do
-    hash
-    |> Enum.chunk_every(2)
-    |> Map.new(fn [key, value] -> {String.to_atom(key), value} end)
-  end
 
   def hmset(key, %{} = map) when map != %{} do
     entries =
@@ -35,17 +29,5 @@ defmodule TdCache.Redis do
 
   def rpush(key, [_h | _t] = entries) do
     ["RPUSH" | [key | entries]]
-  end
-
-  def read_map(conn, key) do
-    case Redix.command(conn, ["HGETALL", key]) do
-      {:ok, []} -> {:ok, nil}
-      {:ok, hash} -> {:ok, hash_to_map(hash)}
-      x -> x
-    end
-  end
-
-  def read_list(conn, key) do
-    Redix.command(conn, ["LRANGE", key, "0", "-1"])
   end
 end

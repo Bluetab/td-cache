@@ -4,7 +4,7 @@ defmodule TdCache.FieldCache do
   """
   use GenServer
 
-  alias TdCache.Redis
+  alias TdCache.Redix, as: Redis
   alias TdCache.StructureCache
 
   ## Client API
@@ -37,36 +37,35 @@ defmodule TdCache.FieldCache do
   ## Callbacks
 
   @impl true
-  def init(options) do
-    {:ok, conn} = Redix.start_link(host: Keyword.get(options, :redis_host, "redis"))
-    state = %{conn: conn}
+  def init(_args) do
+    state = %{}
     {:ok, state}
   end
 
   @impl true
-  def handle_call({:put, field}, _from, %{conn: conn} = state) do
-    reply = put_field(conn, field)
+  def handle_call({:put, field}, _from, state) do
+    reply = put_field(field)
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:get, id}, _from, %{conn: conn} = state) do
-    field = read_field(conn, id)
+  def handle_call({:get, id}, _from, state) do
+    field = read_field(id)
     {:reply, {:ok, field}, state}
   end
 
   @impl true
-  def handle_call({:delete, id}, _from, %{conn: conn} = state) do
-    reply = delete_field(conn, id)
+  def handle_call({:delete, id}, _from, state) do
+    reply = delete_field(id)
     {:reply, reply, state}
   end
 
   ## Private functions
 
-  defp read_field(conn, id) do
+  defp read_field(id) do
     field_key = "field:#{id}"
 
-    {:ok, field} = Redis.read_map(conn, field_key)
+    {:ok, field} = Redis.read_map(field_key)
     field_entry_to_map(field)
   end
 
@@ -87,12 +86,12 @@ defmodule TdCache.FieldCache do
     |> Map.merge(structure)
   end
 
-  defp delete_field(conn, id) do
+  defp delete_field(id) do
     key = "field:#{id}"
-    Redix.command(conn, ["DEL", key])
+    Redis.command(["DEL", key])
   end
 
-  defp put_field(conn, %{
+  defp put_field(%{
          id: id,
          structure: %{id: structure_id} = structure
        }) do
@@ -100,10 +99,6 @@ defmodule TdCache.FieldCache do
 
     StructureCache.put(structure)
 
-    commands = [
-      ["HMSET", field_key, "structure_id", "#{structure_id}"]
-    ]
-
-    Redix.transaction_pipeline(conn, commands)
+    Redis.command(["HMSET", field_key, "structure_id", "#{structure_id}"])
   end
 end

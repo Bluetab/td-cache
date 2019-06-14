@@ -4,7 +4,7 @@ defmodule TdCache.LinkCache do
   """
   use GenServer
 
-  alias TdCache.Redis
+  alias TdCache.Redix, as: Redis
 
   ## Client API
 
@@ -36,35 +36,34 @@ defmodule TdCache.LinkCache do
   ## Callbacks
 
   @impl true
-  def init(options) do
-    {:ok, conn} = Redix.start_link(host: Keyword.get(options, :redis_host, "redis"))
-    state = %{conn: conn}
+  def init(_args) do
+    state = %{}
     {:ok, state}
   end
 
   @impl true
-  def handle_call({:put, link}, _from, %{conn: conn} = state) do
-    reply = put_link(conn, link)
+  def handle_call({:put, link}, _from, state) do
+    reply = put_link(link)
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:get, id}, _from, %{conn: conn} = state) do
-    reply = get_link(conn, id)
+  def handle_call({:get, id}, _from, state) do
+    reply = get_link(id)
     {:reply, {:ok, reply}, state}
   end
 
   @impl true
-  def handle_call({:delete, id}, _from, %{conn: conn} = state) do
-    reply = delete_link(conn, id)
+  def handle_call({:delete, id}, _from, state) do
+    reply = delete_link(id)
     {:reply, reply, state}
   end
 
   ## Private functions
 
-  defp get_link(conn, id) do
-    {:ok, tags} = Redis.read_list(conn, "link:#{id}:tags")
-    {:ok, link} = Redis.read_map(conn, "link:#{id}")
+  defp get_link(id) do
+    {:ok, tags} = Redis.read_list("link:#{id}:tags")
+    {:ok, link} = Redis.read_map("link:#{id}")
 
     case link do
       nil -> nil
@@ -73,7 +72,6 @@ defmodule TdCache.LinkCache do
   end
 
   defp put_link(
-         conn,
          %{
            id: id,
            source_type: source_type,
@@ -84,14 +82,13 @@ defmodule TdCache.LinkCache do
        ) do
     commands = put_link_commands(link)
 
-    {:ok, results} = Redix.transaction_pipeline(conn, commands)
+    {:ok, results} = Redis.transaction_pipeline(commands)
     source_add_count = Enum.at(results, 2)
     target_add_count = Enum.at(results, 3)
 
     unless source_add_count == 0 do
       {:ok, _source_event_id} =
-        Redix.command(
-          conn,
+        Redis.command(
           event_command(
             "#{source_type}:events",
             "add_link",
@@ -104,8 +101,7 @@ defmodule TdCache.LinkCache do
 
     unless target_add_count == 0 do
       {:ok, _target_event_id} =
-        Redix.command(
-          conn,
+        Redis.command(
           event_command(
             "#{target_type}:events",
             "add_link",
@@ -154,16 +150,16 @@ defmodule TdCache.LinkCache do
 
   defp put_link_tags_commands(_), do: []
 
-  def delete_link(conn, id) do
-    {:ok, keys} = Redix.command(conn, ["HMGET", "link:#{id}", "source", "target"])
-    delete_link(conn, id, keys)
+  def delete_link(id) do
+    {:ok, keys} = Redis.command(["HMGET", "link:#{id}", "source", "target"])
+    delete_link(id, keys)
   end
 
-  defp delete_link(conn, id, [nil, nil]) do
-    Redix.command(conn, ["DEL", "link:#{id}", "link:#{id}:tags"])
+  defp delete_link(id, [nil, nil]) do
+    Redis.command(["DEL", "link:#{id}", "link:#{id}:tags"])
   end
 
-  defp delete_link(conn, id, [source, target]) do
+  defp delete_link(id, [source, target]) do
     [source_type, _source_id] = String.split(source, ":")
     [target_type, _target_id] = String.split(target, ":")
 
@@ -173,21 +169,19 @@ defmodule TdCache.LinkCache do
       ["DEL", "link:#{id}", "link:#{id}:tags"]
     ]
 
-    {:ok, results} = Redix.transaction_pipeline(conn, commands)
+    {:ok, results} = Redis.transaction_pipeline(commands)
     [source_del_count, target_del_count, _] = results
 
     unless source_del_count == 0 do
       {:ok, _source_event_id} =
-        Redix.command(
-          conn,
+        Redis.command(
           event_command("#{source_type}:events", "remove_link", "link:#{id}", source, target)
         )
     end
 
     unless target_del_count == 0 do
       {:ok, _target_event_id} =
-        Redix.command(
-          conn,
+        Redis.command(
           event_command("#{target_type}:events", "remove_link", "link:#{id}", source, target)
         )
     end

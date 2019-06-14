@@ -3,7 +3,8 @@ defmodule TdCache.SystemCache do
   Shared cache for systems.
   """
   use GenServer
-  alias TdCache.Redis
+  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix.Commands
 
   ## Client API
 
@@ -35,44 +36,46 @@ defmodule TdCache.SystemCache do
   ## Callbacks
 
   @impl true
-  def init(options) do
-    {:ok, conn} = Redix.start_link(host: Keyword.get(options, :redis_host, "redis"))
-    state = %{conn: conn}
+  def init(_args) do
+    state = %{}
     {:ok, state}
   end
 
   @impl true
-  def handle_call({:put, system}, _from, %{conn: conn} = state) do
-    reply = put_system(conn, system)
+  def handle_call({:put, system}, _from, state) do
+    reply = put_system(system)
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:get, id}, _from, %{conn: conn} = state) do
-    reply = read_system(conn, id)
+  def handle_call({:get, id}, _from, state) do
+    reply = read_system(id)
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:delete, id}, _from, %{conn: conn} = state) do
-    reply = delete_system(conn, id)
+  def handle_call({:delete, id}, _from, state) do
+    reply = delete_system(id)
     {:reply, reply, state}
   end
 
   ## Private functions
 
-  defp read_system(conn, id) do
+  defp read_system(id) do
     key = "system:#{id}"
-    Redis.read_map(conn, key)
+    Redis.read_map(key)
   end
 
-  defp delete_system(conn, id) do
+  defp delete_system(id) do
     key = "system:#{id}"
-    Redix.command(conn, ["DEL", key])
+    Redis.command(["DEL", key])
   end
 
-  defp put_system(conn, %{id: id} = system) do
-    key = "system:#{id}"
-    Redix.command(conn, Redis.hmset(key, Map.take(system, [:external_id, :name])))
+  defp put_system(%{id: id} = system) do
+    "system:#{id}"
+    |> Commands.hmset(Map.take(system, [:external_id, :name]))
+    |> Redis.command()
   end
+
+  defp put_system(_), do: {:error, :empty}
 end

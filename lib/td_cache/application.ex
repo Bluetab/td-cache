@@ -6,25 +6,30 @@ defmodule TdCache.Application do
   use Application
 
   def start(_type, _args) do
-    redis_host = Application.get_env(:td_cache, :redis_host)
-    config1 = Application.get_env(:td_cache, :concept_event_stream)
-    config2 = Application.get_env(:td_cache, :field_event_stream)
+    redis_host = Application.get_env(:td_cache, :redis_host, "redis")
 
     children =
       [
-        {Redix, host: redis_host, name: :redix},
-        Supervisor.child_spec({TdCache.EventStream.Supervisor, config1}, id: :worker_1),
-        Supervisor.child_spec({TdCache.EventStream.Supervisor, config2}, id: :worker_2),
-        {TdCache.LinkCache.Supervisor, redis_host: redis_host},
-        {TdCache.FieldCache.Supervisor, redis_host: redis_host},
-        {TdCache.StructureCache.Supervisor, redis_host: redis_host},
-        {TdCache.SystemCache.Supervisor, redis_host: redis_host}
-      ] ++ cache_cleaner_workers()
+        {TdCache.Redix.Pool, redis_host: redis_host},
+        # Supervisor.child_spec({TdCache.EventStream.Consumer, config1}, id: :concept_event_stream),
+        # Supervisor.child_spec({TdCache.EventStream.Consumer, config2}, id: :field_event_stream),
+        TdCache.LinkCache,
+        TdCache.FieldCache,
+        TdCache.StructureCache,
+        TdCache.SystemCache
+      ] ++ cache_cleaner_workers() ++ event_stream_workers()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: TdCache.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp event_stream_workers do
+    case Application.get_env(:td_cache, :event_stream) do
+      nil -> []
+      config -> [{TdCache.EventStream, config}]
+    end
   end
 
   defp cache_cleaner_workers do
