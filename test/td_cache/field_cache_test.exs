@@ -1,4 +1,4 @@
-defmodule TdCache.FieldCache.Test do
+defmodule TdCache.FieldCacheTest do
   use ExUnit.Case
   alias TdCache.FieldCache
   doctest TdCache.FieldCache

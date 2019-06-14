@@ -1,4 +1,4 @@
-defmodule TdCache.LinkCache.Test do
+defmodule TdCache.LinkCacheTest do
   use ExUnit.Case
   alias TdCache.LinkCache
   doctest TdCache.LinkCache

@@ -12,11 +12,7 @@ defmodule TdCache.CacheCleaner do
   end
 
   def clean do
-    GenServer.cast(__MODULE__, :clean)
-  end
-
-  def ping do
-    GenServer.call(__MODULE__, :ping)
+    GenServer.call(__MODULE__, :clean)
   end
 
   @impl true
@@ -37,15 +33,10 @@ defmodule TdCache.CacheCleaner do
   end
 
   @impl true
-  def handle_call(:ping, _from, state) do
-    {:reply, :pong, state}
-  end
-
-  @impl true
-  def handle_cast(:clean, state) do
+  def handle_call(:clean, _from, state) do
     patterns = Keyword.get(state, :patterns, [])
     clean_deprecated_entries(patterns)
-    {:noreply, state}
+    {:reply, :ok, state}
   end
 
   defp clean_deprecated_entries(patterns) do

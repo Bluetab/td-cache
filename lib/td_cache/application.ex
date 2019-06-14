@@ -11,8 +11,6 @@ defmodule TdCache.Application do
     children =
       [
         {TdCache.Redix.Pool, redis_host: redis_host},
-        # Supervisor.child_spec({TdCache.EventStream.Consumer, config1}, id: :concept_event_stream),
-        # Supervisor.child_spec({TdCache.EventStream.Consumer, config2}, id: :field_event_stream),
         TdCache.LinkCache,
         TdCache.FieldCache,
         TdCache.StructureCache,
@@ -33,8 +31,9 @@ defmodule TdCache.Application do
   end
 
   defp cache_cleaner_workers do
-    import Supervisor.Spec
-    config = Application.get_env(:td_cache, :cache_cleaner, [])
-    [worker(TdCache.CacheCleaner, [config])]
+    case Application.get_env(:td_cache, :cache_cleaner) do
+      nil -> []
+      config -> [{TdCache.CacheCleaner, config}]
+    end
   end
 end

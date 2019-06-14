@@ -27,9 +27,7 @@ defmodule TdCache.CacheCleanerTest do
 
       assert Enum.count(keys) == 8
 
-      CacheCleaner.clean()
-      # Wait for clean to complete
-      CacheCleaner.ping()
+      :ok = CacheCleaner.clean()
 
       {:ok, keys} = Redis.command(["KEYS", "TD_CACHE_TEST:*"])
 

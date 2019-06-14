@@ -1,4 +1,4 @@
-defmodule TdCache.SystemCache.Test do
+defmodule TdCache.SystemCacheTest do
   use ExUnit.Case
   alias TdCache.SystemCache
   doctest TdCache.SystemCache
