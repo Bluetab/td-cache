@@ -191,7 +191,7 @@ defmodule TdCache.LinkCache do
     {:ok, results}
   end
 
-  defp event_command(stream, action, link, source, target) do
-    ["XADD", stream, "*", "action", action, "link", link, "source", source, "target", target]
+  defp event_command(stream, event, link, source, target) do
+    ["XADD", stream, "*", "event", event, "link", link, "source", source, "target", target]
   end
 end

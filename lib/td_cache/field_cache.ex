@@ -103,7 +103,7 @@ defmodule TdCache.FieldCache do
 
     StructureCache.put(structure)
 
-    Redis.command(["HMSET", field_key, "structure_id", "#{structure_id}"])
+    Redis.command(["HSET", field_key, "structure_id", structure_id])
   end
 
   defp put_field(_) do
