@@ -63,10 +63,14 @@ defmodule TdCache.FieldCache do
   ## Private functions
 
   defp read_field(id) do
-    field_key = "field:#{id}"
+    field_key = "data_field:#{id}"
 
     {:ok, field} = Redis.read_map(field_key)
-    field_entry_to_map(field)
+
+    case field_entry_to_map(field) do
+      nil -> nil
+      m -> Map.put(m, :id, id)
+    end
   end
 
   defp field_entry_to_map(nil), do: nil
@@ -87,7 +91,7 @@ defmodule TdCache.FieldCache do
   end
 
   defp delete_field(id) do
-    key = "field:#{id}"
+    key = "data_field:#{id}"
     Redis.command(["DEL", key])
   end
 
@@ -95,10 +99,14 @@ defmodule TdCache.FieldCache do
          id: id,
          structure: %{id: structure_id} = structure
        }) do
-    field_key = "field:#{id}"
+    field_key = "data_field:#{id}"
 
     StructureCache.put(structure)
 
     Redis.command(["HMSET", field_key, "structure_id", "#{structure_id}"])
+  end
+
+  defp put_field(_) do
+    {:error, :missing_structure}
   end
 end

@@ -49,8 +49,8 @@ defmodule TdCache.SystemCache do
 
   @impl true
   def handle_call({:get, id}, _from, state) do
-    reply = read_system(id)
-    {:reply, reply, state}
+    system = read_system(id)
+    {:reply, {:ok, system}, state}
   end
 
   @impl true
@@ -61,9 +61,19 @@ defmodule TdCache.SystemCache do
 
   ## Private functions
 
+  defp read_system(id) when is_binary(id) do
+    id = String.to_integer(id)
+    read_system(id)
+  end
+
   defp read_system(id) do
     key = "system:#{id}"
-    Redis.read_map(key)
+    {:ok, system} = Redis.read_map(key)
+
+    case system do
+      nil -> nil
+      m -> Map.put(m, :id, id)
+    end
   end
 
   defp delete_system(id) do

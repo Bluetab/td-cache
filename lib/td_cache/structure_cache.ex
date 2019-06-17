@@ -63,16 +63,19 @@ defmodule TdCache.StructureCache do
   ## Private functions
 
   defp read_structure(id) do
-    structure_key = "structure:#{id}"
+    structure_key = "data_structure:#{id}"
     {:ok, structure} = Redis.read_map(structure_key)
-    structure_entry_to_map(id, structure)
+
+    case structure_entry_to_map(id, structure) do
+      nil -> nil
+      m -> Map.put(m, :id, id)
+    end
   end
 
   def structure_entry_to_map(_, nil), do: nil
 
   def structure_entry_to_map(id, structure) do
-    structure_path_key = "structure:#{id}:path"
-    structure_metadata_key = "structure:#{id}:metadata"
+    structure_path_key = "data_structure:#{id}:path"
 
     system =
       case Map.get(structure, :system_id) do
@@ -85,20 +88,17 @@ defmodule TdCache.StructureCache do
       end
 
     {:ok, path} = Redis.read_list(structure_path_key)
-    {:ok, meta} = Redis.read_map(structure_metadata_key)
 
     structure
     |> Map.put(:path, path)
     |> Map.put(:system, system)
-    |> Map.put(:metadata, meta)
     |> Map.drop([:system_id])
   end
 
   defp delete_structure(id) do
-    structure_key = "structure:#{id}"
-    structure_path_key = "structure:#{id}:path"
-    structure_metadata_key = "structure:#{id}:metadata"
-    Redis.command(["DEL", structure_key, structure_path_key, structure_metadata_key])
+    structure_key = "data_structure:#{id}"
+    structure_path_key = "data_structure:#{id}:path"
+    Redis.command(["DEL", structure_key, structure_path_key])
   end
 
   defp put_structure(structure) do
@@ -113,33 +113,32 @@ defmodule TdCache.StructureCache do
   end
 
   defp structure_commands(%{id: id} = structure) do
-    structure_key = "structure:#{id}"
+    structure_key = "data_structure:#{id}"
 
     [
       Commands.hmset(structure_key, Map.take(structure, [:name, :type, :group]))
     ] ++
       structure_path_commands(structure) ++
-      structure_metadata_commands(structure) ++
       structure_system_commands(structure)
   end
 
   defp structure_path_commands(%{id: id, path: []}) do
     [
-      ["DEL", "structure:#{id}:path"]
+      ["DEL", "data_structure:#{id}:path"]
     ]
   end
 
   defp structure_path_commands(%{id: id, path: path}) do
     [
-      ["DEL", "structure:#{id}:path"],
-      Commands.rpush("structure:#{id}:path", path)
+      ["DEL", "data_structure:#{id}:path"],
+      Commands.rpush("data_structure:#{id}:path", path)
     ]
   end
 
   defp structure_path_commands(_), do: []
 
   defp structure_system_commands(%{id: id, system: %{id: system_id}}) do
-    structure_key = "structure:#{id}"
+    structure_key = "data_structure:#{id}"
 
     [
       Commands.hmset(structure_key, ["system_id", "#{system_id}"])
@@ -147,14 +146,4 @@ defmodule TdCache.StructureCache do
   end
 
   defp structure_system_commands(_), do: []
-
-  defp structure_metadata_commands(%{id: id, metadata: %{} = metadata}) when metadata != %{} do
-    metadata_key = "structure:#{id}:metadata"
-
-    [
-      Commands.hmset(metadata_key, metadata)
-    ]
-  end
-
-  defp structure_metadata_commands(_), do: []
 end

@@ -142,6 +142,8 @@ defmodule TdCache.LinkCache do
     ] ++ put_link_tags_commands(link)
   end
 
+  defp put_link_tags_commands(%{tags: []}), do: []
+
   defp put_link_tags_commands(%{id: id, tags: tags}) do
     [
       ["SADD", "link:#{id}:tags"] ++ tags

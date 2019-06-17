@@ -1,6 +1,7 @@
 defmodule TdCache.LinkCacheTest do
   use ExUnit.Case
   alias TdCache.LinkCache
+  alias TdCache.Redix, as: Redis
   doctest TdCache.LinkCache
 
   setup do
@@ -12,6 +13,11 @@ defmodule TdCache.LinkCacheTest do
       source_type: "foo",
       target_type: "bar"
     }
+
+    on_exit(fn ->
+      LinkCache.delete(link.id)
+      Redis.command(["DEL", "foo:events", "bar:events"])
+    end)
 
     {:ok, link: link}
   end

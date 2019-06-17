@@ -9,6 +9,10 @@ defmodule TdCache.Redix do
     Pool.command(command)
   end
 
+  def command!(command) do
+    Pool.command!(command)
+  end
+
   def transaction_pipeline(commands) do
     Pool.transaction_pipeline(commands)
   end

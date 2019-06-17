@@ -30,4 +30,7 @@ defmodule TdCache.Redix.Commands do
   def rpush(key, [_h | _t] = entries) do
     ["RPUSH" | [key | entries]]
   end
+
+  def option(_, nil), do: []
+  def option(option, value), do: [option, "#{value}"]
 end

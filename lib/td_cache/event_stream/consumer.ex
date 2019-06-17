@@ -1,49 +1,58 @@
 defmodule TdCache.EventStream.Consumer do
   @moduledoc """
-  Consumes an event stream from Redis.
+  Event Stream Consumer
   """
 
   use GenServer
   require Logger
+
   alias TdCache.Redix, as: Redis
+  alias TdCache.Redix.Stream
+
+  ## Consumer Behaviour
+
+  @doc """
+  Process a list of events
+
+  Returns `:ok` if successful or `{:error, msg}` if it fails
+  """
+  @callback consume(events :: Enumerable.t()) :: :ok | {:error, String.t()}
 
   ## Client API
 
   def start_link(options) do
-    stream = Keyword.get(options, :stream)
-    GenServer.start_link(__MODULE__, options, name: String.to_atom(stream))
-  end
-
-  def read(stream, opts \\ []) do
-    GenServer.call(String.to_atom(stream), {:read, opts})
-  end
-
-  def ack(stream, ids) do
-    GenServer.call(String.to_atom(stream), {:ack, ids})
-  end
-
-  def reset(stream) do
-    GenServer.cast(String.to_atom(stream), :reset)
+    GenServer.start_link(__MODULE__, options)
   end
 
   ## Callbacks
 
   @impl true
   def init(options) do
-    stream = options[:stream]
-    group = options[:group]
-    consumer = options[:consumer]
-    parent = options[:parent]
-    state = %{stream: stream, group: group, consumer: consumer, parent: parent}
-    Process.send_after(self(), :create_group, 0)
+    state = %{
+      consumer_group: options[:consumer_group],
+      consumer_id: options[:consumer_id],
+      stream: options[:stream],
+      consumer: options[:consumer],
+      parent: options[:parent]
+    }
+
+    Process.send_after(self(), :initialize, 0)
+
     {:ok, state}
   end
 
   @impl true
-  def handle_info(:create_group, %{stream: stream, group: group} = state) do
-    create_group(stream, group)
+  def handle_info(
+        :initialize,
+        %{stream: stream, consumer_group: consumer_group, parent: parent} = state
+      ) do
+    {:ok, _} = Stream.create_stream(stream)
+    {:ok, _} = Stream.create_consumer_group(stream, consumer_group)
 
-    case Map.get(state, :parent) do
+    Process.send_after(self(), :work, 100)
+
+    # Notify parent that initialization has completed (for tests)
+    case parent do
       nil -> :ok
       pid -> send(pid, :started)
     end
@@ -52,86 +61,54 @@ defmodule TdCache.EventStream.Consumer do
   end
 
   @impl true
-  def handle_call(
-        {:read, opts},
-        _from,
-        %{stream: stream, group: group, consumer: consumer} = state
+  def handle_info(
+        :work,
+        %{
+          stream: stream,
+          consumer: consumer,
+          consumer_group: consumer_group,
+          consumer_id: consumer_id
+        } = state
       ) do
-    reply = read(stream, group, consumer, opts)
-    {:reply, {:ok, reply}, state}
-  end
-
-  @impl true
-  def handle_call({:ack, ids}, _from, %{stream: stream, group: group} = state) do
-    reply = ack(stream, group, ids)
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_cast(:reset, %{stream: stream, group: group} = state) do
-    destroy_group(stream, group)
-    {:stop, :normal, state}
+    do_work(consumer, stream, consumer_group, consumer_id)
+    Process.send_after(self(), :work, 0)
+    {:noreply, state}
   end
 
   ## Private functions
 
-  defp create_group(stream, group) do
-    create_stream(stream)
-    {:ok, groups} = Redis.command(["XINFO", "GROUPS", stream])
+  defp do_work(consumer, stream, consumer_group, consumer_id) do
+    events = read(stream, consumer_group, consumer_id, count: 8, block: 1_000)
 
-    unless Enum.any?(groups, &(Enum.at(&1, 1) == group)) do
-      command = ["XGROUP", "CREATE", stream, group, "0", "MKSTREAM"]
-      {:ok, "OK"} = Redis.command(command)
-      Logger.info("Created consumer group #{group} for stream #{stream}")
-    end
-  end
-
-  defp create_stream(stream) do
-    {:ok, type} = Redis.command(["TYPE", stream])
-
-    case type do
-      "stream" ->
+    case events do
+      [] ->
         :ok
 
-      "none" ->
-        Redis.command(["XADD", stream, "0-1", "action", "stream_created"])
-
       _ ->
-        raise("Existing key #{stream} is not a stream (type #{type})")
+        consumer.consume(events)
+        event_ids = events |> Enum.map(& &1.id)
+        {:ok, count} = ack(stream, consumer_group, event_ids)
+        Logger.info("Processed #{count} events")
     end
   end
 
-  defp read(stream, group, consumer, opts) do
-    count = optional_params("COUNT", Keyword.get(opts, :count))
-    block = optional_params("BLOCK", Keyword.get(opts, :block))
+  defp read(stream, consumer_group, consumer_id, options) do
+    {:ok, events_by_stream} = Stream.read_group(stream, consumer_group, consumer_id, options)
 
-    {:ok, streams} =
-      Redis.command(
-        ["XREADGROUP", "GROUP", group, consumer] ++ count ++ block ++ ["STREAMS", stream, ">"]
-      )
-
-    case streams do
+    case events_by_stream do
       nil ->
         []
 
       _ ->
-        streams
+        events_by_stream
         |> Enum.flat_map(&stream_events/1)
         |> Enum.sort_by(& &1.id)
     end
   end
 
-  defp ack(stream, group, ids) do
-    Redis.command(["XACK", stream, group] ++ ids)
+  defp ack(stream, consumer_group, ids) do
+    Redis.command(["XACK", stream, consumer_group] ++ ids)
   end
-
-  defp destroy_group(stream, group) do
-    Redis.command(["XGROUP", "DESTROY", stream, group])
-    Logger.info("Destroyed group #{group} for stream #{stream}")
-  end
-
-  defp optional_params(_, nil), do: []
-  defp optional_params(parameter, value), do: [parameter, "#{value}"]
 
   defp stream_events([stream, events]) do
     events |> Enum.map(&event_to_map(stream, &1))

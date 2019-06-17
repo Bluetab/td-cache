@@ -6,6 +6,10 @@ defmodule TdCache.SystemCacheTest do
   setup do
     system = %{id: :rand.uniform(100_000_000), external_id: "foo", name: "bar"}
 
+    on_exit(fn ->
+      SystemCache.delete(system.id)
+    end)
+
     {:ok, system: system}
   end
 
@@ -18,7 +22,7 @@ defmodule TdCache.SystemCacheTest do
       system = context[:system]
       {:ok, _} = SystemCache.put(system)
       {:ok, s} = SystemCache.get(system.id)
-      assert s == Map.take(system, [:name, :external_id])
+      assert s == system
     end
 
     test "deletes an entry in redis", context do

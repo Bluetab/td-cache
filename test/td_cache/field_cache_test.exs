@@ -1,11 +1,12 @@
 defmodule TdCache.FieldCacheTest do
   use ExUnit.Case
   alias TdCache.FieldCache
+  alias TdCache.StructureCache
+  alias TdCache.SystemCache
   doctest TdCache.FieldCache
 
   setup do
     system = %{id: :rand.uniform(100_000_000), external_id: "foo", name: "bar"}
-    metadata = %{foo: "bar"}
 
     structure = %{
       id: :rand.uniform(100_000_000),
@@ -13,7 +14,6 @@ defmodule TdCache.FieldCacheTest do
       group: "group",
       type: "type",
       path: ["foo", "bar"],
-      metadata: metadata,
       system: system
     }
 
@@ -21,6 +21,12 @@ defmodule TdCache.FieldCacheTest do
       id: :rand.uniform(100_000_000),
       structure: structure
     }
+
+    on_exit(fn ->
+      FieldCache.delete(field.id)
+      StructureCache.delete(structure.id)
+      SystemCache.delete(system.id)
+    end)
 
     {:ok, field: field}
   end
@@ -35,10 +41,10 @@ defmodule TdCache.FieldCacheTest do
       {:ok, _} = FieldCache.put(field)
       {:ok, f} = FieldCache.get(field.id)
 
-      assert Map.take(f, [:group, :metadata, :name, :path, :type]) ==
-               Map.take(field.structure, [:group, :metadata, :name, :path, :type])
+      assert Map.take(f, [:group, :name, :path, :type]) ==
+               Map.take(field.structure, [:group, :name, :path, :type])
 
-      assert f.system == Map.take(field.structure.system, [:name, :external_id])
+      assert f.system == Map.take(field.structure.system, [:name, :external_id, :id])
       assert f.structure_id == to_string(field.structure.id)
     end
 

@@ -4,6 +4,13 @@ defmodule TdCache.CacheCleanerTest do
   alias TdCache.Redix, as: Redis
   doctest TdCache.CacheCleaner
 
+  setup_all do
+    on_exit(fn ->
+      keys = Redis.command!(["KEYS", "TD_CACHE_TEST:*"])
+      Redis.command!(["DEL" | keys])
+    end)
+  end
+
   describe "CacheCleaner" do
     test "starts automatically" do
       assert Process.whereis(CacheCleaner)
