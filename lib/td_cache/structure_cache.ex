@@ -98,7 +98,11 @@ defmodule TdCache.StructureCache do
   defp delete_structure(id) do
     structure_key = "data_structure:#{id}"
     structure_path_key = "data_structure:#{id}:path"
-    Redis.command(["DEL", structure_key, structure_path_key])
+
+    Redis.transaction_pipeline([
+      ["DEL", structure_key, structure_path_key],
+      ["SREM", "data_structure:keys", structure_key]
+    ])
   end
 
   defp put_structure(structure) do
@@ -116,7 +120,8 @@ defmodule TdCache.StructureCache do
     structure_key = "data_structure:#{id}"
 
     [
-      Commands.hmset(structure_key, Map.take(structure, [:name, :type, :group]))
+      Commands.hmset(structure_key, Map.take(structure, [:name, :type, :group])),
+      ["SADD", "data_structure:keys", structure_key]
     ] ++
       structure_path_commands(structure) ++
       structure_system_commands(structure)

@@ -50,8 +50,8 @@ defmodule TdCache.FieldCacheTest do
 
     test "deletes an entry in redis", context do
       field = context[:field]
-      assert {:ok, 1} = FieldCache.put(field)
-      assert {:ok, 1} = FieldCache.delete(field.id)
+      assert {:ok, [1, 1]} = FieldCache.put(field)
+      assert {:ok, [1, 1]} = FieldCache.delete(field.id)
       assert {:ok, nil} = FieldCache.get(field.id)
     end
   end

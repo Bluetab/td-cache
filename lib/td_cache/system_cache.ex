@@ -78,13 +78,20 @@ defmodule TdCache.SystemCache do
 
   defp delete_system(id) do
     key = "system:#{id}"
-    Redis.command(["DEL", key])
+
+    Redis.transaction_pipeline([
+      ["DEL", key],
+      ["SREM", "system:keys", key]
+    ])
   end
 
   defp put_system(%{id: id} = system) do
-    "system:#{id}"
-    |> Commands.hmset(Map.take(system, [:external_id, :name]))
-    |> Redis.command()
+    key = "system:#{id}"
+
+    Redis.transaction_pipeline([
+      Commands.hmset(key, Map.take(system, [:external_id, :name])),
+      ["SADD", "system:keys", key]
+    ])
   end
 
   defp put_system(_), do: {:error, :empty}

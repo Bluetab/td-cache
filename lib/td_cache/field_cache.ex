@@ -6,6 +6,7 @@ defmodule TdCache.FieldCache do
 
   alias TdCache.Redix, as: Redis
   alias TdCache.StructureCache
+  require Logger
 
   ## Client API
 
@@ -92,7 +93,11 @@ defmodule TdCache.FieldCache do
 
   defp delete_field(id) do
     key = "data_field:#{id}"
-    Redis.command(["DEL", key])
+
+    Redis.transaction_pipeline([
+      ["DEL", key],
+      ["SREM", "data_field:keys", key]
+    ])
   end
 
   defp put_field(%{
@@ -103,10 +108,14 @@ defmodule TdCache.FieldCache do
 
     StructureCache.put(structure)
 
-    Redis.command(["HSET", field_key, "structure_id", structure_id])
+    Redis.transaction_pipeline([
+      ["HSET", field_key, "structure_id", structure_id],
+      ["SADD", "data_field:keys", field_key]
+    ])
   end
 
-  defp put_field(_) do
+  defp put_field(field) do
+    Logger.warn("No structure for field #{inspect(field)}")
     {:error, :missing_structure}
   end
 end

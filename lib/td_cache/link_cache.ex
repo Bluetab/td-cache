@@ -138,7 +138,8 @@ defmodule TdCache.LinkCache do
         to_string(ts)
       ],
       ["SADD", "#{source_type}:#{source_id}:links", "link:#{id}"],
-      ["SADD", "#{target_type}:#{target_id}:links", "link:#{id}"]
+      ["SADD", "#{target_type}:#{target_id}:links", "link:#{id}"],
+      ["SADD", "link:keys", "link:#{id}"]
     ] ++ put_link_tags_commands(link)
   end
 
@@ -158,7 +159,10 @@ defmodule TdCache.LinkCache do
   end
 
   defp delete_link(id, [nil, nil]) do
-    Redis.command(["DEL", "link:#{id}", "link:#{id}:tags"])
+    Redis.transaction_pipeline([
+      ["DEL", "link:#{id}", "link:#{id}:tags"],
+      ["SREM", "link:keys", "link:#{id}"]
+    ])
   end
 
   defp delete_link(id, [source, target]) do
@@ -168,11 +172,12 @@ defmodule TdCache.LinkCache do
     commands = [
       ["SREM", "#{source}:links", "link:#{id}"],
       ["SREM", "#{target}:links", "link:#{id}"],
-      ["DEL", "link:#{id}", "link:#{id}:tags"]
+      ["DEL", "link:#{id}", "link:#{id}:tags"],
+      ["SREM", "link:keys", "link:#{id}"]
     ]
 
     {:ok, results} = Redis.transaction_pipeline(commands)
-    [source_del_count, target_del_count, _] = results
+    [source_del_count, target_del_count, _, _] = results
 
     unless source_del_count == 0 do
       {:ok, _source_event_id} =

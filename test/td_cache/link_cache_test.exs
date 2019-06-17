@@ -29,7 +29,7 @@ defmodule TdCache.LinkCacheTest do
 
     test "writes a link entry in redis and reads it back", context do
       link = context[:link]
-      assert {:ok, [0, "OK", 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, "OK", 1, 1, 1]} == LinkCache.put(link)
       {:ok, l} = LinkCache.get(link.id)
       assert l.source == "#{link.source_type}:#{link.source_id}"
       assert l.target == "#{link.target_type}:#{link.target_id}"
