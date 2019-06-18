@@ -33,7 +33,7 @@ defmodule TdCache.LinkCacheTest do
       {:ok, l} = LinkCache.get(link.id)
       assert l.source == "#{link.source_type}:#{link.source_id}"
       assert l.target == "#{link.target_type}:#{link.target_id}"
-      assert l.ts == to_string(link.updated_at)
+      assert l.updated_at == to_string(link.updated_at)
       assert l.tags == []
     end
 

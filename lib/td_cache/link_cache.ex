@@ -122,7 +122,7 @@ defmodule TdCache.LinkCache do
            source_id: source_id,
            target_type: target_type,
            target_id: target_id,
-           updated_at: ts
+           updated_at: updated_at
          } = link
        ) do
     [
@@ -134,8 +134,8 @@ defmodule TdCache.LinkCache do
         "#{source_type}:#{source_id}",
         "target",
         "#{target_type}:#{target_id}",
-        "ts",
-        to_string(ts)
+        "updated_at",
+        to_string(updated_at)
       ],
       ["SADD", "#{source_type}:#{source_id}:links", "link:#{id}"],
       ["SADD", "#{target_type}:#{target_id}:links", "link:#{id}"],
