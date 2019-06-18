@@ -1,0 +1,37 @@
+defmodule TdCache.DomainCacheTest do
+  use ExUnit.Case
+  alias TdCache.DomainCache
+  doctest TdCache.DomainCache
+
+  setup do
+    parent = %{id: :rand.uniform(100_000_000), name: "parent"}
+    domain = %{id: :rand.uniform(100_000_000), name: "child", parent_id: parent.id}
+
+    on_exit(fn ->
+      DomainCache.delete(domain.id)
+      DomainCache.delete(parent.id)
+    end)
+
+    {:ok, domain: domain, parent: parent}
+  end
+
+  describe "DomainCache" do
+    test "starts automatically" do
+      assert Process.whereis(DomainCache)
+    end
+
+    test "writes a domain entry in redis and reads it back", context do
+      domain = context[:domain]
+      {:ok, _} = DomainCache.put(domain)
+      {:ok, s} = DomainCache.get(domain.id)
+      assert s == domain
+    end
+
+    test "deletes an entry in redis", context do
+      domain = context[:domain]
+      {:ok, _} = DomainCache.put(domain)
+      {:ok, _} = DomainCache.delete(domain.id)
+      assert {:ok, nil} == DomainCache.get(domain.id)
+    end
+  end
+end

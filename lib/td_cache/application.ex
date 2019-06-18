@@ -12,6 +12,7 @@ defmodule TdCache.Application do
       [
         {TdCache.Redix.Pool, redis_host: redis_host},
         TdCache.LinkCache,
+        TdCache.DomainCache,
         TdCache.FieldCache,
         TdCache.StructureCache,
         TdCache.SystemCache
