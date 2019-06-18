@@ -62,6 +62,8 @@ defmodule TdCache.StructureCache do
 
   ## Private functions
 
+  @props [:name, :type, :group]
+
   defp read_structure(id) do
     structure_key = "data_structure:#{id}"
     {:ok, structure} = Redis.read_map(structure_key)
@@ -120,7 +122,7 @@ defmodule TdCache.StructureCache do
     structure_key = "data_structure:#{id}"
 
     [
-      Commands.hmset(structure_key, Map.take(structure, [:name, :type, :group])),
+      Commands.hmset(structure_key, Map.take(structure, @props)),
       ["SADD", "data_structure:keys", structure_key]
     ] ++
       structure_path_commands(structure) ++

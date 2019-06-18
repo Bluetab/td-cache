@@ -61,6 +61,8 @@ defmodule TdCache.SystemCache do
 
   ## Private functions
 
+  @props [:external_id, :name]
+
   defp read_system(id) when is_binary(id) do
     id = String.to_integer(id)
     read_system(id)
@@ -89,7 +91,7 @@ defmodule TdCache.SystemCache do
     key = "system:#{id}"
 
     Redis.transaction_pipeline([
-      Commands.hmset(key, Map.take(system, [:external_id, :name])),
+      Commands.hmset(key, Map.take(system, @props)),
       ["SADD", "system:keys", key]
     ])
   end
