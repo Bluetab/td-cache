@@ -6,6 +6,7 @@ defmodule TdCache.EventStream.TestConsumer do
   @behaviour TdCache.EventStream.Consumer
 
   use GenServer
+  require Logger
 
   ## Client API
 
@@ -16,6 +17,14 @@ defmodule TdCache.EventStream.TestConsumer do
   @impl true
   def consume(events) do
     GenServer.cast(__MODULE__, {:consume, events})
+  end
+
+  @impl true
+  def initialize do
+    # simulates a slow startup
+    Process.sleep(500)
+    Logger.info("Initialized test consumer")
+    :ok
   end
 
   ## Callbacks

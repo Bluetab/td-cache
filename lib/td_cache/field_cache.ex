@@ -4,6 +4,8 @@ defmodule TdCache.FieldCache do
   """
   use GenServer
 
+  alias TdCache.ConceptCache
+  alias TdCache.LinkCache
   alias TdCache.Redix, as: Redis
   alias TdCache.StructureCache
   require Logger
@@ -64,32 +66,47 @@ defmodule TdCache.FieldCache do
   ## Private functions
 
   defp read_field(id) do
-    field_key = "data_field:#{id}"
+    case Redis.read_map("data_field:#{id}") do
+      {:ok, nil} ->
+        nil
 
-    {:ok, field} = Redis.read_map(field_key)
+      {:ok, field} ->
+        structure = get_structure(field)
+        links = get_links(id)
 
-    case field_entry_to_map(field) do
-      nil -> nil
-      m -> Map.put(m, :id, id)
+        field
+        |> Map.merge(structure)
+        |> Map.put(:links, links)
+        |> Map.put(:id, id)
     end
   end
 
-  defp field_entry_to_map(nil), do: nil
-
-  defp field_entry_to_map(field) do
-    structure =
-      case Map.get(field, :structure_id) do
-        nil ->
-          nil
-
-        id ->
-          {:ok, s} = StructureCache.get(id)
-          s
-      end
-
-    field
-    |> Map.merge(structure)
+  defp get_structure(%{structure_id: id}) do
+    case StructureCache.get(id) do
+      {:ok, nil} -> %{}
+      {:ok, structure} -> structure
+    end
   end
+
+  defp get_structure(_), do: %{}
+
+  defp get_links(id) do
+    ["SMEMBERS", "data_field:#{id}:links"]
+    |> Redis.command!()
+    |> Enum.map(&LinkCache.get/1)
+    |> Enum.map(fn {:ok, %{source: source, tags: tags}} -> {String.split(source, ":"), tags} end)
+    |> Enum.flat_map(&read_source/1)
+  end
+
+  defp read_source({["business_concept", business_concept_id], tags}) do
+    {:ok, concept} = ConceptCache.get(business_concept_id)
+
+    concept
+    |> Map.put(:resource_type, :concept)
+    |> Map.put(:tags, tags)
+  end
+
+  defp read_source(_), do: []
 
   defp delete_field(id) do
     key = "data_field:#{id}"

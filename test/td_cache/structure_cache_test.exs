@@ -12,16 +12,17 @@ defmodule TdCache.StructureCacheTest do
       name: "name",
       group: "group",
       type: "type",
-      path: ["foo", "bar"],
-      system: system
+      path: ["foo", "bar"]
     }
+
+    {:ok, _} = SystemCache.put(system)
 
     on_exit(fn ->
       StructureCache.delete(structure.id)
       SystemCache.delete(system.id)
     end)
 
-    {:ok, structure: structure}
+    {:ok, structure: structure, system: system}
   end
 
   describe "StructureCache" do
@@ -33,12 +34,36 @@ defmodule TdCache.StructureCacheTest do
       structure = context[:structure]
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
-      assert s == structure
+      assert not is_nil(s)
+      assert s.id == structure.id
+      assert s.name == structure.name
+      assert s.group == structure.group
+      assert s.path == structure.path
+      assert s.type == structure.type
+    end
+
+    test "writes a structure entry with system in redis and reads it back", context do
+      system = context[:system]
+
+      structure =
+        context[:structure]
+        |> Map.put(:system_id, system.id)
+
+      {:ok, _} = StructureCache.put(structure)
+      {:ok, s} = StructureCache.get(structure.id)
+      assert not is_nil(s)
+      assert s.id == structure.id
+      assert s.name == structure.name
+      assert s.group == structure.group
+      assert s.path == structure.path
+      assert s.type == structure.type
+      assert s.system_id == "#{system.id}"
+      assert s.system == system
     end
 
     test "deletes an entry in redis", context do
       structure = context[:structure]
-      assert {:ok, ["OK", 1, 0, 2, "OK"]} = StructureCache.put(structure)
+      assert {:ok, ["OK", 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
     end

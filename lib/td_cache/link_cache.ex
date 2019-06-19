@@ -4,6 +4,7 @@ defmodule TdCache.LinkCache do
   """
   use GenServer
 
+  alias TdCache.EventStream.Publisher
   alias TdCache.Redix, as: Redis
 
   ## Client API
@@ -27,10 +28,24 @@ defmodule TdCache.LinkCache do
   end
 
   @doc """
+  Counts links for a given key and target type.
+  """
+  def count(key, target_type) do
+    GenServer.call(__MODULE__, {:count, key, target_type})
+  end
+
+  @doc """
   Deletes cache entries relating to a given link id.
   """
   def delete(id) do
     GenServer.call(__MODULE__, {:delete, id})
+  end
+
+  @doc """
+  Deletes all link cache entries relating to a given resource type and id.
+  """
+  def delete_resource_links(resource_type, resource_id) do
+    GenServer.call(__MODULE__, {:delete_resource_links, resource_type, resource_id})
   end
 
   ## Callbacks
@@ -54,15 +69,27 @@ defmodule TdCache.LinkCache do
   end
 
   @impl true
+  def handle_call({:count, key, target_type}, _from, state) do
+    reply = Redis.command(["SCARD", "#{key}:links:#{target_type}"])
+    {:reply, reply, state}
+  end
+
+  @impl true
   def handle_call({:delete, id}, _from, state) do
     reply = delete_link(id)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:delete_resource_links, resource_type, resource_id}, _from, state) do
+    reply = do_delete_resource_links(resource_type, resource_id)
     {:reply, reply, state}
   end
 
   ## Private functions
 
   defp get_link(id) do
-    {:ok, tags} = Redis.read_list("link:#{id}:tags")
+    {:ok, tags} = Redis.command(["SMEMBERS", "link:#{id}:tags"])
     {:ok, link} = Redis.read_map("link:#{id}")
 
     case link do
@@ -86,30 +113,19 @@ defmodule TdCache.LinkCache do
     source_add_count = Enum.at(results, 2)
     target_add_count = Enum.at(results, 3)
 
+    event = %{
+      event: "add_link",
+      link: "link:#{id}",
+      source: "#{source_type}:#{source_id}",
+      target: "#{target_type}:#{target_id}"
+    }
+
     unless source_add_count == 0 do
-      {:ok, _source_event_id} =
-        Redis.command(
-          event_command(
-            "#{source_type}:events",
-            "add_link",
-            "link:#{id}",
-            "#{source_type}:#{source_id}",
-            "#{target_type}:#{target_id}"
-          )
-        )
+      {:ok, _event_id} = Publisher.publish(event, "#{source_type}:events")
     end
 
     unless target_add_count == 0 do
-      {:ok, _target_event_id} =
-        Redis.command(
-          event_command(
-            "#{target_type}:events",
-            "add_link",
-            "link:#{id}",
-            "#{source_type}:#{source_id}",
-            "#{target_type}:#{target_id}"
-          )
-        )
+      {:ok, _event_id} = Publisher.publish(event, "#{target_type}:events")
     end
 
     {:ok, results}
@@ -139,6 +155,8 @@ defmodule TdCache.LinkCache do
       ],
       ["SADD", "#{source_type}:#{source_id}:links", "link:#{id}"],
       ["SADD", "#{target_type}:#{target_id}:links", "link:#{id}"],
+      ["SADD", "#{source_type}:#{source_id}:links:#{target_type}", "link:#{id}"],
+      ["SADD", "#{target_type}:#{target_id}:links:#{source_type}", "link:#{id}"],
       ["SADD", "link:keys", "link:#{id}"]
     ] ++ put_link_tags_commands(link)
   end
@@ -172,31 +190,110 @@ defmodule TdCache.LinkCache do
     commands = [
       ["SREM", "#{source}:links", "link:#{id}"],
       ["SREM", "#{target}:links", "link:#{id}"],
+      ["SREM", "#{source}:links:#{target_type}", "link:#{id}"],
+      ["SREM", "#{target}:links:#{source_type}", "link:#{id}"],
       ["DEL", "link:#{id}", "link:#{id}:tags"],
       ["SREM", "link:keys", "link:#{id}"]
     ]
 
     {:ok, results} = Redis.transaction_pipeline(commands)
-    [source_del_count, target_del_count, _, _] = results
+    [source_del_count, target_del_count, _, _, _, _] = results
+
+    event = %{
+      event: "remove_link",
+      link: "link:#{id}",
+      source: source,
+      target: target
+    }
 
     unless source_del_count == 0 do
-      {:ok, _source_event_id} =
-        Redis.command(
-          event_command("#{source_type}:events", "remove_link", "link:#{id}", source, target)
-        )
+      {:ok, _event_id} = Publisher.publish(event, "#{source_type}:events")
     end
 
     unless target_del_count == 0 do
-      {:ok, _target_event_id} =
-        Redis.command(
-          event_command("#{target_type}:events", "remove_link", "link:#{id}", source, target)
-        )
+      {:ok, _event_id} = Publisher.publish(event, "#{target_type}:events")
     end
 
     {:ok, results}
   end
 
-  defp event_command(stream, event, link, source, target) do
-    ["XADD", stream, "*", "event", event, "link", link, "source", source, "target", target]
+  defp do_delete_resource_links(source_type, source_id) do
+    source_key = "#{source_type}:#{source_id}"
+    links_key = "#{source_key}:links"
+
+    [links, "OK"] =
+      Redis.transaction_pipeline!([
+        ["SMEMBERS", links_key],
+        ["RENAME", links_key, "_:#{links_key}"]
+      ])
+
+    commands =
+      links
+      |> Enum.map(&["HMGET", &1, "source", "target"])
+      |> Redis.transaction_pipeline!()
+      |> Enum.map(fn keys -> Enum.filter(keys, &(&1 != source_key)) end)
+      |> Enum.zip(links)
+      |> Enum.flat_map(fn {target_keys, link_key} -> Enum.map(target_keys, &{&1, link_key}) end)
+      |> Enum.flat_map(&remove_link_commands(&1, source_type, links_key))
+
+    results = Redis.transaction_pipeline!(commands)
+
+    event_ids =
+      results
+      |> Enum.zip(commands)
+      |> publish_bulk_events(source_key)
+
+    {:ok, Enum.count(event_ids), Enum.sum(results)}
+  end
+
+  defp remove_link_commands({target_key, link_key}, source_type, links_key) do
+    target_type = extract_type(target_key)
+
+    [
+      ["SREM", "#{target_key}:links", link_key],
+      ["SREM", "#{target_key}:links:#{source_type}", link_key],
+      ["DEL", "#{link_key}", "#{link_key}:tags", "#{links_key}:#{target_type}"],
+      ["SREM", "link:keys", "#{link_key}"]
+    ]
+  end
+
+  defp publish_bulk_events(results_zip_commands, source_key) do
+    {:ok, event_ids} =
+      results_zip_commands
+      |> Enum.filter(fn {_, [c | [key | _]]} ->
+        c == "SREM" and String.ends_with?(key, ":links")
+      end)
+      |> Enum.reject(fn {count, _command} -> count == 0 end)
+      |> Enum.map(fn {_, [_, target_links_key, link_key]} -> {target_links_key, link_key} end)
+      |> Enum.filter(fn {target_links_key, _link_key} ->
+        String.ends_with?(target_links_key, ":links")
+      end)
+      |> Enum.map(fn {target_links_key, link_key} ->
+        {extract_type(target_links_key), remove_suffix(target_links_key), link_key}
+      end)
+      |> Enum.map(&create_event(&1, "remove_link", source_key))
+      |> Publisher.publish()
+
+    event_ids
+  end
+
+  defp remove_suffix(key, sufix \\ ":links") do
+    String.replace_suffix(key, sufix, "")
+  end
+
+  defp extract_type(key) do
+    key
+    |> String.split(":")
+    |> hd
+  end
+
+  defp create_event({target_type, target_key, link_key}, event, source_key) do
+    %{
+      event: event,
+      link: link_key,
+      source: source_key,
+      target: target_key,
+      stream: "#{target_type}:events"
+    }
   end
 end

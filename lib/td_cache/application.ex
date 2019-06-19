@@ -11,9 +11,11 @@ defmodule TdCache.Application do
     children =
       [
         {TdCache.Redix.Pool, redis_host: redis_host},
-        TdCache.LinkCache,
+        TdCache.ConceptCache,
         TdCache.DomainCache,
         TdCache.FieldCache,
+        TdCache.LinkCache,
+        TdCache.RuleCache,
         TdCache.StructureCache,
         TdCache.SystemCache
       ] ++ cache_cleaner_workers() ++ event_stream_workers()

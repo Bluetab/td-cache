@@ -62,40 +62,26 @@ defmodule TdCache.StructureCache do
 
   ## Private functions
 
-  @props [:name, :type, :group]
+  @props [:name, :type, :group, :system_id]
 
   defp read_structure(id) do
-    structure_key = "data_structure:#{id}"
-    {:ok, structure} = Redis.read_map(structure_key)
+    case Redis.read_map("data_structure:#{id}") do
+      {:ok, nil} ->
+        nil
 
-    case structure_entry_to_map(id, structure) do
-      nil -> nil
-      m -> Map.put(m, :id, id)
+      {:ok, structure} ->
+        {:ok, path} = Redis.read_list("data_structure:#{id}:path")
+        {:ok, system} = SystemCache.get(Map.get(structure, :system_id))
+
+        structure
+        |> put_optional(:path, path)
+        |> put_optional(:system, system)
+        |> Map.put(:id, id)
     end
   end
 
-  def structure_entry_to_map(_, nil), do: nil
-
-  def structure_entry_to_map(id, structure) do
-    structure_path_key = "data_structure:#{id}:path"
-
-    system =
-      case Map.get(structure, :system_id) do
-        nil ->
-          nil
-
-        id ->
-          {:ok, sys} = SystemCache.get(id)
-          sys
-      end
-
-    {:ok, path} = Redis.read_list(structure_path_key)
-
-    structure
-    |> Map.put(:path, path)
-    |> Map.put(:system, system)
-    |> Map.drop([:system_id])
-  end
+  def put_optional(map, _key, nil), do: map
+  def put_optional(map, key, value), do: Map.put(map, key, value)
 
   defp delete_structure(id) do
     structure_key = "data_structure:#{id}"
@@ -108,11 +94,6 @@ defmodule TdCache.StructureCache do
   end
 
   defp put_structure(structure) do
-    case Map.get(structure, :system) do
-      nil -> :ok
-      system -> {:ok, _} = SystemCache.put(system)
-    end
-
     commands = structure_commands(structure)
 
     Redis.transaction_pipeline(commands)

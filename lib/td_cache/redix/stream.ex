@@ -46,12 +46,69 @@ defmodule TdCache.Redix.Stream do
     Logger.info("Destroyed consumer group #{group} for stream #{key}")
   end
 
+  def read(stream, options \\ [])
+
+  def read(stream, options) when is_binary(stream) do
+    read([stream], options)
+  end
+
+  def read(streams, options) when is_list(streams) do
+    count = Commands.option("COUNT", Keyword.get(options, :count))
+    block = Commands.option("BLOCK", Keyword.get(options, :block))
+    ids = Keyword.get(options, :ids, Enum.map(streams, fn _ -> "0-0" end))
+
+    command = ["XREAD"] ++ count ++ block ++ ["STREAMS"] ++ streams ++ ids
+    events = read_events(command, options)
+
+    {:ok, events}
+  end
+
   def read_group(stream, group, consumer, options \\ []) do
     count = Commands.option("COUNT", Keyword.get(options, :count))
     block = Commands.option("BLOCK", Keyword.get(options, :block))
 
-    Redis.command(
+    command =
       ["XREADGROUP", "GROUP", group, consumer] ++ count ++ block ++ ["STREAMS", stream, ">"]
-    )
+
+    events = read_events(command, options)
+
+    {:ok, events}
+  end
+
+  defp read_events(command, options) do
+    case Redis.command(command) do
+      {:ok, nil} ->
+        []
+
+      {:ok, events_by_stream} ->
+        parse_results(events_by_stream, options)
+    end
+  end
+
+  def trim(stream, count) do
+    Redis.command(["XTRIM", stream, "MAXLEN", count])
+  end
+
+  defp parse_results(events_by_stream, options) do
+    case Keyword.get(options, :transform) do
+      true ->
+        events_by_stream
+        |> Enum.flat_map(&stream_events/1)
+        |> Enum.sort_by(& &1.id)
+
+      _ ->
+        events_by_stream
+    end
+  end
+
+  defp stream_events([stream, events]) do
+    events |> Enum.map(&event_to_map(stream, &1))
+  end
+
+  defp event_to_map(stream, [id, hash]) do
+    hash
+    |> Redis.hash_to_map()
+    |> Map.put(:id, id)
+    |> Map.put(:stream, stream)
   end
 end

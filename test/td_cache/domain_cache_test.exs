@@ -5,7 +5,7 @@ defmodule TdCache.DomainCacheTest do
 
   setup do
     parent = %{id: :rand.uniform(100_000_000), name: "parent"}
-    domain = %{id: :rand.uniform(100_000_000), name: "child", parent_id: parent.id}
+    domain = %{id: :rand.uniform(100_000_000), name: "child", parent_ids: [parent.id]}
 
     on_exit(fn ->
       DomainCache.delete(domain.id)
@@ -23,8 +23,11 @@ defmodule TdCache.DomainCacheTest do
     test "writes a domain entry in redis and reads it back", context do
       domain = context[:domain]
       {:ok, _} = DomainCache.put(domain)
-      {:ok, s} = DomainCache.get(domain.id)
-      assert s == domain
+      {:ok, d} = DomainCache.get(domain.id)
+      assert not is_nil(d)
+      assert d.id == domain.id
+      assert d.name == domain.name
+      assert d.parent_ids == Enum.join(domain.parent_ids, ",")
     end
 
     test "deletes an entry in redis", context do

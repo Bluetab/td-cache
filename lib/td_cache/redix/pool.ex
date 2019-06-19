@@ -34,6 +34,10 @@ defmodule TdCache.Redix.Pool do
     Redix.transaction_pipeline(:"redix_#{random_index()}", commands)
   end
 
+  def transaction_pipeline!(commands) do
+    Redix.transaction_pipeline!(:"redix_#{random_index()}", commands)
+  end
+
   defp random_index do
     rem(System.unique_integer([:positive]), @pool_size)
   end

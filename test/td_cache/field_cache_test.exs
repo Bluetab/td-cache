@@ -22,6 +22,8 @@ defmodule TdCache.FieldCacheTest do
       structure: structure
     }
 
+    {:ok, _} = SystemCache.put(system)
+
     on_exit(fn ->
       FieldCache.delete(field.id)
       StructureCache.delete(structure.id)
