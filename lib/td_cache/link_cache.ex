@@ -98,6 +98,15 @@ defmodule TdCache.LinkCache do
     end
   end
 
+  defp put_link(%{id: id, updated_at: updated_at} = link) do
+    last_updated = Redis.command!(["HGET", "link:#{id}", :updated_at])
+    link
+    |> Map.put(:updated_at, "#{updated_at}")
+    |> put_link(last_updated)
+  end
+
+  defp put_link(%{updated_at: ts}, ts), do: {:ok, []}
+
   defp put_link(
          %{
            id: id,
@@ -105,7 +114,8 @@ defmodule TdCache.LinkCache do
            source_id: source_id,
            target_type: target_type,
            target_id: target_id
-         } = link
+         } = link,
+         _last_updated
        ) do
     commands = put_link_commands(link)
 
@@ -151,7 +161,7 @@ defmodule TdCache.LinkCache do
         "target",
         "#{target_type}:#{target_id}",
         "updated_at",
-        to_string(updated_at)
+        "#{updated_at}"
       ],
       ["SADD", "#{source_type}:#{source_id}:links", "link:#{id}"],
       ["SADD", "#{target_type}:#{target_id}:links", "link:#{id}"],
