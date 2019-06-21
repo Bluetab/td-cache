@@ -21,6 +21,10 @@ defmodule TdCache.Redix do
     Pool.transaction_pipeline!(commands)
   end
 
+  def keys!(pattern \\ "*") do
+    command!(["KEYS", pattern])
+  end
+
   def hash_to_map(hash) do
     hash
     |> Enum.chunk_every(2)

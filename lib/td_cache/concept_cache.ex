@@ -10,6 +10,8 @@ defmodule TdCache.ConceptCache do
   alias TdCache.Redix.Commands
   alias TdCache.RuleCache
 
+  require Logger
+
   @keys "business_concept:keys"
   @active_ids "business_concept:ids:active"
   @inactive_ids "business_concept:ids:inactive"
@@ -28,14 +30,6 @@ defmodule TdCache.ConceptCache do
   end
 
   @doc """
-  Updates cache entries for active and inactive (deleted/deprecated) ids.
-  Events will be emitted for newly inactivated ids.
-  """
-  def put_active_ids(ids) do
-    GenServer.call(__MODULE__, {:ids, ids})
-  end
-
-  @doc """
   Reads concept information for a given id from cache.
   """
   def get(id) do
@@ -47,6 +41,21 @@ defmodule TdCache.ConceptCache do
   """
   def get(id, property) do
     GenServer.call(__MODULE__, {:get, id, property})
+  end
+
+  @doc """
+  Updates cache entries for active and inactive (deleted/deprecated) ids.
+  Events will be emitted for newly inactivated ids.
+  """
+  def put_active_ids(ids) do
+    GenServer.call(__MODULE__, {:ids, ids})
+  end
+
+  @doc """
+  Reads active concept ids (as a list of strings) from cache.
+  """
+  def active_ids do
+    GenServer.call(__MODULE__, :active_ids)
   end
 
   @doc """
@@ -87,6 +96,12 @@ defmodule TdCache.ConceptCache do
   def handle_call({:get, id, property}, _from, state) do
     prop = id |> read_concept |> Map.get(property)
     {:reply, {:ok, prop}, state}
+  end
+
+  @impl true
+  def handle_call(:active_ids, _from, state) do
+    ids = read_active_ids()
+    {:reply, {:ok, ids}, state}
   end
 
   @impl true
@@ -177,6 +192,11 @@ defmodule TdCache.ConceptCache do
     {:ok, results}
   end
 
+  defp read_active_ids do
+    ["SMEMBERS", @active_ids]
+    |> Redis.command!()
+  end
+
   defp update_active_ids(ids) do
     commands = [
       ["RENAME", @active_ids, "_previds"],
@@ -217,17 +237,31 @@ defmodule TdCache.ConceptCache do
   end
 
   defp migrate do
-    commands =
-      %{
-        "deprecated_business_concepts" => @inactive_ids,
-        "existing_business_concepts" => @active_ids
-      }
-      |> Enum.filter(fn {from, _} -> Redis.command!(["TYPE", from]) == "set" end)
-      |> Enum.map(fn {from, to} -> ["RENAMENX", from, to] end)
-
+    commands = migration_commands()
     case commands do
-      [] -> :ok
-      _ -> Redis.transaction_pipeline!(commands)
+      [] ->
+        :ok
+
+      _ ->
+        case Redis.transaction_pipeline!(commands) do
+          [1 | _] ->
+            ids = Redis.command!(["SMEMBERS", @inactive_ids])
+            publish_event("remove_concepts", ids)
+            count = Enum.count(ids)
+            Logger.info("Migrated active/inactive concept keys (#{count}} deprecated ids)")
+
+          _ ->
+            :ok
+        end
     end
+  end
+
+  defp migration_commands do
+    %{
+      "deprecated_business_concepts" => @inactive_ids,
+      "existing_business_concepts" => @active_ids
+    }
+    |> Enum.filter(fn {from, _} -> Redis.command!(["TYPE", from]) == "set" end)
+    |> Enum.map(fn {from, to} -> ["RENAMENX", from, to] end)
   end
 end
