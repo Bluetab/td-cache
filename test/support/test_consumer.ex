@@ -19,18 +19,13 @@ defmodule TdCache.EventStream.TestConsumer do
     GenServer.cast(__MODULE__, {:consume, events})
   end
 
-  @impl true
-  def initialize do
-    # simulates a slow startup
-    Process.sleep(500)
-    Logger.info("Initialized test consumer")
-    :ok
-  end
-
   ## Callbacks
 
   @impl true
   def init(config) do
+    # simulates a slow startup
+    Process.sleep(500)
+    Logger.info("Initialized test consumer")
     parent = config[:parent]
     {:ok, parent}
   end

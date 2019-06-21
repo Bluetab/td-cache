@@ -84,12 +84,9 @@ defmodule TdCache.StructureCache do
   def put_optional(map, key, value), do: Map.put(map, key, value)
 
   defp delete_structure(id) do
-    structure_key = "data_structure:#{id}"
-    structure_path_key = "data_structure:#{id}:path"
-
     Redis.transaction_pipeline([
-      ["DEL", structure_key, structure_path_key],
-      ["SREM", "data_structure:keys", structure_key]
+      ["DEL", "data_structure:#{id}", "data_structure:#{id}:path"],
+      ["SREM", "data_structure:keys", "data_structure:#{id}"]
     ])
   end
 
@@ -100,11 +97,9 @@ defmodule TdCache.StructureCache do
   end
 
   defp structure_commands(%{id: id} = structure) do
-    structure_key = "data_structure:#{id}"
-
     [
-      Commands.hmset(structure_key, Map.take(structure, @props)),
-      ["SADD", "data_structure:keys", structure_key]
+      Commands.hmset("data_structure:#{id}", Map.take(structure, @props)),
+      ["SADD", "data_structure:keys", "data_structure:#{id}"]
     ] ++
       structure_path_commands(structure) ++
       structure_system_commands(structure)
@@ -126,10 +121,8 @@ defmodule TdCache.StructureCache do
   defp structure_path_commands(_), do: []
 
   defp structure_system_commands(%{id: id, system: %{id: system_id}}) do
-    structure_key = "data_structure:#{id}"
-
     [
-      Commands.hmset(structure_key, ["system_id", "#{system_id}"])
+      Commands.hmset("data_structure:#{id}", ["system_id", "#{system_id}"])
     ]
   end
 

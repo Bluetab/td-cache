@@ -24,8 +24,6 @@ defmodule TdCache.EventStream.Consumer do
   """
   @callback consume(events :: Enumerable.t()) :: :ok | {:error, String.t()}
 
-  @callback initialize() :: :ok | {:error, String.t()}
-
   ## Callbacks
 
   @impl true
@@ -51,28 +49,21 @@ defmodule TdCache.EventStream.Consumer do
           stream: stream,
           consumer_group: consumer_group,
           consumer_id: consumer_id,
-          parent: parent,
-          consumer: consumer
+          parent: parent
         } = state
       ) do
     {:ok, _} = Stream.create_stream(stream)
     {:ok, _} = Stream.create_consumer_group(stream, consumer_group)
 
-    case consumer.initialize() do
-      {:error, reason} ->
-        {:stop, reason, state}
-
-      :ok ->
-        # Notify parent that initialization has completed (for tests)
-        case parent do
-          nil -> :ok
-          pid -> send(pid, :started)
-        end
-
-        Logger.info("Consumer #{consumer_group}:#{consumer_id} for #{stream} initialized")
-        Process.send_after(self(), :work, 0)
-        {:noreply, state}
+    # Notify parent that initialization has completed (for tests)
+    case parent do
+      nil -> :ok
+      pid -> send(pid, :started)
     end
+
+    Logger.info("Consumer #{consumer_group}:#{consumer_id} for #{stream} initialized")
+    Process.send_after(self(), :work, 0)
+    {:noreply, state}
   end
 
   @impl true

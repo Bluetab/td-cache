@@ -10,6 +10,12 @@ defmodule TdCache.EventStream.Publisher do
     |> Redis.command()
   end
 
+  def publish(%{event: _, stream: stream} = map) do
+    map
+    |> command(stream)
+    |> Redis.command()
+  end
+
   def publish([]), do: {:ok, []}
 
   def publish(events) when is_list(events) do

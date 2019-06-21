@@ -63,7 +63,9 @@ defmodule TdCache.LinkCacheTest do
       link = context[:link]
       assert {:ok, [0, "OK", 1, 1, 1, 1, 1]} == LinkCache.put(link)
       assert {:ok, []} == LinkCache.put(link)
-      assert {:ok, [1, "OK", 0, 0, 0, 0, 0]} == LinkCache.put(Map.put(link, :updated_at, DateTime.utc_now()))
+
+      assert {:ok, [1, "OK", 0, 0, 0, 0, 0]} ==
+               LinkCache.put(Map.put(link, :updated_at, DateTime.utc_now()))
     end
 
     test "deletes an entry in redis", context do

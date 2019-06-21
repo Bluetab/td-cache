@@ -100,6 +100,7 @@ defmodule TdCache.LinkCache do
 
   defp put_link(%{id: id, updated_at: updated_at} = link) do
     last_updated = Redis.command!(["HGET", "link:#{id}", :updated_at])
+
     link
     |> Map.put(:updated_at, "#{updated_at}")
     |> put_link(last_updated)
@@ -236,6 +237,8 @@ defmodule TdCache.LinkCache do
         ["SMEMBERS", links_key],
         ["RENAME", links_key, "_:#{links_key}"]
       ])
+
+    # TODO: The "_:#{links_key}" key should be deleted after resource links have been removed
 
     commands =
       links

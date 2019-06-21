@@ -1,5 +1,6 @@
  - [x] Tests
  - [x] Connection pooling for Redis
  - [x] LinkCache: only put link if updated_at has changed
+ - [x] ConceptCache: put active ids / emit events for removed ids
+ - [x] ConceptCache: migrate deprecated_business_concepts / existing_business_concepts
  - [ ] Improve documentation
- - [ ] :error or :ok if not found??

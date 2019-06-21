@@ -4,10 +4,15 @@ defmodule TdCache.ConceptCache do
   """
   use GenServer
   alias TdCache.DomainCache
+  alias TdCache.EventStream.Publisher
   alias TdCache.LinkCache
   alias TdCache.Redix, as: Redis
   alias TdCache.Redix.Commands
   alias TdCache.RuleCache
+
+  @keys "business_concept:keys"
+  @active_ids "business_concept:ids:active"
+  @inactive_ids "business_concept:ids:inactive"
 
   ## Client API
 
@@ -20,6 +25,14 @@ defmodule TdCache.ConceptCache do
   """
   def put(concept) do
     GenServer.call(__MODULE__, {:put, concept})
+  end
+
+  @doc """
+  Updates cache entries for active and inactive (deleted/deprecated) ids.
+  Events will be emitted for newly inactivated ids.
+  """
+  def put_active_ids(ids) do
+    GenServer.call(__MODULE__, {:ids, ids})
   end
 
   @doc """
@@ -48,7 +61,14 @@ defmodule TdCache.ConceptCache do
   @impl true
   def init(_args) do
     state = %{}
+    Process.send_after(self(), :migrate, 0)
     {:ok, state}
+  end
+
+  @impl true
+  def handle_info(:migrate, state) do
+    migrate()
+    {:noreply, state}
   end
 
   @impl true
@@ -72,6 +92,12 @@ defmodule TdCache.ConceptCache do
   @impl true
   def handle_call({:delete, id}, _from, state) do
     reply = delete_concept(id)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:ids, ids}, _from, state) do
+    reply = update_active_ids(ids)
     {:reply, reply, state}
   end
 
@@ -116,16 +142,92 @@ defmodule TdCache.ConceptCache do
   end
 
   defp delete_concept(id) do
-    Redis.transaction_pipeline([
+    commands = [
       ["DEL", "business_concept:#{id}"],
-      ["SREM", "business_concept:keys", "business_concept:#{id}"]
-    ])
+      ["SREM", @keys, "business_concept:#{id}"],
+      ["SADD", @inactive_ids, id],
+      ["SREM", @active_ids, id]
+    ]
+
+    results = Redis.transaction_pipeline!(commands)
+    [_, _, inactivated, _] = results
+
+    unless inactivated == 0 do
+      publish_event("remove_concepts", id)
+    end
+
+    {:ok, results}
   end
 
   defp put_concept(%{id: id} = concept) do
-    Redis.transaction_pipeline([
+    commands = [
       Commands.hmset("business_concept:#{id}", Map.take(concept, @props)),
-      ["SADD", "business_concept:keys", "business_concept:#{id}"]
-    ])
+      ["SADD", @keys, "business_concept:#{id}"],
+      ["SREM", @inactive_ids, id],
+      ["SADD", @active_ids, id]
+    ]
+
+    results = Redis.transaction_pipeline!(commands)
+    [_, _, activated, _] = results
+
+    unless activated == 0 do
+      publish_event("restore_concepts", id)
+    end
+
+    {:ok, results}
+  end
+
+  defp update_active_ids(ids) do
+    commands = [
+      ["RENAME", @active_ids, "_previds"],
+      ["RENAME", @inactive_ids, "_prevdeleted"],
+      ["SADD", "_ids"] ++ ids,
+      ["SINTERSTORE", "_restored", "_prevdeleted", "_ids"],
+      ["SDIFFSTORE", "_removed", "_previds", "_ids"],
+      ["SDIFFSTORE", "_deleted", "_prevdeleted", "_restored"],
+      ["SUNIONSTORE", "_deleted", "_deleted", "_removed"],
+      ["RENAME", "_ids", @active_ids],
+      ["RENAME", "_deleted", @inactive_ids],
+      ["SMEMBERS", "_removed"],
+      ["SMEMBERS", "_restored"],
+      ["DEL", "_previds", "_prevdeleted", "_removed", "_restored"]
+    ]
+
+    results = Redis.transaction_pipeline!(commands)
+    [_, _, _, _, _, _, _, _, _, removed_ids, restored_ids, _] = results
+    publish_event("restore_concepts", restored_ids)
+    publish_event("remove_concepts", removed_ids)
+    {:ok, results}
+  end
+
+  defp publish_event(_, []), do: :ok
+
+  defp publish_event(event, ids) when is_list(ids) do
+    ids = Enum.join(ids, ",")
+    publish_event(event, ids)
+  end
+
+  defp publish_event(event, ids) do
+    %{
+      stream: "business_concept:events",
+      event: event,
+      ids: ids
+    }
+    |> Publisher.publish()
+  end
+
+  defp migrate do
+    commands =
+      %{
+        "deprecated_business_concepts" => @inactive_ids,
+        "existing_business_concepts" => @active_ids
+      }
+      |> Enum.filter(fn {from, _} -> Redis.command!(["TYPE", from]) == "set" end)
+      |> Enum.map(fn {from, to} -> ["RENAMENX", from, to] end)
+
+    case commands do
+      [] -> :ok
+      _ -> Redis.transaction_pipeline!(commands)
+    end
   end
 end
