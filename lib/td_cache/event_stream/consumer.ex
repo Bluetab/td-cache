@@ -11,8 +11,8 @@ defmodule TdCache.EventStream.Consumer do
 
   ## Client API
 
-  def start_link(options) do
-    GenServer.start_link(__MODULE__, options)
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts)
   end
 
   ## Consumer Behaviour
@@ -27,18 +27,22 @@ defmodule TdCache.EventStream.Consumer do
   ## Callbacks
 
   @impl true
-  def init(options) do
-    consumer = options[:consumer]
+  def init(opts) do
+    consumer = opts[:consumer]
+    quiesce = Keyword.get(opts, :quiesce, 5_000)
 
     state = %{
-      consumer_group: options[:consumer_group],
-      consumer_id: options[:consumer_id],
-      stream: options[:stream],
+      consumer_group: opts[:consumer_group],
+      consumer_id: opts[:consumer_id],
+      stream: opts[:stream],
       consumer: consumer,
-      parent: options[:parent]
+      parent: opts[:parent],
+      block: Keyword.get(opts, :block, 1_000),
+      count: Keyword.get(opts, :count, 8),
+      interval: Keyword.get(opts, :interval, 200)
     }
 
-    Process.send_after(self(), :initialize, 0)
+    Process.send_after(self(), :initialize, quiesce)
     {:ok, state}
   end
 
@@ -49,7 +53,8 @@ defmodule TdCache.EventStream.Consumer do
           stream: stream,
           consumer_group: consumer_group,
           consumer_id: consumer_id,
-          parent: parent
+          parent: parent,
+          interval: interval
         } = state
       ) do
     {:ok, _} = Stream.create_stream(stream)
@@ -62,32 +67,31 @@ defmodule TdCache.EventStream.Consumer do
     end
 
     Logger.info("Consumer #{consumer_group}:#{consumer_id} for #{stream} initialized")
-    Process.send_after(self(), :work, 0)
+    Process.send_after(self(), :work, interval)
     {:noreply, state}
   end
 
   @impl true
-  def handle_info(
-        :work,
-        %{
-          stream: stream,
-          consumer: consumer,
-          consumer_group: consumer_group,
-          consumer_id: consumer_id
-        } = state
-      ) do
-    do_work(consumer, stream, consumer_group, consumer_id)
-    Process.send_after(self(), :work, 0)
+  def handle_info(:work, %{interval: interval} = state) do
+    do_work(state)
+    Process.send_after(self(), :work, interval)
     {:noreply, state}
   end
 
   ## Private functions
 
-  defp do_work(consumer, stream, consumer_group, consumer_id) do
+  defp do_work(%{
+         stream: stream,
+         consumer: consumer,
+         consumer_group: consumer_group,
+         consumer_id: consumer_id,
+         block: block,
+         count: count
+       }) do
     {:ok, events} =
       Stream.read_group(stream, consumer_group, consumer_id,
-        count: 16,
-        block: 1_000,
+        count: count,
+        block: block,
         transform: true
       )
 

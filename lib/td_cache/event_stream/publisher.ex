@@ -3,6 +3,7 @@ defmodule TdCache.EventStream.Publisher do
   Publishes events to Redis streams.
   """
   alias TdCache.Redix, as: Redis
+  require Logger
 
   def publish(%{event: _} = map, stream) do
     map
@@ -19,6 +20,8 @@ defmodule TdCache.EventStream.Publisher do
   def publish([]), do: {:ok, []}
 
   def publish(events) when is_list(events) do
+    Logger.debug("Publishing #{Enum.count(events)} events")
+
     events
     |> Enum.map(&command/1)
     |> Redis.transaction_pipeline()

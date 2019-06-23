@@ -25,6 +25,10 @@ defmodule TdCache.EventStream do
   defp stream_workers(stream_config, consumer_group, consumer_id, i) do
     stream = stream_config[:key]
     consumer = stream_config[:consumer]
+    block = Keyword.get(stream_config, :block, 1_000)
+    count = Keyword.get(stream_config, :count, 8)
+    quiesce = Keyword.get(stream_config, :quiesce, 5_000)
+    interval = Keyword.get(stream_config, :interval, 200)
 
     [
       Supervisor.child_spec(
@@ -32,7 +36,11 @@ defmodule TdCache.EventStream do
          stream: stream,
          consumer_group: consumer_group,
          consumer_id: consumer_id,
-         consumer: consumer},
+         consumer: consumer,
+         block: block,
+         count: count,
+         quiesce: quiesce,
+         interval: interval},
         id: {EventStream.Consumer, i}
       )
     ]

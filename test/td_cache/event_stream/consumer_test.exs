@@ -13,6 +13,7 @@ defmodule TdCache.EventStream.ConsumerTest do
       consumer_id: "test_consumer",
       stream: stream,
       consumer: TestConsumer,
+      quiesce: 0,
       parent: self()
     ]
 
