@@ -124,20 +124,23 @@ defmodule TdCache.LinkCache do
     source_add_count = Enum.at(results, 2)
     target_add_count = Enum.at(results, 3)
 
-    event = %{
-      event: "add_link",
-      link: "link:#{id}",
-      source: "#{source_type}:#{source_id}",
-      target: "#{target_type}:#{target_id}"
-    }
-
-    unless source_add_count == 0 do
-      {:ok, _event_id} = Publisher.publish(event, "#{source_type}:events")
-    end
-
-    unless target_add_count == 0 do
-      {:ok, _event_id} = Publisher.publish(event, "#{target_type}:events")
-    end
+    # Publish events if link count has incremented
+    [source_add_count, target_add_count]
+    |> Enum.zip(["#{source_type}:events", "#{target_type}:events"])
+    |> Enum.flat_map(fn {n, stream} ->
+      conditional_events(
+        n > 0,
+        %{
+          stream: stream,
+          event: "add_link",
+          link: "link:#{id}",
+          source: "#{source_type}:#{source_id}",
+          target: "#{target_type}:#{target_id}"
+        }
+      )
+    end)
+    |> Enum.uniq()
+    |> Publisher.publish()
 
     {:ok, results}
   end
@@ -210,20 +213,20 @@ defmodule TdCache.LinkCache do
     {:ok, results} = Redis.transaction_pipeline(commands)
     [source_del_count, target_del_count, _, _, _, _] = results
 
-    event = %{
-      event: "remove_link",
-      link: "link:#{id}",
-      source: source,
-      target: target
-    }
-
-    unless source_del_count == 0 do
-      {:ok, _event_id} = Publisher.publish(event, "#{source_type}:events")
-    end
-
-    unless target_del_count == 0 do
-      {:ok, _event_id} = Publisher.publish(event, "#{target_type}:events")
-    end
+    # Publish events if link count has decremented
+    [source_del_count, target_del_count]
+    |> Enum.zip(["#{source_type}:events", "#{target_type}:events"])
+    |> Enum.flat_map(fn {n, stream} ->
+      conditional_events(n > 0, %{
+        stream: stream,
+        event: "remove_link",
+        link: "link:#{id}",
+        source: source,
+        target: target
+      })
+    end)
+    |> Enum.uniq()
+    |> Publisher.publish()
 
     {:ok, results}
   end
@@ -309,4 +312,7 @@ defmodule TdCache.LinkCache do
       stream: "#{target_type}:events"
     }
   end
+
+  defp conditional_events(false, _), do: []
+  defp conditional_events(_true, e), do: [e]
 end
