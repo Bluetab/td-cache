@@ -94,7 +94,12 @@ defmodule TdCache.ConceptCache do
 
   @impl true
   def handle_call({:get, id, property}, _from, state) do
-    prop = id |> read_concept |> Map.get(property)
+    prop =
+      case read_concept(id) do
+        nil -> nil
+        concept -> Map.get(concept, property)
+      end
+
     {:reply, {:ok, prop}, state}
   end
 
@@ -238,6 +243,7 @@ defmodule TdCache.ConceptCache do
 
   defp migrate do
     commands = migration_commands()
+
     case commands do
       [] ->
         :ok
