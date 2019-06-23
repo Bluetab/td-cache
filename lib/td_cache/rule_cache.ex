@@ -86,7 +86,17 @@ defmodule TdCache.RuleCache do
     end
   end
 
-  defp put_rule(%{id: id, business_concept_id: business_concept_id} = rule) do
+  defp put_rule(%{id: id, updated_at: updated_at} = rule) do
+    last_updated = Redis.command!(["HGET", "rule:#{id}", :updated_at])
+
+    rule
+    |> Map.put(:updated_at, "#{updated_at}")
+    |> put_rule(last_updated)
+  end
+
+  defp put_rule(%{updated_at: ts}, ts), do: {:ok, []}
+
+  defp put_rule(%{id: id, business_concept_id: business_concept_id} = rule, _last_updated) do
     commands = [
       ["SADD", "business_concept:#{business_concept_id}:rules", "rule:#{id}"],
       Commands.hmset("rule:#{id}", Map.take(rule, @props)),
@@ -110,7 +120,7 @@ defmodule TdCache.RuleCache do
     {:ok, results}
   end
 
-  defp put_rule(%{id: id} = rule) do
+  defp put_rule(%{id: id} = rule, _last_updated) do
     commands = [
       Commands.hmset("rule:#{id}", Map.take(rule, @props)),
       ["SADD", "rule:keys", "rule:#{id}"]
