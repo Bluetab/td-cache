@@ -1,11 +1,11 @@
 # Changelog
 
-## [3.0.0] 2019-06-14
+## [3.0.0] 2019-06-23
 
 ### Added
 
-- Cache for fields, structures, systems and links
-- Redis stream consumer
+- Cache for concepts, domains, fields, structures, systems, domains, rules and links
+- Redis event stream consumer
 - Use connection pool for Redis
 
 ## [2.21.1] 2019-06-06
