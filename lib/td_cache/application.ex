@@ -18,6 +18,7 @@ defmodule TdCache.Application do
         TdCache.RuleCache,
         TdCache.StructureCache,
         TdCache.SystemCache,
+        TdCache.TemplateCache,
         TdCache.UserCache
       ] ++ cache_cleaner_workers() ++ event_stream_workers()
 
