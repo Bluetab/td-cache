@@ -4,7 +4,7 @@
 
 ### Added
 
-- Cache for concepts, domains, fields, structures, systems, domains, rules and links
+- Migrated and refactored cache modules from TdPerms
 - Redis event stream consumer
 - Use connection pool for Redis
 

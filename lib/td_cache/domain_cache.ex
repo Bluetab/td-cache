@@ -103,6 +103,7 @@ defmodule TdCache.DomainCache do
 
   @props [:name, :parent_ids]
   @roots_key "domains:root"
+  @ids_to_names_key "domains:ids_to_names"
 
   defp read_domain(id) when is_binary(id) do
     id = String.to_integer(id)
@@ -128,15 +129,10 @@ defmodule TdCache.DomainCache do
   end
 
   defp get_domain_name_to_id_map do
-    {:ok, keys} = Redis.command(["SMEMBERS", "domain:keys"])
-
-    names =
-      keys
-      |> Enum.map(&Redis.command(["HGET", &1, "name"]))
-      |> Enum.map(fn {:ok, name} -> name end)
-
-    ids = keys |> Enum.map(&id_from_key/1)
-    names |> Enum.zip(ids) |> Map.new()
+    case Redis.read_map(@ids_to_names_key, fn [id, name] -> {name, String.to_integer(id)} end) do
+      {:ok, nil} -> %{}
+      {:ok, map} -> map
+    end
   end
 
   defp id_from_key("domain:" <> id), do: String.to_integer(id)
@@ -144,20 +140,24 @@ defmodule TdCache.DomainCache do
   defp delete_domain(id) do
     key = "domain:#{id}"
 
-    Redis.transaction_pipeline([
+    commands = [
       ["DEL", key],
+      ["HDEL", @ids_to_names_key, id],
       ["SREM", "domain:keys", key],
       ["SREM", @roots_key, id]
-    ])
+    ]
+
+    Redis.transaction_pipeline(commands)
   end
 
-  defp put_domain(%{id: id} = domain) do
+  defp put_domain(%{id: id, name: name} = domain) do
     parent_ids = domain |> Map.get(:parent_ids, []) |> Enum.join(",")
     domain = Map.put(domain, :parent_ids, parent_ids)
     add_or_remove_root = if parent_ids == "", do: "SADD", else: "SREM"
 
     Redis.transaction_pipeline([
       Commands.hmset("domain:#{id}", Map.take(domain, @props)),
+      ["HSET", @ids_to_names_key, id, name],
       ["SADD", "domain:keys", "domain:#{id}"],
       [add_or_remove_root, @roots_key, id]
     ])

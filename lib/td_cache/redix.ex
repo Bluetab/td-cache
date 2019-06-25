@@ -26,15 +26,23 @@ defmodule TdCache.Redix do
   end
 
   def hash_to_map(hash) do
+    hash_to_map(hash, fn [key, value] -> {String.to_atom(key), value} end)
+  end
+
+  def hash_to_map(hash, fun) do
     hash
     |> Enum.chunk_every(2)
-    |> Map.new(fn [key, value] -> {String.to_atom(key), value} end)
+    |> Map.new(&fun.(&1))
   end
 
   def read_map(key) do
+    read_map(key, fn [key, value] -> {String.to_atom(key), value} end)
+  end
+
+  def read_map(key, transform) when is_function(transform, 1) do
     case command(["HGETALL", key]) do
       {:ok, []} -> {:ok, nil}
-      {:ok, hash} -> {:ok, hash_to_map(hash)}
+      {:ok, hash} -> {:ok, hash_to_map(hash, transform)}
       x -> x
     end
   end

@@ -17,7 +17,8 @@ defmodule TdCache.Application do
         TdCache.LinkCache,
         TdCache.RuleCache,
         TdCache.StructureCache,
-        TdCache.SystemCache
+        TdCache.SystemCache,
+        TdCache.UserCache
       ] ++ cache_cleaner_workers() ++ event_stream_workers()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
