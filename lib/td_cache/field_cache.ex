@@ -93,9 +93,11 @@ defmodule TdCache.FieldCache do
   defp get_links(id) do
     ["SMEMBERS", "data_field:#{id}:links"]
     |> Redis.command!()
+    |> Enum.map(&String.replace_prefix(&1, "link:", ""))
     |> Enum.map(&LinkCache.get/1)
+    |> Enum.reject(&(&1 == {:ok, nil}))
     |> Enum.map(fn {:ok, %{source: source, tags: tags}} -> {String.split(source, ":"), tags} end)
-    |> Enum.flat_map(&read_source/1)
+    |> Enum.map(&read_source/1)
   end
 
   defp read_source({["business_concept", business_concept_id], tags}) do

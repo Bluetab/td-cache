@@ -10,9 +10,8 @@ defmodule TdCache.TaxonomyCacheTest do
     domain = random_domain() |> Map.put(:parent_ids, [parent.id, root.id])
 
     on_exit(fn ->
-      TaxonomyCache.delete_domain(domain.id)
-      TaxonomyCache.delete_domain(parent.id)
-      TaxonomyCache.delete_domain(root.id)
+      Redis.del!("domain:*")
+      Redis.del!("domains:*")
     end)
 
     {:ok, root: root, parent: parent, domain: domain}

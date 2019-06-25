@@ -25,6 +25,13 @@ defmodule TdCache.Redix do
     command!(["KEYS", pattern])
   end
 
+  def del!(pattern \\ "*") do
+    case keys!(pattern) do
+      [] -> {:ok, 0}
+      keys -> command!(["DEL" | keys])
+    end
+  end
+
   def hash_to_map(hash) do
     hash_to_map(hash, fn [key, value] -> {String.to_atom(key), value} end)
   end
