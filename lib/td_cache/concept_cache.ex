@@ -9,6 +9,7 @@ defmodule TdCache.ConceptCache do
   alias TdCache.Redix, as: Redis
   alias TdCache.Redix.Commands
   alias TdCache.RuleCache
+  alias TdCache.TaxonomyCache
 
   require Logger
 
@@ -90,6 +91,22 @@ defmodule TdCache.ConceptCache do
   def handle_call({:get, id}, _from, state) do
     concept = read_concept(id)
     {:reply, {:ok, concept}, state}
+  end
+
+  @impl true
+  def handle_call({:get, id, :domain_ids}, _from, state) do
+    domain_ids =
+      case read_concept(id) do
+        %{domain_id: domain_id} ->
+          domain_id
+          |> String.to_integer()
+          |> TaxonomyCache.get_parent_ids()
+
+        _ ->
+          []
+      end
+
+    {:reply, {:ok, domain_ids}, state}
   end
 
   @impl true

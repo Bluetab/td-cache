@@ -75,6 +75,18 @@ defmodule TdCache.ConceptCacheTest do
       assert c.domain.parent_ids == Enum.join(domain.parent_ids, ",")
     end
 
+    test "reads the domain_ids property of a concept", context do
+      domain = context[:domain]
+
+      concept =
+        context[:concept]
+        |> Map.put(:domain_id, domain.id)
+
+      {:ok, _} = ConceptCache.put(concept)
+      {:ok, domain_ids} = ConceptCache.get(concept.id, :domain_ids)
+      assert domain_ids == [domain.id] ++ domain.parent_ids
+    end
+
     test "deletes an entry in redis", context do
       concept = context[:concept]
       {:ok, _} = ConceptCache.put(concept)
