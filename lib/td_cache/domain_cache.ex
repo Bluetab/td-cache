@@ -135,8 +135,6 @@ defmodule TdCache.DomainCache do
     end
   end
 
-  defp id_from_key("domain:" <> id), do: String.to_integer(id)
-
   defp delete_domain(id) do
     key = "domain:#{id}"
 
