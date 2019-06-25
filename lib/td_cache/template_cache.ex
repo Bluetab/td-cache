@@ -39,7 +39,7 @@ defmodule TdCache.TemplateCache do
   end
 
   def list!() do
-    case list(name) do
+    case list() do
       {:ok, templates} -> templates
       error -> error
     end
