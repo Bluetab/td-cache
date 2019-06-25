@@ -107,6 +107,12 @@ defmodule TdCache.UserCache do
     Redis.transaction_pipeline(commands)
   end
 
+  defp put_user(%{id: id} = user) do
+    "user:#{id}"
+    |> Commands.hmset(Map.take(user, @props))
+    |> Redis.command()
+  end
+
   defp delete_user(id) do
     key = "user:#{id}"
 

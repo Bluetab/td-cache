@@ -24,6 +24,12 @@ defmodule TdCache.UserCacheTest do
     assert {:ok, ["OK", 1]} == UserCache.put(user)
   end
 
+  test "put without full name returns OK", context do
+    [user | _] = context[:users]
+    user = user |> Map.delete(:full_name)
+    assert {:ok, "OK"} == UserCache.put(user)
+  end
+
   test "put without email returns OK", context do
     [user | _] = context[:users]
     user = user |> Map.delete(:email)
