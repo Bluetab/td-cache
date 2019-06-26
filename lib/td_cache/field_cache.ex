@@ -9,7 +9,6 @@ defmodule TdCache.FieldCache do
 
   require Logger
 
-  # The external ids key is a Set of values "system.group.name.field" written by td-dl
   @external_ids_key "data_fields:external_ids"
 
   ## Client API
@@ -30,7 +29,8 @@ defmodule TdCache.FieldCache do
   end
 
   @doc """
-  Reads field external_id from cache.
+  Reads field external_id from cache. The external ids key "data_fields:external_ids"
+  is a Set of values "system.group.name.field" written by td-dl.
   """
   def get_external_id(system, group, name, field) do
     [system, group, name, field]
