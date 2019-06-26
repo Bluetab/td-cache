@@ -1,6 +1,7 @@
 defmodule TdCache.FieldCacheTest do
   use ExUnit.Case
   alias TdCache.FieldCache
+  alias TdCache.Redix
   alias TdCache.StructureCache
   alias TdCache.SystemCache
   doctest TdCache.FieldCache
@@ -51,6 +52,15 @@ defmodule TdCache.FieldCacheTest do
       assert {:ok, [1, 1]} = FieldCache.put(field)
       assert {:ok, [1, 1]} = FieldCache.delete(field.id)
       assert {:ok, nil} = FieldCache.get(field.id)
+    end
+
+    test "reads an external id" do
+      [system, group, name, field] = ["Test System", "Test Group", "Test Structure", "Test Field"]
+      external_id = Enum.join([system, group, name, field], ".")
+      assert {:ok, 1} = Redix.command(["SADD", "data_fields:external_ids", external_id])
+      assert FieldCache.get_external_id(system, group, name, field) == external_id
+      assert FieldCache.get_external_id(system, group, name, "foo") == nil
+      Redix.command(["SREM", "data_fields:external_ids", external_id])
     end
   end
 end

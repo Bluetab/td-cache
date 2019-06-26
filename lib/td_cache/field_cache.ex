@@ -9,6 +9,9 @@ defmodule TdCache.FieldCache do
 
   require Logger
 
+  # The external ids key is a Set of values "system.group.name.field" written by td-dl
+  @external_ids_key "data_fields:external_ids"
+
   ## Client API
 
   @doc """
@@ -24,6 +27,15 @@ defmodule TdCache.FieldCache do
   def get(id) do
     field = read_field(id)
     {:ok, field}
+  end
+
+  @doc """
+  Reads field external_id from cache.
+  """
+  def get_external_id(system, group, name, field) do
+    [system, group, name, field]
+    |> Enum.join(".")
+    |> read_external_id
   end
 
   @doc """
@@ -91,5 +103,12 @@ defmodule TdCache.FieldCache do
   defp put_field(field) do
     Logger.warn("No structure for field #{inspect(field)}")
     {:error, :missing_structure}
+  end
+
+  defp read_external_id(value) do
+    case Redix.command!(["SISMEMBER", @external_ids_key, value]) do
+      1 -> value
+      0 -> nil
+    end
   end
 end
