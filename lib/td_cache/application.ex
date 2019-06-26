@@ -11,15 +11,7 @@ defmodule TdCache.Application do
     children =
       [
         {TdCache.Redix.Pool, redis_host: redis_host},
-        TdCache.ConceptCache,
-        TdCache.DomainCache,
-        TdCache.FieldCache,
-        TdCache.LinkCache,
-        TdCache.RuleCache,
-        TdCache.StructureCache,
-        TdCache.SystemCache,
-        TdCache.TemplateCache,
-        TdCache.UserCache
+        TdCache.ConceptCache
       ] ++ cache_cleaner_workers() ++ event_stream_workers()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

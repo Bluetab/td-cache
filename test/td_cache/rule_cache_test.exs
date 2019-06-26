@@ -26,10 +26,6 @@ defmodule TdCache.RuleCacheTest do
   end
 
   describe "RuleCache" do
-    test "starts automatically" do
-      assert Process.whereis(RuleCache)
-    end
-
     test "writes a rule entry in redis and reads it back", context do
       rule = context[:rule]
       {:ok, [1, "OK", 1]} = RuleCache.put(rule)

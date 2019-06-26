@@ -42,6 +42,13 @@ defmodule TdCache.Redix do
     |> Map.new(&fun.(&1))
   end
 
+  def read_map!(key) do
+    case read_map(key) do
+      {:ok, map} -> map
+      error -> error
+    end
+  end
+
   def read_map(key) do
     read_map(key, fn [key, value] -> {String.to_atom(key), value} end)
   end

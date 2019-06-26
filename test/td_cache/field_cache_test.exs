@@ -34,10 +34,6 @@ defmodule TdCache.FieldCacheTest do
   end
 
   describe "FieldCache" do
-    test "starts automatically" do
-      assert Process.whereis(FieldCache)
-    end
-
     test "writes a field entry in redis and reads it back", context do
       field = context[:field]
       {:ok, _} = FieldCache.put(field)

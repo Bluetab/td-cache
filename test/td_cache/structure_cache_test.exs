@@ -26,10 +26,6 @@ defmodule TdCache.StructureCacheTest do
   end
 
   describe "StructureCache" do
-    test "starts automatically" do
-      assert Process.whereis(StructureCache)
-    end
-
     test "writes a structure entry in redis and reads it back", context do
       structure = context[:structure]
       {:ok, _} = StructureCache.put(structure)

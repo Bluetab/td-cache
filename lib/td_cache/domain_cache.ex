@@ -2,101 +2,55 @@ defmodule TdCache.DomainCache do
   @moduledoc """
   Shared cache for domains.
   """
-  use GenServer
   alias TdCache.Redix, as: Redis
   alias TdCache.Redix.Commands
 
   ## Client API
 
-  def start_link(options) do
-    GenServer.start_link(__MODULE__, options, name: __MODULE__)
-  end
-
   @doc """
   Creates cache entries relating to a given domain.
   """
   def put(domain) do
-    GenServer.call(__MODULE__, {:put, domain})
+    put_domain(domain)
   end
 
   @doc """
   Reads domain information for a given id from cache.
   """
   def get(id) do
-    GenServer.call(__MODULE__, {:get, id})
-  end
-
-  @doc """
-  Reads root domains from cache.
-  """
-  def roots do
-    GenServer.call(__MODULE__, :roots)
-  end
-
-  @doc """
-  Reads domain name to id map from cache.
-  """
-  def name_to_id_map do
-    GenServer.call(__MODULE__, :name_to_id_map)
+    domain = read_domain(id)
+    {:ok, domain}
   end
 
   @doc """
   Reads a domain property for a given id from cache.
   """
   def prop(id, property) do
-    GenServer.call(__MODULE__, {:prop, id, property})
+    Redis.command(["HGET", "domain:#{id}", property])
+  end
+
+  @doc """
+  Reads root domains from cache.
+  """
+  def roots do
+    domain_ids = get_root_domains()
+    {:ok, domain_ids}
+  end
+
+  @doc """
+  Reads domain name to id map from cache.
+  """
+  def name_to_id_map do
+    map = get_domain_name_to_id_map()
+
+    {:ok, map}
   end
 
   @doc """
   Deletes cache entries relating to a given domain id.
   """
   def delete(id) do
-    GenServer.call(__MODULE__, {:delete, id})
-  end
-
-  ## Callbacks
-
-  @impl true
-  def init(_args) do
-    state = %{}
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_call({:put, domain}, _from, state) do
-    reply = put_domain(domain)
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:get, id}, _from, state) do
-    domain = read_domain(id)
-    {:reply, {:ok, domain}, state}
-  end
-
-  @impl true
-  def handle_call({:prop, id, property}, _from, state) do
-    reply = Redis.command(["HGET", "domain:#{id}", property])
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call(:roots, _from, state) do
-    domain_ids = get_root_domains()
-    {:reply, {:ok, domain_ids}, state}
-  end
-
-  @impl true
-  def handle_call(:name_to_id_map, _from, state) do
-    map = get_domain_name_to_id_map()
-
-    {:reply, {:ok, map}, state}
-  end
-
-  @impl true
-  def handle_call({:delete, id}, _from, state) do
-    reply = delete_domain(id)
-    {:reply, reply, state}
+    delete_domain(id)
   end
 
   ## Private functions

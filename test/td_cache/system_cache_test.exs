@@ -14,10 +14,6 @@ defmodule TdCache.SystemCacheTest do
   end
 
   describe "SystemCache" do
-    test "starts automatically" do
-      assert Process.whereis(SystemCache)
-    end
-
     test "writes a system entry in redis and reads it back", context do
       system = context[:system]
       {:ok, _} = SystemCache.put(system)

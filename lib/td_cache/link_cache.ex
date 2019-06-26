@@ -2,88 +2,45 @@ defmodule TdCache.LinkCache do
   @moduledoc """
   Shared cache for links between entities.
   """
-  use GenServer
-
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix, as: Redis
 
   ## Client API
 
-  def start_link(options) do
-    GenServer.start_link(__MODULE__, options, name: __MODULE__)
-  end
-
   @doc """
   Creates cache entries relating to a given link.
   """
   def put(link) do
-    GenServer.call(__MODULE__, {:put, link})
+    put_link(link)
   end
 
   @doc """
   Reads a cache entries relating to a given link id.
   """
   def get(id) do
-    GenServer.call(__MODULE__, {:get, id})
+    reply = get_link(id)
+    {:ok, reply}
   end
 
   @doc """
   Counts links for a given key and target type.
   """
   def count(key, target_type) do
-    GenServer.call(__MODULE__, {:count, key, target_type})
+    Redis.command(["SCARD", "#{key}:links:#{target_type}"])
   end
 
   @doc """
   Deletes cache entries relating to a given link id.
   """
   def delete(id) do
-    GenServer.call(__MODULE__, {:delete, id})
+    delete_link(id)
   end
 
   @doc """
   Deletes all link cache entries relating to a given resource type and id.
   """
   def delete_resource_links(resource_type, resource_id) do
-    GenServer.call(__MODULE__, {:delete_resource_links, resource_type, resource_id})
-  end
-
-  ## Callbacks
-
-  @impl true
-  def init(_args) do
-    state = %{}
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_call({:put, link}, _from, state) do
-    reply = put_link(link)
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:get, id}, _from, state) do
-    reply = get_link(id)
-    {:reply, {:ok, reply}, state}
-  end
-
-  @impl true
-  def handle_call({:count, key, target_type}, _from, state) do
-    reply = Redis.command(["SCARD", "#{key}:links:#{target_type}"])
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:delete, id}, _from, state) do
-    reply = delete_link(id)
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:delete_resource_links, resource_type, resource_id}, _from, state) do
-    reply = do_delete_resource_links(resource_type, resource_id)
-    {:reply, reply, state}
+    do_delete_resource_links(resource_type, resource_id)
   end
 
   ## Private functions

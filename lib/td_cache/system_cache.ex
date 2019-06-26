@@ -2,61 +2,31 @@ defmodule TdCache.SystemCache do
   @moduledoc """
   Shared cache for systems.
   """
-  use GenServer
   alias TdCache.Redix, as: Redis
   alias TdCache.Redix.Commands
 
   ## Client API
 
-  def start_link(options) do
-    GenServer.start_link(__MODULE__, options, name: __MODULE__)
-  end
-
   @doc """
   Creates cache entries relating to a given system.
   """
   def put(system) do
-    GenServer.call(__MODULE__, {:put, system})
+    put_system(system)
   end
 
   @doc """
   Reads system information for a given id from cache.
   """
   def get(id) do
-    GenServer.call(__MODULE__, {:get, id})
+    system = read_system(id)
+    {:ok, system}
   end
 
   @doc """
   Deletes cache entries relating to a given system id.
   """
   def delete(id) do
-    GenServer.call(__MODULE__, {:delete, id})
-  end
-
-  ## Callbacks
-
-  @impl true
-  def init(_args) do
-    state = %{}
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_call({:put, system}, _from, state) do
-    reply = put_system(system)
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:get, id}, _from, state) do
-    system = read_system(id)
-    {:reply, {:ok, system}, state}
-  end
-
-  @impl true
-  def handle_call({:delete, id}, _from, state) do
-    reply = delete_system(id)
-    {:reply, reply, state}
+    delete_system(id)
   end
 
   ## Private functions

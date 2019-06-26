@@ -2,9 +2,6 @@ defmodule TdCache.TemplateCache do
   @moduledoc """
   Shared cache for form templates.
   """
-
-  use GenServer
-
   alias Jason, as: JSON
   alias TdCache.Redix, as: Redis
   alias TdCache.Redix.Commands
@@ -16,15 +13,22 @@ defmodule TdCache.TemplateCache do
   end
 
   def get(id) do
-    GenServer.call(__MODULE__, {:get, id})
+    template = read_template(id)
+    {:ok, template}
   end
 
   def get(id, prop) do
-    GenServer.call(__MODULE__, {:get, id, prop})
+    value =
+      id
+      |> read_template
+      |> Map.get(prop)
+
+    {:ok, value}
   end
 
   def get_by_name(name) do
-    GenServer.call(__MODULE__, {:get_by_name, name})
+    template = read_by_name(name)
+    {:ok, template}
   end
 
   def get_by_name!(name) do
@@ -35,7 +39,8 @@ defmodule TdCache.TemplateCache do
   end
 
   def list do
-    GenServer.call(__MODULE__, :list)
+    templates = list_templates()
+    {:ok, templates}
   end
 
   def list!() do
@@ -46,7 +51,11 @@ defmodule TdCache.TemplateCache do
   end
 
   def list_by_scope(scope) do
-    GenServer.call(__MODULE__, {:list, scope})
+    templates =
+      list_templates()
+      |> Enum.filter(&(Map.get(&1, :scope) == scope))
+
+    {:ok, templates}
   end
 
   def list_by_scope!(scope) do
@@ -57,68 +66,11 @@ defmodule TdCache.TemplateCache do
   end
 
   def put(template) do
-    GenServer.call(__MODULE__, {:put, template})
+    put_template(template)
   end
 
   def delete(id) do
-    GenServer.call(__MODULE__, {:delete, id})
-  end
-
-  ## Callbacks
-
-  @impl true
-  def init(_args) do
-    state = %{}
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_call({:get, id}, _from, state) do
-    template = read_template(id)
-    {:reply, {:ok, template}, state}
-  end
-
-  @impl true
-  def handle_call({:get, id, prop}, _from, state) do
-    value =
-      id
-      |> read_template
-      |> Map.get(prop)
-
-    {:reply, {:ok, value}, state}
-  end
-
-  @impl true
-  def handle_call({:get_by_name, name}, _from, state) do
-    template = read_by_name(name)
-    {:reply, {:ok, template}, state}
-  end
-
-  @impl true
-  def handle_call(:list, _from, state) do
-    templates = list_templates()
-    {:reply, {:ok, templates}, state}
-  end
-
-  @impl true
-  def handle_call({:list, scope}, _from, state) do
-    templates =
-      list_templates()
-      |> Enum.filter(&(Map.get(&1, :scope) == scope))
-
-    {:reply, {:ok, templates}, state}
-  end
-
-  @impl true
-  def handle_call({:put, template}, _from, state) do
-    reply = put_template(template)
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:delete, id}, _from, state) do
-    reply = delete_template(id)
-    {:reply, reply, state}
+    delete_template(id)
   end
 
   ## Private functions

@@ -16,10 +16,6 @@ defmodule TdCache.DomainCacheTest do
   end
 
   describe "DomainCache" do
-    test "starts automatically" do
-      assert Process.whereis(DomainCache)
-    end
-
     test "writes a domain entry in redis and reads it back", context do
       domain = context[:domain]
       {:ok, ["OK", 1, 1, 0]} = DomainCache.put(domain)

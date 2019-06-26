@@ -23,10 +23,6 @@ defmodule TdCache.LinkCacheTest do
   end
 
   describe "LinkCache" do
-    test "starts automatically" do
-      assert Process.whereis(LinkCache)
-    end
-
     test "writes a link entry in redis, emits events, and reads it back", context do
       link = context[:link]
       link_key = "link:#{link.id}"

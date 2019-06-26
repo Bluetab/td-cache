@@ -2,8 +2,6 @@ defmodule TdCache.FieldCache do
   @moduledoc """
   Shared cache for links between entities.
   """
-  use GenServer
-
   alias TdCache.ConceptCache
   alias TdCache.LinkCache
   alias TdCache.Redix, as: Redis
@@ -12,55 +10,26 @@ defmodule TdCache.FieldCache do
 
   ## Client API
 
-  def start_link(options) do
-    GenServer.start_link(__MODULE__, options, name: __MODULE__)
-  end
-
   @doc """
   Creates cache entries relating to a given field.
   """
   def put(field) do
-    GenServer.call(__MODULE__, {:put, field})
+    put_field(field)
   end
 
   @doc """
   Reads field information from cache.
   """
   def get(id) do
-    GenServer.call(__MODULE__, {:get, id})
+    field = read_field(id)
+    {:ok, field}
   end
 
   @doc """
   Deletes cache entries relating to a given field.
   """
   def delete(id) do
-    GenServer.call(__MODULE__, {:delete, id})
-  end
-
-  ## Callbacks
-
-  @impl true
-  def init(_args) do
-    state = %{}
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_call({:put, field}, _from, state) do
-    reply = put_field(field)
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:get, id}, _from, state) do
-    field = read_field(id)
-    {:reply, {:ok, field}, state}
-  end
-
-  @impl true
-  def handle_call({:delete, id}, _from, state) do
-    reply = delete_field(id)
-    {:reply, reply, state}
+    delete_field(id)
   end
 
   ## Private functions
@@ -98,14 +67,19 @@ defmodule TdCache.FieldCache do
     |> Enum.reject(&(&1 == {:ok, nil}))
     |> Enum.map(fn {:ok, %{source: source, tags: tags}} -> {String.split(source, ":"), tags} end)
     |> Enum.map(&read_source/1)
+    |> Enum.filter(& &1)
   end
 
   defp read_source({["business_concept", business_concept_id], tags}) do
-    {:ok, concept} = ConceptCache.get(business_concept_id)
+    case ConceptCache.get(business_concept_id) do
+      {:ok, nil} ->
+        nil
 
-    concept
-    |> Map.put(:resource_type, :concept)
-    |> Map.put(:tags, tags)
+      {:ok, concept} ->
+        concept
+        |> Map.put(:resource_type, :concept)
+        |> Map.put(:tags, tags)
+    end
   end
 
   defp read_source(_), do: []

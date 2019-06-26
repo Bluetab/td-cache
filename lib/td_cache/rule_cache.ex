@@ -2,75 +2,39 @@ defmodule TdCache.RuleCache do
   @moduledoc """
   Shared cache for quality rules.
   """
-  use GenServer
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix, as: Redis
   alias TdCache.Redix.Commands
 
   ## Client API
 
-  def start_link(options) do
-    GenServer.start_link(__MODULE__, options, name: __MODULE__)
-  end
-
   @doc """
   Creates cache entries relating to a given rule.
   """
   def put(rule) do
-    GenServer.call(__MODULE__, {:put, rule})
+    put_rule(rule)
   end
 
   @doc """
   Reads rule information for a given id from cache.
   """
   def get(id) do
-    GenServer.call(__MODULE__, {:get, id})
+    rule = read_rule(id)
+    {:ok, rule}
   end
 
   @doc """
   Counts rules for a given key.
   """
   def count(key) do
-    GenServer.call(__MODULE__, {:count, key})
+    Redis.command(["SCARD", "#{key}:rules"])
   end
 
   @doc """
   Deletes cache entries relating to a given rule id.
   """
   def delete(id) do
-    GenServer.call(__MODULE__, {:delete, id})
-  end
-
-  ## Callbacks
-
-  @impl true
-  def init(_args) do
-    state = %{}
-    {:ok, state}
-  end
-
-  @impl true
-  def handle_call({:put, rule}, _from, state) do
-    reply = put_rule(rule)
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:get, id}, _from, state) do
-    rule = read_rule(id)
-    {:reply, {:ok, rule}, state}
-  end
-
-  @impl true
-  def handle_call({:count, key}, _from, state) do
-    reply = Redis.command(["SCARD", "#{key}:rules"])
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:delete, id}, _from, state) do
-    reply = delete_rule(id)
-    {:reply, reply, state}
+    delete_rule(id)
   end
 
   ## Private functions
