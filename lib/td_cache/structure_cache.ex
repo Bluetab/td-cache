@@ -32,7 +32,7 @@ defmodule TdCache.StructureCache do
 
   ## Private functions
 
-  @props [:name, :type, :group, :system_id]
+  @props [:name, :type, :group, :system_id, :parent_id]
 
   defp read_structure(id) do
     case Redis.read_map("data_structure:#{id}") do
