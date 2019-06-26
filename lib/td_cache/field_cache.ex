@@ -2,9 +2,11 @@ defmodule TdCache.FieldCache do
   @moduledoc """
   Shared cache for links between entities.
   """
+
   alias TdCache.LinkCache
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   alias TdCache.StructureCache
+
   require Logger
 
   ## Client API
@@ -41,7 +43,7 @@ defmodule TdCache.FieldCache do
   ## Private functions
 
   defp read_field(id) do
-    case Redis.read_map("data_field:#{id}") do
+    case Redix.read_map("data_field:#{id}") do
       {:ok, nil} ->
         nil
 
@@ -66,7 +68,7 @@ defmodule TdCache.FieldCache do
   defp delete_field(id) do
     key = "data_field:#{id}"
 
-    Redis.transaction_pipeline([
+    Redix.transaction_pipeline([
       ["DEL", key],
       ["SREM", "data_field:keys", key]
     ])
@@ -80,7 +82,7 @@ defmodule TdCache.FieldCache do
 
     StructureCache.put(structure)
 
-    Redis.transaction_pipeline([
+    Redix.transaction_pipeline([
       ["HSET", field_key, "structure_id", structure_id],
       ["SADD", "data_field:keys", field_key]
     ])

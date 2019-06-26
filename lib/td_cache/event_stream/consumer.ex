@@ -4,16 +4,11 @@ defmodule TdCache.EventStream.Consumer do
   """
 
   use GenServer
-  require Logger
 
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   alias TdCache.Redix.Stream
 
-  ## Client API
-
-  def start_link(opts) do
-    GenServer.start_link(__MODULE__, opts)
-  end
+  require Logger
 
   ## Consumer Behaviour
 
@@ -23,6 +18,12 @@ defmodule TdCache.EventStream.Consumer do
   Returns `:ok` if successful or `{:error, msg}` if it fails
   """
   @callback consume(events :: Enumerable.t()) :: :ok | {:error, String.t()}
+
+  ## Client API
+
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts)
+  end
 
   ## Callbacks
 
@@ -108,6 +109,6 @@ defmodule TdCache.EventStream.Consumer do
   end
 
   defp ack(stream, consumer_group, ids) do
-    Redis.command(["XACK", stream, consumer_group] ++ ids)
+    Redix.command(["XACK", stream, consumer_group] ++ ids)
   end
 end

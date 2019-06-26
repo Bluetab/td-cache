@@ -1,13 +1,12 @@
 defmodule TdCache.CacheCleanerTest do
   use ExUnit.Case
   alias TdCache.CacheCleaner
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   doctest TdCache.CacheCleaner
 
   setup_all do
     on_exit(fn ->
-      keys = Redis.command!(["KEYS", "TD_CACHE_TEST:*"])
-      Redis.command!(["DEL" | keys])
+      Redix.del!("TD_CACHE_TEST:*")
     end)
   end
 
@@ -28,15 +27,15 @@ defmodule TdCache.CacheCleanerTest do
         ["SET", "TD_CACHE_TEST:RETAIN:STRING", "foo"]
       ]
 
-      {:ok, _} = Redis.transaction_pipeline(commands)
+      {:ok, _} = Redix.transaction_pipeline(commands)
 
-      {:ok, keys} = Redis.command(["KEYS", "TD_CACHE_TEST:*"])
+      {:ok, keys} = Redix.command(["KEYS", "TD_CACHE_TEST:*"])
 
       assert Enum.count(keys) == 8
 
       :ok = CacheCleaner.clean()
 
-      {:ok, keys} = Redis.command(["KEYS", "TD_CACHE_TEST:*"])
+      {:ok, keys} = Redix.command(["KEYS", "TD_CACHE_TEST:*"])
 
       assert Enum.count(keys) == 2
     end

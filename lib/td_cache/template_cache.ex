@@ -2,9 +2,9 @@ defmodule TdCache.TemplateCache do
   @moduledoc """
   Shared cache for form templates.
   """
+
   alias Jason, as: JSON
-  alias TdCache.Redix, as: Redis
-  alias TdCache.Redix.Commands
+  alias TdCache.Redix
 
   ## Client API
 
@@ -85,7 +85,7 @@ defmodule TdCache.TemplateCache do
   end
 
   defp read_template(id) do
-    case Redis.read_map("template:#{id}") do
+    case Redix.read_map("template:#{id}") do
       {:ok, nil} ->
         nil
 
@@ -104,7 +104,7 @@ defmodule TdCache.TemplateCache do
   end
 
   defp read_by_name(name) do
-    case Redis.command!(["HGET", @name_to_id_key, name]) do
+    case Redix.command!(["HGET", @name_to_id_key, name]) do
       nil -> nil
       id -> read_template(id)
     end
@@ -117,15 +117,15 @@ defmodule TdCache.TemplateCache do
       |> Map.put(:content, JSON.encode!(content))
 
     commands = [
-      Commands.hmset("template:#{id}", template),
+      ["HMSET", "template:#{id}", template],
       ["HSET", @name_to_id_key, name, id]
     ]
 
-    Redis.transaction_pipeline(commands)
+    Redix.transaction_pipeline(commands)
   end
 
   defp list_templates do
-    case Redis.read_map(@name_to_id_key) do
+    case Redix.read_map(@name_to_id_key) do
       {:ok, nil} ->
         []
 
@@ -138,15 +138,15 @@ defmodule TdCache.TemplateCache do
   end
 
   defp delete_template(id) do
-    commands =
-      case Redis.command!(["HGET", "template:#{id}", :name]) do
-        nil ->
-          [["DEL", "template:#{id}"]]
+    case Redix.command!(["HGET", "template:#{id}", :name]) do
+      nil ->
+        Redix.command(["DEL", "template:#{id}"])
 
-        name ->
-          [["DEL", "template:#{id}"], ["HDEL", @name_to_id_key, name]]
-      end
-
-    Redis.transaction_pipeline(commands)
+      name ->
+        Redix.transaction_pipeline([
+          ["DEL", "template:#{id}"],
+          ["HDEL", @name_to_id_key, name]
+        ])
+    end
   end
 end

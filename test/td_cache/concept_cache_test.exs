@@ -2,7 +2,7 @@ defmodule TdCache.ConceptCacheTest do
   use ExUnit.Case
   alias TdCache.ConceptCache
   alias TdCache.DomainCache
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   alias TdCache.Redix.Stream
   doctest TdCache.ConceptCache
 
@@ -19,13 +19,13 @@ defmodule TdCache.ConceptCacheTest do
 
     {:ok, _} = DomainCache.put(domain)
 
-    Redis.command(["DEL", @stream, "business_concept:ids:active", "business_concept:ids:inactive"])
+    Redix.command(["DEL", @stream, "business_concept:ids:active", "business_concept:ids:inactive"])
 
     on_exit(fn ->
       ConceptCache.delete(concept.id)
       DomainCache.delete(domain.id)
 
-      Redis.command([
+      Redix.command([
         "DEL",
         @stream,
         "business_concept:ids:active",
@@ -96,7 +96,7 @@ defmodule TdCache.ConceptCacheTest do
 
     test "publishes an event when an entry is removed", context do
       concept = context[:concept]
-      Redis.command!(["SADD", "business_concept:ids:active", concept.id])
+      Redix.command!(["SADD", "business_concept:ids:active", concept.id])
       {:ok, _} = ConceptCache.delete(concept.id)
 
       {:ok, [e]} = Stream.read([@stream], transform: true)
@@ -106,7 +106,7 @@ defmodule TdCache.ConceptCacheTest do
 
     test "publishes an event when an entry is restored", context do
       concept = context[:concept]
-      Redis.command!(["SADD", "business_concept:ids:inactive", concept.id])
+      Redix.command!(["SADD", "business_concept:ids:inactive", concept.id])
       {:ok, _} = ConceptCache.put(concept)
 
       {:ok, [e]} = Stream.read([@stream], transform: true)

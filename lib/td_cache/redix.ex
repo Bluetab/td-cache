@@ -3,22 +3,35 @@ defmodule TdCache.Redix do
   A facade for Redix using a pool of connections.
   """
 
+  alias TdCache.Redix.Commands
   alias TdCache.Redix.Pool
 
   def command(command) do
-    Pool.command(command)
+    command
+    |> Commands.transform()
+    |> Pool.command()
   end
 
   def command!(command) do
-    Pool.command!(command)
+    command
+    |> Commands.transform()
+    |> Pool.command!()
   end
 
   def transaction_pipeline(commands) do
-    Pool.transaction_pipeline(commands)
+    commands
+    |> Commands.transform()
+    |> Pool.transaction_pipeline()
   end
 
   def transaction_pipeline!(commands) do
-    Pool.transaction_pipeline!(commands)
+    commands
+    |> Commands.transform()
+    |> Pool.transaction_pipeline!()
+  end
+
+  def exists?(key) do
+    command!(["EXISTS", key]) == 1
   end
 
   def keys!(pattern \\ "*") do

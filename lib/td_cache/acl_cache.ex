@@ -2,6 +2,7 @@ defmodule TdCache.AclCache do
   @moduledoc """
   Shared cache for Access Control Lists.
   """
+
   alias TdCache.Redix
 
   def create_acl_roles_key(resource_type, resource_id) do

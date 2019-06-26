@@ -2,8 +2,8 @@ defmodule TdCache.DomainCache do
   @moduledoc """
   Shared cache for domains.
   """
-  alias TdCache.Redix, as: Redis
-  alias TdCache.Redix.Commands
+
+  alias TdCache.Redix
 
   ## Client API
 
@@ -26,7 +26,7 @@ defmodule TdCache.DomainCache do
   Reads a domain property for a given id from cache.
   """
   def prop(id, property) do
-    Redis.command(["HGET", "domain:#{id}", property])
+    Redix.command(["HGET", "domain:#{id}", property])
   end
 
   @doc """
@@ -65,7 +65,7 @@ defmodule TdCache.DomainCache do
   end
 
   defp read_domain(id) do
-    case Redis.read_map("domain:#{id}") do
+    case Redix.read_map("domain:#{id}") do
       {:ok, nil} ->
         nil
 
@@ -76,14 +76,14 @@ defmodule TdCache.DomainCache do
   end
 
   defp get_root_domains do
-    case Redis.command(["SMEMBERS", @roots_key]) do
+    case Redix.command(["SMEMBERS", @roots_key]) do
       {:ok, ids} -> Enum.map(ids, &String.to_integer/1)
       _ -> []
     end
   end
 
   defp get_domain_name_to_id_map do
-    case Redis.read_map(@ids_to_names_key, fn [id, name] -> {name, String.to_integer(id)} end) do
+    case Redix.read_map(@ids_to_names_key, fn [id, name] -> {name, String.to_integer(id)} end) do
       {:ok, nil} -> %{}
       {:ok, map} -> map
     end
@@ -99,7 +99,7 @@ defmodule TdCache.DomainCache do
       ["SREM", @roots_key, id]
     ]
 
-    Redis.transaction_pipeline(commands)
+    Redix.transaction_pipeline(commands)
   end
 
   defp put_domain(%{id: id, name: name} = domain) do
@@ -107,8 +107,8 @@ defmodule TdCache.DomainCache do
     domain = Map.put(domain, :parent_ids, parent_ids)
     add_or_remove_root = if parent_ids == "", do: "SADD", else: "SREM"
 
-    Redis.transaction_pipeline([
-      Commands.hmset("domain:#{id}", Map.take(domain, @props)),
+    Redix.transaction_pipeline([
+      ["HMSET", "domain:#{id}", Map.take(domain, @props)],
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", "domain:keys", "domain:#{id}"],
       [add_or_remove_root, @roots_key, id]

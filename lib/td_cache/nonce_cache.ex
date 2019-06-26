@@ -2,6 +2,7 @@ defmodule TdCache.NonceCache do
   @moduledoc """
   Shared cache for nonces.
   """
+
   alias TdCache.Redix
 
   @doc """
@@ -18,8 +19,9 @@ defmodule TdCache.NonceCache do
   Returns true if the given nonce exists, false otherwise.
   """
   def exists?(nonce) do
-    key = create_key(nonce)
-    Redix.command!(["EXISTS", key]) == 1
+    nonce
+    |> create_key()
+    |> Redix.exists?()
   end
 
   @doc """

@@ -1,7 +1,7 @@
 defmodule TdCache.LinkCacheTest do
   use ExUnit.Case
   alias TdCache.LinkCache
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   alias TdCache.Redix.Stream
   doctest TdCache.LinkCache
 
@@ -16,7 +16,7 @@ defmodule TdCache.LinkCacheTest do
     on_exit(fn ->
       LinkCache.delete(link.id)
       LinkCache.delete(tagged_link.id)
-      Redis.command(["DEL", "foo:events", "bar:events", "_:foo:#{link.source_id}:links"])
+      Redix.command(["DEL", "foo:events", "bar:events", "_:foo:#{link.source_id}:links"])
     end)
 
     {:ok, link: link, tagged_link: tagged_link}

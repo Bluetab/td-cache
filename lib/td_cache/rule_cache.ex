@@ -2,9 +2,9 @@ defmodule TdCache.RuleCache do
   @moduledoc """
   Shared cache for quality rules.
   """
+
   alias TdCache.EventStream.Publisher
-  alias TdCache.Redix, as: Redis
-  alias TdCache.Redix.Commands
+  alias TdCache.Redix
 
   ## Client API
 
@@ -27,7 +27,7 @@ defmodule TdCache.RuleCache do
   Counts rules for a given key.
   """
   def count(key) do
-    Redis.command(["SCARD", "#{key}:rules"])
+    Redix.command(["SCARD", "#{key}:rules"])
   end
 
   @doc """
@@ -42,7 +42,7 @@ defmodule TdCache.RuleCache do
   @props [:active, :name, :updated_at, :business_concept_id]
 
   defp read_rule(id) do
-    {:ok, map} = Redis.read_map("rule:#{id}")
+    {:ok, map} = Redix.read_map("rule:#{id}")
 
     case map do
       nil -> nil
@@ -51,7 +51,7 @@ defmodule TdCache.RuleCache do
   end
 
   defp put_rule(%{id: id, updated_at: updated_at} = rule) do
-    last_updated = Redis.command!(["HGET", "rule:#{id}", :updated_at])
+    last_updated = Redix.command!(["HGET", "rule:#{id}", :updated_at])
 
     rule
     |> Map.put(:updated_at, "#{updated_at}")
@@ -61,13 +61,12 @@ defmodule TdCache.RuleCache do
   defp put_rule(%{updated_at: ts}, ts), do: {:ok, []}
 
   defp put_rule(%{id: id, business_concept_id: business_concept_id} = rule, _last_updated) do
-    commands = [
-      ["SADD", "business_concept:#{business_concept_id}:rules", "rule:#{id}"],
-      Commands.hmset("rule:#{id}", Map.take(rule, @props)),
-      ["SADD", "rule:keys", "rule:#{id}"]
-    ]
-
-    {:ok, results} = Redis.transaction_pipeline(commands)
+    results =
+      Redix.transaction_pipeline!([
+        ["SADD", "business_concept:#{business_concept_id}:rules", "rule:#{id}"],
+        ["HMSET", "rule:#{id}", Map.take(rule, @props)],
+        ["SADD", "rule:keys", "rule:#{id}"]
+      ])
 
     [added, _, _] = results
 
@@ -85,21 +84,19 @@ defmodule TdCache.RuleCache do
   end
 
   defp put_rule(%{id: id} = rule, _last_updated) do
-    commands = [
-      Commands.hmset("rule:#{id}", Map.take(rule, @props)),
+    Redix.transaction_pipeline([
+      ["HMSET", "rule:#{id}", Map.take(rule, @props)],
       ["SADD", "rule:keys", "rule:#{id}"]
-    ]
-
-    Redis.transaction_pipeline(commands)
+    ])
   end
 
   def delete_rule(id) do
-    {:ok, business_concept_id} = Redis.command(["HGET", "rule:#{id}", "business_concept_id"])
+    {:ok, business_concept_id} = Redix.command(["HGET", "rule:#{id}", "business_concept_id"])
     delete_rule(id, business_concept_id)
   end
 
   defp delete_rule(id, nil = _business_concept_id) do
-    Redis.transaction_pipeline([
+    Redix.transaction_pipeline([
       ["DEL", "rule:#{id}"],
       ["SREM", "rule:keys", "rule:#{id}"]
     ])
@@ -112,7 +109,7 @@ defmodule TdCache.RuleCache do
       ["SREM", "rule:keys", "rule:#{id}"]
     ]
 
-    {:ok, results} = Redis.transaction_pipeline(commands)
+    {:ok, results} = Redix.transaction_pipeline(commands)
     [removed, _, _] = results
 
     unless removed == 0 do

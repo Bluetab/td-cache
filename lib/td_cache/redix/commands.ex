@@ -3,33 +3,35 @@ defmodule TdCache.Redix.Commands do
   A module providing functions to create Redix commands.
   """
 
-  def hmset(key, %{} = map) when map != %{} do
+  @doc """
+  Transform multiple commands
+  """
+  def transform([h | _t] = commands) when is_list(h) do
+    commands
+    |> Enum.map(&transform/1)
+  end
+
+  @doc """
+  Convenience function for passing a map to HMSET
+  """
+  def transform(["HMSET", key, %{} = map]) when map != %{} do
     entries =
       map
       |> Enum.flat_map(fn {k, v} -> [to_string(k), to_string(v)] end)
 
-    hmset(key, entries)
+    ["HMSET", key | entries]
   end
 
-  def hmset(_, []), do: []
+  @doc """
+  Convenience function for passing a list to RPUSH
+  """
+  def transform(["RPUSH", _, []]), do: :ok
 
-  def hmset(key, [_h | _t] = entries) do
-    ["HMSET" | [key | entries]]
+  def transform(["RPUSH", key, [_h | _t] = entries]) do
+    ["RPUSH", key | entries]
   end
 
-  def hmset(_, _), do: []
-
-  def sadd(_, []), do: []
-
-  def sadd(key, [_h | _t] = entries) do
-    ["SADD" | [key | entries]]
-  end
-
-  def rpush(_, []), do: []
-
-  def rpush(key, [_h | _t] = entries) do
-    ["RPUSH" | [key | entries]]
-  end
+  def transform(x), do: x
 
   def option(_, nil), do: []
   def option(option, value), do: [option, "#{value}"]

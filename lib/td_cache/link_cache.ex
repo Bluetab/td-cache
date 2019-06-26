@@ -2,10 +2,11 @@ defmodule TdCache.LinkCache do
   @moduledoc """
   Shared cache for links between entities.
   """
+
   alias TdCache.ConceptCache
   alias TdCache.EventStream.Publisher
   alias TdCache.FieldCache
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   alias TdCache.StructureCache
 
   ## Client API
@@ -45,7 +46,7 @@ defmodule TdCache.LinkCache do
   Counts links for a given key and target type.
   """
   def count(key, target_type) do
-    Redis.command(["SCARD", "#{key}:links:#{target_type}"])
+    Redix.command(["SCARD", "#{key}:links:#{target_type}"])
   end
 
   @doc """
@@ -65,8 +66,8 @@ defmodule TdCache.LinkCache do
   ## Private functions
 
   defp get_link(id) do
-    {:ok, tags} = Redis.command(["SMEMBERS", "link:#{id}:tags"])
-    {:ok, link} = Redis.read_map("link:#{id}")
+    {:ok, tags} = Redix.command(["SMEMBERS", "link:#{id}:tags"])
+    {:ok, link} = Redix.read_map("link:#{id}")
 
     case link do
       nil -> nil
@@ -75,7 +76,7 @@ defmodule TdCache.LinkCache do
   end
 
   defp put_link(%{id: id, updated_at: updated_at} = link) do
-    last_updated = Redis.command!(["HGET", "link:#{id}", :updated_at])
+    last_updated = Redix.command!(["HGET", "link:#{id}", :updated_at])
 
     link
     |> Map.put(:updated_at, "#{updated_at}")
@@ -96,7 +97,7 @@ defmodule TdCache.LinkCache do
        ) do
     commands = put_link_commands(link)
 
-    {:ok, results} = Redis.transaction_pipeline(commands)
+    {:ok, results} = Redix.transaction_pipeline(commands)
     source_add_count = Enum.at(results, 2)
     target_add_count = Enum.at(results, 3)
 
@@ -162,12 +163,12 @@ defmodule TdCache.LinkCache do
   defp put_link_tags_commands(_), do: []
 
   def delete_link(id) do
-    {:ok, keys} = Redis.command(["HMGET", "link:#{id}", "source", "target"])
+    {:ok, keys} = Redix.command(["HMGET", "link:#{id}", "source", "target"])
     delete_link(id, keys)
   end
 
   defp delete_link(id, [nil, nil]) do
-    Redis.transaction_pipeline([
+    Redix.transaction_pipeline([
       ["DEL", "link:#{id}", "link:#{id}:tags"],
       ["SREM", "link:keys", "link:#{id}"]
     ])
@@ -186,7 +187,7 @@ defmodule TdCache.LinkCache do
       ["SREM", "link:keys", "link:#{id}"]
     ]
 
-    {:ok, results} = Redis.transaction_pipeline(commands)
+    {:ok, results} = Redix.transaction_pipeline(commands)
     [source_del_count, target_del_count, _, _, _, _] = results
 
     # Publish events if link count has decremented
@@ -212,7 +213,7 @@ defmodule TdCache.LinkCache do
     links_key = "#{source_key}:links"
 
     [links, "OK"] =
-      Redis.transaction_pipeline!([
+      Redix.transaction_pipeline!([
         ["SMEMBERS", links_key],
         ["RENAME", links_key, "_:#{links_key}"]
       ])
@@ -222,13 +223,13 @@ defmodule TdCache.LinkCache do
     commands =
       links
       |> Enum.map(&["HMGET", &1, "source", "target"])
-      |> Redis.transaction_pipeline!()
+      |> Redix.transaction_pipeline!()
       |> Enum.map(fn keys -> Enum.filter(keys, &(&1 != source_key)) end)
       |> Enum.zip(links)
       |> Enum.flat_map(fn {target_keys, link_key} -> Enum.map(target_keys, &{&1, link_key}) end)
       |> Enum.flat_map(&remove_link_commands(&1, source_type, links_key))
 
-    results = Redis.transaction_pipeline!(commands)
+    results = Redix.transaction_pipeline!(commands)
 
     event_ids =
       results
@@ -294,13 +295,13 @@ defmodule TdCache.LinkCache do
 
   defp linked_resources(key, target_type) do
     ["SMEMBERS", "#{key}:links:#{target_type}"]
-    |> Redis.command!()
+    |> Redix.command!()
     |> get_linked_resources(key)
   end
 
   defp linked_resources(key) do
     ["SMEMBERS", "#{key}:links"]
-    |> Redis.command!()
+    |> Redix.command!()
     |> get_linked_resources(key)
   end
 

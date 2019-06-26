@@ -27,7 +27,7 @@ defmodule TdCache.AclCacheTest do
     AclCache.set_acl_roles(resource_id, resource_type, roles)
     AclCache.delete_acl_roles(resource_id, resource_type)
     key = AclCache.create_acl_roles_key(resource_id, resource_type)
-    assert {:ok, 0} = Redix.command(["EXISTS", "#{key}"])
+    assert not Redix.exists?("#{key}")
   end
 
   test "set_acl_role_users accepts an empty list" do
@@ -64,7 +64,7 @@ defmodule TdCache.AclCacheTest do
     AclCache.set_acl_role_users(resource_id, resource_type, role, users)
     AclCache.delete_acl_role_users(resource_id, resource_type, role)
     key = AclCache.create_acl_role_users_key(resource_id, resource_type, role)
-    assert {:ok, 0} = Redix.command(["EXISTS", "#{key}"])
+    assert not Redix.exists?("#{key}")
   end
 
   test "delete_acl_role_user deletes from cache" do

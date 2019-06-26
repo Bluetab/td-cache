@@ -2,12 +2,13 @@ defmodule TdCache.ConceptCache do
   @moduledoc """
   Shared cache for data concepts.
   """
+
   use GenServer
+
   alias TdCache.DomainCache
   alias TdCache.EventStream.Publisher
   alias TdCache.LinkCache
-  alias TdCache.Redix, as: Redis
-  alias TdCache.Redix.Commands
+  alias TdCache.Redix
   alias TdCache.RuleCache
   alias TdCache.TaxonomyCache
 
@@ -144,7 +145,7 @@ defmodule TdCache.ConceptCache do
 
   defp read_concept(id) do
     concept_key = "business_concept:#{id}"
-    {:ok, concept} = Redis.read_map(concept_key)
+    {:ok, concept} = Redix.read_map(concept_key)
 
     case concept_entry_to_map(concept) do
       nil ->
@@ -186,7 +187,7 @@ defmodule TdCache.ConceptCache do
       ["SREM", @active_ids, id]
     ]
 
-    results = Redis.transaction_pipeline!(commands)
+    results = Redix.transaction_pipeline!(commands)
     [_, _, inactivated, _] = results
 
     unless inactivated == 0 do
@@ -198,13 +199,13 @@ defmodule TdCache.ConceptCache do
 
   defp put_concept(%{id: id} = concept) do
     commands = [
-      Commands.hmset("business_concept:#{id}", Map.take(concept, @props)),
+      ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
       ["SADD", @keys, "business_concept:#{id}"],
       ["SREM", @inactive_ids, id],
       ["SADD", @active_ids, id]
     ]
 
-    results = Redis.transaction_pipeline!(commands)
+    results = Redix.transaction_pipeline!(commands)
     [_, _, activated, _] = results
 
     unless activated == 0 do
@@ -216,7 +217,7 @@ defmodule TdCache.ConceptCache do
 
   defp read_active_ids do
     ["SMEMBERS", @active_ids]
-    |> Redis.command!()
+    |> Redix.command!()
   end
 
   defp update_active_ids(ids) do
@@ -235,7 +236,7 @@ defmodule TdCache.ConceptCache do
       ["DEL", "_previds", "_prevdeleted", "_removed", "_restored"]
     ]
 
-    results = Redis.transaction_pipeline!(commands)
+    results = Redix.transaction_pipeline!(commands)
     [_, _, _, _, _, _, _, _, _, removed_ids, restored_ids, _] = results
     publish_event("restore_concepts", restored_ids)
     publish_event("remove_concepts", removed_ids)
@@ -266,9 +267,9 @@ defmodule TdCache.ConceptCache do
         :ok
 
       _ ->
-        case Redis.transaction_pipeline!(commands) do
+        case Redix.transaction_pipeline!(commands) do
           [1 | _] ->
-            ids = Redis.command!(["SMEMBERS", @inactive_ids])
+            ids = Redix.command!(["SMEMBERS", @inactive_ids])
             publish_event("remove_concepts", ids)
             count = Enum.count(ids)
             Logger.info("Migrated active/inactive concept keys (#{count}} deprecated ids)")
@@ -284,7 +285,7 @@ defmodule TdCache.ConceptCache do
       "deprecated_business_concepts" => @inactive_ids,
       "existing_business_concepts" => @active_ids
     }
-    |> Enum.filter(fn {from, _} -> Redis.command!(["TYPE", from]) == "set" end)
+    |> Enum.filter(fn {from, _} -> Redix.command!(["TYPE", from]) == "set" end)
     |> Enum.map(fn {from, to} -> ["RENAMENX", from, to] end)
   end
 end

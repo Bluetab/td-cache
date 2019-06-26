@@ -2,8 +2,8 @@ defmodule TdCache.SystemCache do
   @moduledoc """
   Shared cache for systems.
   """
-  alias TdCache.Redix, as: Redis
-  alias TdCache.Redix.Commands
+
+  alias TdCache.Redix
 
   ## Client API
 
@@ -40,7 +40,7 @@ defmodule TdCache.SystemCache do
 
   defp read_system(id) do
     key = "system:#{id}"
-    {:ok, system} = Redis.read_map(key)
+    {:ok, system} = Redix.read_map(key)
 
     case system do
       nil -> nil
@@ -51,7 +51,7 @@ defmodule TdCache.SystemCache do
   defp delete_system(id) do
     key = "system:#{id}"
 
-    Redis.transaction_pipeline([
+    Redix.transaction_pipeline([
       ["DEL", key],
       ["SREM", "system:keys", key]
     ])
@@ -60,8 +60,8 @@ defmodule TdCache.SystemCache do
   defp put_system(%{id: id} = system) do
     key = "system:#{id}"
 
-    Redis.transaction_pipeline([
-      Commands.hmset(key, Map.take(system, @props)),
+    Redix.transaction_pipeline([
+      ["HMSET", key, Map.take(system, @props)],
       ["SADD", "system:keys", key]
     ])
   end

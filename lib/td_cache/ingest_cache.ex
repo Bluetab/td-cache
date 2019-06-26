@@ -2,6 +2,7 @@ defmodule TdCache.IngestCache do
   @moduledoc """
   Shared cache for Ingests.
   """
+
   alias TdCache.Redix
 
   def get_parent_id(ingest_id) do

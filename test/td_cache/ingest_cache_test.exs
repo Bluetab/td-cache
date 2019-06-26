@@ -43,7 +43,7 @@ defmodule TdCache.IngestCacheTest do
   test "delete_ingest deletes the ingest from cache", %{ingest: ingest} do
     IngestCache.put_ingest(ingest)
     IngestCache.delete_ingest(ingest.id)
-    assert {:ok, 0} = Redix.command(["EXISTS", "ingest:#{ingest.id}"])
+    assert not Redix.exists?("ingest:#{ingest.id}")
   end
 
   defp ingest_fixture do

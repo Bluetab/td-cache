@@ -2,7 +2,7 @@ defmodule TdCache.EventStream.ConsumerTest do
   use ExUnit.Case
   alias TdCache.EventStream.Consumer
   alias TdCache.EventStream.TestConsumer
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   doctest TdCache.EventStream.Consumer
 
   setup do
@@ -17,7 +17,7 @@ defmodule TdCache.EventStream.ConsumerTest do
       parent: self()
     ]
 
-    on_exit(fn -> Redis.command!(["DEL", stream]) end)
+    on_exit(fn -> Redix.command!(["DEL", stream]) end)
 
     {:ok, _pid} = TestConsumer.start_link(parent: self())
     :ok = start_consumer(config)
@@ -37,7 +37,7 @@ defmodule TdCache.EventStream.ConsumerTest do
   describe "EventStream Consumer" do
     test "consumes events on the stream", context do
       stream = context[:stream]
-      {:ok, event_id} = Redis.command(["XADD", stream, "*", "foo", "bar"])
+      {:ok, event_id} = Redix.command(["XADD", stream, "*", "foo", "bar"])
       {:consumed, events} = consume_events()
       assert Enum.any?(events, &(&1.id == event_id))
     end

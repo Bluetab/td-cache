@@ -2,8 +2,8 @@ defmodule TdCache.StructureCache do
   @moduledoc """
   Shared cache for data structures.
   """
-  alias TdCache.Redix, as: Redis
-  alias TdCache.Redix.Commands
+
+  alias TdCache.Redix
   alias TdCache.SystemCache
 
   ## Client API
@@ -35,12 +35,12 @@ defmodule TdCache.StructureCache do
   @props [:name, :type, :group, :system_id, :parent_id]
 
   defp read_structure(id) do
-    case Redis.read_map("data_structure:#{id}") do
+    case Redix.read_map("data_structure:#{id}") do
       {:ok, nil} ->
         nil
 
       {:ok, structure} ->
-        {:ok, path} = Redis.read_list("data_structure:#{id}:path")
+        {:ok, path} = Redix.read_list("data_structure:#{id}:path")
         {:ok, system} = SystemCache.get(Map.get(structure, :system_id))
 
         structure
@@ -54,7 +54,7 @@ defmodule TdCache.StructureCache do
   def put_optional(map, key, value), do: Map.put(map, key, value)
 
   defp delete_structure(id) do
-    Redis.transaction_pipeline([
+    Redix.transaction_pipeline([
       ["DEL", "data_structure:#{id}", "data_structure:#{id}:path"],
       ["SREM", "data_structure:keys", "data_structure:#{id}"]
     ])
@@ -63,12 +63,12 @@ defmodule TdCache.StructureCache do
   defp put_structure(structure) do
     commands = structure_commands(structure)
 
-    Redis.transaction_pipeline(commands)
+    Redix.transaction_pipeline(commands)
   end
 
   defp structure_commands(%{id: id} = structure) do
     [
-      Commands.hmset("data_structure:#{id}", Map.take(structure, @props)),
+      ["HMSET", "data_structure:#{id}", Map.take(structure, @props)],
       ["SADD", "data_structure:keys", "data_structure:#{id}"]
     ] ++
       structure_path_commands(structure) ++
@@ -84,7 +84,7 @@ defmodule TdCache.StructureCache do
   defp structure_path_commands(%{id: id, path: path}) do
     [
       ["DEL", "data_structure:#{id}:path"],
-      Commands.rpush("data_structure:#{id}:path", path)
+      ["RPUSH", "data_structure:#{id}:path", path]
     ]
   end
 
@@ -92,7 +92,7 @@ defmodule TdCache.StructureCache do
 
   defp structure_system_commands(%{id: id, system: %{id: system_id}}) do
     [
-      Commands.hmset("data_structure:#{id}", ["system_id", "#{system_id}"])
+      ["HMSET", "data_structure:#{id}", "system_id", "#{system_id}"]
     ]
   end
 

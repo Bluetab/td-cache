@@ -2,6 +2,7 @@ defmodule TdCache.Permissions do
   @moduledoc """
   Shared cache for permissions.
   """
+
   alias TdCache.ConceptCache
   alias TdCache.IngestCache
   alias TdCache.Redix

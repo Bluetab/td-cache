@@ -1,7 +1,7 @@
 defmodule TdCache.UserCacheTest do
   @moduledoc false
   use ExUnit.Case
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   alias TdCache.UserCache
   doctest TdCache.UserCache
 
@@ -58,7 +58,7 @@ defmodule TdCache.UserCacheTest do
     [user | _] = context[:users]
     UserCache.put(user)
     UserCache.delete(user.id)
-    assert {:ok, 0} = Redis.command(["EXISTS", "user:#{user.id}"])
+    assert not Redix.exists?("user:#{user.id}")
   end
 
   defp random_user do

@@ -2,8 +2,8 @@ defmodule TdCache.UserCache do
   @moduledoc """
   Shared cache for users.
   """
-  alias TdCache.Redix, as: Redis
-  alias TdCache.Redix.Commands
+
+  alias TdCache.Redix
 
   ## Client API
 
@@ -44,7 +44,7 @@ defmodule TdCache.UserCache do
   end
 
   defp read_user(id) do
-    case Redis.read_map("user:#{id}") do
+    case Redix.read_map("user:#{id}") do
       {:ok, nil} ->
         nil
 
@@ -55,39 +55,33 @@ defmodule TdCache.UserCache do
   end
 
   defp read_by_name(full_name) do
-    case Redis.command!(["HGET", @name_to_id_key, full_name]) do
+    case Redix.command!(["HGET", @name_to_id_key, full_name]) do
       nil -> nil
       id -> read_user(id)
     end
   end
 
   defp put_user(%{id: id, full_name: full_name} = user) do
-    commands = [
-      Commands.hmset("user:#{id}", Map.take(user, @props)),
+    Redix.transaction_pipeline([
+      ["HMSET", "user:#{id}", Map.take(user, @props)],
       ["HSET", @name_to_id_key, full_name, id]
-    ]
-
-    Redis.transaction_pipeline(commands)
+    ])
   end
 
   defp put_user(%{id: id} = user) do
-    "user:#{id}"
-    |> Commands.hmset(Map.take(user, @props))
-    |> Redis.command()
+    Redix.command(["HMSET", "user:#{id}", Map.take(user, @props)])
   end
 
   defp delete_user(id) do
-    key = "user:#{id}"
+    case Redix.command!(["HGET", "user:#{id}", :full_name]) do
+      nil ->
+        Redix.command(["DEL", "user:#{id}"])
 
-    commands =
-      case Redis.command!(["HGET", key, :full_name]) do
-        nil ->
-          [["DEL", "user:#{id}"]]
-
-        name ->
-          [["DEL", "user:#{id}"], ["HDEL", @name_to_id_key, name]]
-      end
-
-    Redis.transaction_pipeline(commands)
+      name ->
+        Redix.transaction_pipeline([
+          ["DEL", "user:#{id}"],
+          ["HDEL", @name_to_id_key, name]
+        ])
+    end
   end
 end

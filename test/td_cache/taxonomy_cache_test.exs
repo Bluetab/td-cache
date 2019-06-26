@@ -1,6 +1,6 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
-  alias TdCache.Redix, as: Redis
+  alias TdCache.Redix
   alias TdCache.TaxonomyCache
   doctest TdCache.TaxonomyCache
 
@@ -10,8 +10,8 @@ defmodule TdCache.TaxonomyCacheTest do
     domain = random_domain() |> Map.put(:parent_ids, [parent.id, root.id])
 
     on_exit(fn ->
-      Redis.del!("domain:*")
-      Redis.del!("domains:*")
+      Redix.del!("domain:*")
+      Redix.del!("domains:*")
     end)
 
     {:ok, root: root, parent: parent, domain: domain}
@@ -53,7 +53,7 @@ defmodule TdCache.TaxonomyCacheTest do
     domain = context[:domain]
     TaxonomyCache.put_domain(domain)
     TaxonomyCache.delete_domain(domain.id)
-    assert {:ok, 0} = Redis.command(["EXISTS", "domain:#{domain.id}"])
+    assert not Redix.exists?("domain:#{domain.id}")
   end
 
   test "get_domain_name_to_id_map returns a map with names as keys and ids as values", context do
