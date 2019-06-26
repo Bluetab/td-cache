@@ -81,13 +81,15 @@ defmodule TdCache.Permissions do
   def get_acls_by_resource_type(session_id, resource_type) do
     pattern = get_key_pattern(session_id, resource_type)
 
-    Redix.command!(["KEYS", pattern])
+    ["KEYS", pattern]
+    |> Redix.command!()
     |> Enum.map(&read_acl_entry(&1))
   end
 
   defp read_acl_entry(key) do
     permissions =
-      Redix.command!(["GET", key])
+      ["GET", key]
+      |> Redix.command!()
       |> bitstring_to_list
       |> Enum.zip(@permissions_by_offset)
       |> Enum.filter(fn {bit, _} -> bit == 1 end)

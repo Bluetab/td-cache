@@ -2,8 +2,11 @@ defmodule TdCache.LinkCache do
   @moduledoc """
   Shared cache for links between entities.
   """
+  alias TdCache.ConceptCache
   alias TdCache.EventStream.Publisher
+  alias TdCache.FieldCache
   alias TdCache.Redix, as: Redis
+  alias TdCache.StructureCache
 
   ## Client API
 
@@ -20,6 +23,14 @@ defmodule TdCache.LinkCache do
   def get(id) do
     reply = get_link(id)
     {:ok, reply}
+  end
+
+  @doc """
+  Reads linked resources of a given resource.
+  """
+  def list(resource_type, resource_id) do
+    linked_resources = linked_resources("#{resource_type}:#{resource_id}")
+    {:ok, linked_resources}
   end
 
   @doc """
@@ -272,4 +283,57 @@ defmodule TdCache.LinkCache do
 
   defp conditional_events(false, _), do: []
   defp conditional_events(_true, e), do: [e]
+
+  defp linked_resources(key) do
+    ["SMEMBERS", "#{key}:links"]
+    |> Redis.command!()
+    |> Enum.map(&String.replace_prefix(&1, "link:", ""))
+    |> Enum.map(&get_link/1)
+    |> Enum.filter(& &1)
+    |> Enum.flat_map(fn %{source: source, target: target, tags: tags} ->
+      [{source, tags}, {target, tags}]
+    end)
+    |> Enum.reject(fn {resource_key, _tags} -> resource_key == key end)
+    |> Enum.map(fn {resource_key, tags} -> {String.split(resource_key, ":"), tags} end)
+    |> Enum.map(&read_source/1)
+    |> Enum.filter(& &1)
+  end
+
+  defp read_source({["business_concept", business_concept_id], tags}) do
+    case ConceptCache.get(business_concept_id) do
+      {:ok, nil} ->
+        nil
+
+      {:ok, concept} ->
+        resource_with_tags(concept, :concept, tags)
+    end
+  end
+
+  defp read_source({["data_field", data_field_id], tags}) do
+    case FieldCache.get(data_field_id) do
+      {:ok, nil} ->
+        nil
+
+      {:ok, field} ->
+        resource_with_tags(field, :data_field, tags)
+    end
+  end
+
+  defp read_source({["data_structure", structure_id], tags}) do
+    case StructureCache.get(structure_id) do
+      {:ok, nil} ->
+        nil
+
+      {:ok, structure} ->
+        resource_with_tags(structure, :data_structure, tags)
+    end
+  end
+
+  defp read_source(_), do: []
+
+  defp resource_with_tags(resource, type, tags) do
+    resource
+    |> Map.put(:resource_type, type)
+    |> Map.put(:tags, tags)
+  end
 end

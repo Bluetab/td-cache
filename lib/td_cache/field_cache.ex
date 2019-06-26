@@ -2,7 +2,6 @@ defmodule TdCache.FieldCache do
   @moduledoc """
   Shared cache for links between entities.
   """
-  alias TdCache.ConceptCache
   alias TdCache.LinkCache
   alias TdCache.Redix, as: Redis
   alias TdCache.StructureCache
@@ -26,6 +25,13 @@ defmodule TdCache.FieldCache do
   end
 
   @doc """
+  Reads field links from cache.
+  """
+  def links(id) do
+    LinkCache.list("data_field", id)
+  end
+
+  @doc """
   Deletes cache entries relating to a given field.
   """
   def delete(id) do
@@ -41,11 +47,9 @@ defmodule TdCache.FieldCache do
 
       {:ok, field} ->
         structure = get_structure(field)
-        links = get_links(id)
 
         field
         |> Map.merge(structure)
-        |> Map.put(:links, links)
         |> Map.put(:id, id)
     end
   end
@@ -58,31 +62,6 @@ defmodule TdCache.FieldCache do
   end
 
   defp get_structure(_), do: %{}
-
-  defp get_links(id) do
-    ["SMEMBERS", "data_field:#{id}:links"]
-    |> Redis.command!()
-    |> Enum.map(&String.replace_prefix(&1, "link:", ""))
-    |> Enum.map(&LinkCache.get/1)
-    |> Enum.reject(&(&1 == {:ok, nil}))
-    |> Enum.map(fn {:ok, %{source: source, tags: tags}} -> {String.split(source, ":"), tags} end)
-    |> Enum.map(&read_source/1)
-    |> Enum.filter(& &1)
-  end
-
-  defp read_source({["business_concept", business_concept_id], tags}) do
-    case ConceptCache.get(business_concept_id) do
-      {:ok, nil} ->
-        nil
-
-      {:ok, concept} ->
-        concept
-        |> Map.put(:resource_type, :concept)
-        |> Map.put(:tags, tags)
-    end
-  end
-
-  defp read_source(_), do: []
 
   defp delete_field(id) do
     key = "data_field:#{id}"
