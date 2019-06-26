@@ -52,12 +52,10 @@ defmodule TdCache.AclCache do
         Redix.command(["DEL", key])
 
       _ ->
-        commands = [
+        Redix.transaction_pipeline([
           ["DEL", key],
           ["SADD", key] ++ users
-        ]
-
-        Redix.transaction_pipeline(commands)
+        ])
     end
   end
 
