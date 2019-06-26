@@ -26,10 +26,18 @@ defmodule TdCache.LinkCache do
   end
 
   @doc """
-  Reads linked resources of a given resource.
+  Reads linked resources for a given resource.
   """
   def list(resource_type, resource_id) do
     linked_resources = linked_resources("#{resource_type}:#{resource_id}")
+    {:ok, linked_resources}
+  end
+
+  @doc """
+  Reads linked resources with a given type for a given resource.
+  """
+  def list(resource_type, resource_id, target_type) do
+    linked_resources = linked_resources("#{resource_type}:#{resource_id}", target_type)
     {:ok, linked_resources}
   end
 
@@ -284,9 +292,20 @@ defmodule TdCache.LinkCache do
   defp conditional_events(false, _), do: []
   defp conditional_events(_true, e), do: [e]
 
+  defp linked_resources(key, target_type) do
+    ["SMEMBERS", "#{key}:links:#{target_type}"]
+    |> Redis.command!()
+    |> get_linked_resources(key)
+  end
+
   defp linked_resources(key) do
     ["SMEMBERS", "#{key}:links"]
     |> Redis.command!()
+    |> get_linked_resources(key)
+  end
+
+  defp get_linked_resources(resources, key) do
+    resources
     |> Enum.map(&String.replace_prefix(&1, "link:", ""))
     |> Enum.map(&get_link/1)
     |> Enum.filter(& &1)
