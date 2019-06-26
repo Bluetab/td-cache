@@ -49,6 +49,13 @@ defmodule TdCache.TemplateCache do
     GenServer.call(__MODULE__, {:list, scope})
   end
 
+  def list_by_scope!(scope) do
+    case list_by_scope(scope) do
+      {:ok, templates} -> templates
+      error -> error
+    end
+  end
+
   def put(template) do
     GenServer.call(__MODULE__, {:put, template})
   end
