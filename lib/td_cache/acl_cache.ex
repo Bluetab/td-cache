@@ -18,12 +18,10 @@ defmodule TdCache.AclCache do
   def set_acl_roles(resource_type, resource_id, roles) when is_list(roles) do
     key = create_acl_roles_key(resource_type, resource_id)
 
-    commands = [
+    Redix.transaction_pipeline([
       ["DEL", key],
       ["SADD", key] ++ roles
-    ]
-
-    Redix.transaction_pipeline(commands)
+    ])
   end
 
   def set_acl_roles(resource_type, resource_id, %MapSet{} = roles) do

@@ -60,10 +60,20 @@ defmodule TdCache.StructureCache do
     ])
   end
 
-  defp put_structure(structure) do
-    commands = structure_commands(structure)
+  defp put_structure(%{id: id, updated_at: updated_at} = structure) do
+    last_updated = Redix.command!(["HGET", "data_structure:#{id}", :updated_at])
 
-    Redix.transaction_pipeline(commands)
+    structure
+    |> Map.put(:updated_at, "#{updated_at}")
+    |> put_structure(last_updated)
+  end
+
+  defp put_structure(%{updated_at: ts}, ts), do: {:ok, []}
+
+  defp put_structure(structure, _last_updated) do
+    structure
+    |> structure_commands()
+    |> Redix.transaction_pipeline()
   end
 
   defp structure_commands(%{id: id} = structure) do

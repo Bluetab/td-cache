@@ -12,7 +12,8 @@ defmodule TdCache.StructureCacheTest do
       name: "name",
       group: "group",
       type: "type",
-      path: ["foo", "bar"]
+      path: ["foo", "bar"],
+      updated_at: DateTime.utc_now()
     }
 
     {:ok, _} = SystemCache.put(system)

@@ -2,11 +2,14 @@ defmodule TdCache.FieldCacheTest do
   use ExUnit.Case
   alias TdCache.FieldCache
   alias TdCache.Redix
+  alias TdCache.Redix.Stream
   alias TdCache.StructureCache
   alias TdCache.SystemCache
   doctest TdCache.FieldCache
 
   setup do
+    now = DateTime.utc_now()
+
     system = %{id: :rand.uniform(100_000_000), external_id: "foo", name: "bar"}
 
     structure = %{
@@ -15,12 +18,14 @@ defmodule TdCache.FieldCacheTest do
       group: "group",
       type: "type",
       path: ["foo", "bar"],
-      system: system
+      system: system,
+      updated_at: now
     }
 
     field = %{
       id: :rand.uniform(100_000_000),
-      structure: structure
+      structure: structure,
+      updated_at: now
     }
 
     {:ok, _} = SystemCache.put(system)
@@ -29,15 +34,22 @@ defmodule TdCache.FieldCacheTest do
       FieldCache.delete(field.id)
       StructureCache.delete(structure.id)
       SystemCache.delete(system.id)
+      Redix.command(["DEL", "data_field:events"])
     end)
 
     {:ok, field: field}
   end
 
   describe "FieldCache" do
-    test "writes a field entry in redis and reads it back", context do
+    test "writes a field entry in redis, emits an event, and reads it back", context do
       field = context[:field]
       {:ok, _} = FieldCache.put(field)
+
+      assert {:ok, [event]} = Stream.read(["data_field:events"], transform: true)
+      assert event.event == "migrate_field"
+      assert event.field_id == "#{field.id}"
+      assert event.structure_id == "#{field.structure.id}"
+
       {:ok, f} = FieldCache.get(field.id)
 
       assert Map.take(f, [:group, :name, :path, :type]) ==
@@ -49,7 +61,7 @@ defmodule TdCache.FieldCacheTest do
 
     test "deletes an entry in redis", context do
       field = context[:field]
-      assert {:ok, [1, 1]} = FieldCache.put(field)
+      assert {:ok, ["OK", 1]} = FieldCache.put(field)
       assert {:ok, [1, 1]} = FieldCache.delete(field.id)
       assert {:ok, nil} = FieldCache.get(field.id)
     end

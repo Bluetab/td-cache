@@ -3,6 +3,7 @@ defmodule TdCache.FieldCache do
   Shared cache for links between entities.
   """
 
+  alias TdCache.EventStream.Publisher
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.StructureCache
@@ -86,23 +87,51 @@ defmodule TdCache.FieldCache do
     ])
   end
 
-  defp put_field(%{
-         id: id,
-         structure: %{id: structure_id} = structure
-       }) do
-    field_key = "data_field:#{id}"
+  defp put_field(%{id: id, updated_at: updated_at} = field) do
+    last_updated = Redix.command!(["HGET", "data_field:#{id}", :updated_at])
 
-    StructureCache.put(structure)
-
-    Redix.transaction_pipeline([
-      ["HSET", field_key, "structure_id", structure_id],
-      ["SADD", "data_field:keys", field_key]
-    ])
+    field
+    |> Map.put(:updated_at, "#{updated_at}")
+    |> put_field(last_updated)
   end
 
   defp put_field(field) do
     Logger.warn("No structure for field #{inspect(field)}")
     {:error, :missing_structure}
+  end
+
+  defp put_field(%{updated_at: ts}, ts), do: {:ok, []}
+
+  defp put_field(
+         %{
+           id: id,
+           structure: %{id: structure_id} = structure,
+           updated_at: updated_at
+         },
+         _last_updated
+       ) do
+    StructureCache.put(structure)
+
+    [
+      ["HMSET", "data_field:#{id}", "structure_id", structure_id, "updated_at", updated_at],
+      ["SADD", "data_field:keys", "data_field:#{id}"]
+    ]
+    |> Redix.transaction_pipeline()
+    |> publish_events(id, structure_id)
+  end
+
+  defp publish_events({:ok, ["OK", 0]}, _, _), do: {:ok, ["OK", 0]}
+
+  defp publish_events({:ok, results}, field_id, structure_id) do
+    %{
+      stream: "data_field:events",
+      event: "migrate_field",
+      field_id: field_id,
+      structure_id: structure_id
+    }
+    |> Publisher.publish()
+
+    {:ok, results}
   end
 
   defp read_external_id(value) do
