@@ -127,7 +127,7 @@ defmodule TdCache.ConceptCacheTest do
       {:ok, _} = ConceptCache.put_active_ids(current_ids)
       Stream.trim(@stream, 0)
 
-      assert {:ok, [_, _, _, _, _, removed_ids, restored_ids, _]} =
+      assert {:ok, [_, _, _, _, _, _, _, removed_ids, restored_ids, _]} =
                ConceptCache.put_active_ids(next_ids)
 
       assert MapSet.new(removed_ids) == MapSet.new(deleted_ids)
@@ -138,7 +138,7 @@ defmodule TdCache.ConceptCacheTest do
       assert e.ids |> String.split(",") == removed_ids
       Stream.trim(@stream, 0)
 
-      assert {:ok, [_, _, _, _, _, removed_ids, restored_ids, _]} =
+      assert {:ok, [_, _, _, _, _, _, _, removed_ids, restored_ids, _]} =
                ConceptCache.put_active_ids(current_ids)
 
       assert MapSet.new(restored_ids) == MapSet.new(deleted_ids)

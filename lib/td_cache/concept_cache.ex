@@ -49,6 +49,7 @@ defmodule TdCache.ConceptCache do
   Updates cache entries for active and inactive (deleted/deprecated) ids.
   Events will be emitted for newly inactivated ids.
   """
+  def put_active_ids([]), do: {:ok, []}
   def put_active_ids(ids) do
     GenServer.call(__MODULE__, {:ids, ids})
   end
@@ -221,10 +222,9 @@ defmodule TdCache.ConceptCache do
   end
 
   defp update_active_ids(ids) do
-    rename_existing(@active_ids, "_previds")
-    rename_existing(@inactive_ids, "_prevdeleted")
-
     commands = [
+      ["RENAME", @active_ids, "_previds"],
+      ["RENAME", @inactive_ids, "_prevdeleted"],
       ["SADD", @active_ids] ++ ids,
       ["SINTERSTORE", "_restored", "_prevdeleted", @active_ids],
       ["SDIFFSTORE", "_removed", "_previds", @active_ids],
@@ -236,16 +236,10 @@ defmodule TdCache.ConceptCache do
     ]
 
     results = Redix.transaction_pipeline!(commands)
-    [_, _, _, _, _, removed_ids, restored_ids, _] = results
+    [_, _, _, _, _, _, _, removed_ids, restored_ids, _] = results
     publish_event("restore_concepts", restored_ids)
     publish_event("remove_concepts", removed_ids)
     {:ok, results}
-  end
-
-  defp rename_existing(key, new_key) do
-    if Redix.command!(["EXISTS", key]) == 1 do
-      Redix.command!(["RENAME", key, new_key])
-    end
   end
 
   defp publish_event(_, []), do: :ok
