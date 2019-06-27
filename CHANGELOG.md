@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.1] 2019-06-27
+
+### Added
+
+- [TD-1782] Emit a `migrate_field` event when a new field is cached
+
 ## [3.0.0] 2019-06-26
 
 ### Added
