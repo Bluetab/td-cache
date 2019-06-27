@@ -95,11 +95,6 @@ defmodule TdCache.FieldCache do
     |> put_field(last_updated)
   end
 
-  defp put_field(field) do
-    Logger.warn("No structure for field #{inspect(field)}")
-    {:error, :missing_structure}
-  end
-
   defp put_field(%{updated_at: ts}, ts), do: {:ok, []}
 
   defp put_field(
@@ -118,6 +113,24 @@ defmodule TdCache.FieldCache do
     ]
     |> Redix.transaction_pipeline()
     |> publish_events(id, structure_id)
+  end
+
+  defp put_field(%{id: id}, _last_updated) do
+    Logger.warn("Missing structure for field #{id}")
+
+    %{
+      stream: "data_field:events",
+      event: "unlink_field",
+      field_id: id
+    }
+    |> Publisher.publish()
+
+    {:error, :missing_structure}
+  end
+
+  defp put_field(field, _last_updated) do
+    Logger.warn("Missing structure for field #{inspect(field)}")
+    {:error, :missing_structure}
   end
 
   defp publish_events({:ok, ["OK", 0]}, _, _), do: {:ok, ["OK", 0]}

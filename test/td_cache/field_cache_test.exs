@@ -41,14 +41,9 @@ defmodule TdCache.FieldCacheTest do
   end
 
   describe "FieldCache" do
-    test "writes a field entry in redis, emits an event, and reads it back", context do
+    test "writes a field entry in redis and reads it back", context do
       field = context[:field]
-      {:ok, _} = FieldCache.put(field)
-
-      assert {:ok, [event]} = Stream.read(["data_field:events"], transform: true)
-      assert event.event == "migrate_field"
-      assert event.field_id == "#{field.id}"
-      assert event.structure_id == "#{field.structure.id}"
+      assert {:ok, ["OK", 1]} = FieldCache.put(field)
 
       {:ok, f} = FieldCache.get(field.id)
 
@@ -59,11 +54,30 @@ defmodule TdCache.FieldCacheTest do
       assert f.structure_id == to_string(field.structure.id)
     end
 
+    test "emits an event when a new field is cached", context do
+      field = context[:field]
+      {:ok, _} = FieldCache.put(field)
+
+      assert {:ok, [event]} = Stream.read(["data_field:events"], transform: true)
+      assert event.event == "migrate_field"
+      assert event.field_id == "#{field.id}"
+      assert event.structure_id == "#{field.structure.id}"
+    end
+
     test "deletes an entry in redis", context do
       field = context[:field]
       assert {:ok, ["OK", 1]} = FieldCache.put(field)
       assert {:ok, [1, 1]} = FieldCache.delete(field.id)
       assert {:ok, nil} = FieldCache.get(field.id)
+    end
+
+    test "emits an event if a field has no structure", context do
+      field = context[:field] |> Map.delete(:structure)
+      assert {:error, :missing_structure} = FieldCache.put(field)
+
+      assert {:ok, [event]} = Stream.read(["data_field:events"], transform: true)
+      assert event.event == "unlink_field"
+      assert event.field_id == "#{field.id}"
     end
 
     test "reads an external id" do

@@ -5,6 +5,7 @@
 ### Added
 
 - [TD-1782] Emit a `migrate_field` event when a new field is cached
+- [TD-1782] Emit an `unlink_field` event for fields without structure_id
 
 ## [3.0.0] 2019-06-26
 
