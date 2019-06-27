@@ -225,20 +225,18 @@ defmodule TdCache.ConceptCache do
     rename_existing(@inactive_ids, "_prevdeleted")
 
     commands = [
-      ["SADD", "_ids"] ++ ids,
-      ["SINTERSTORE", "_restored", "_prevdeleted", "_ids"],
-      ["SDIFFSTORE", "_removed", "_previds", "_ids"],
-      ["SDIFFSTORE", "_deleted", "_prevdeleted", "_restored"],
-      ["SUNIONSTORE", "_deleted", "_deleted", "_removed"],
-      ["RENAME", "_ids", @active_ids],
-      ["RENAME", "_deleted", @inactive_ids],
+      ["SADD", @active_ids] ++ ids,
+      ["SINTERSTORE", "_restored", "_prevdeleted", @active_ids],
+      ["SDIFFSTORE", "_removed", "_previds", @active_ids],
+      ["SDIFFSTORE", @inactive_ids, "_prevdeleted", "_restored"],
+      ["SUNIONSTORE", @inactive_ids, @inactive_ids, "_removed"],
       ["SMEMBERS", "_removed"],
       ["SMEMBERS", "_restored"],
       ["DEL", "_previds", "_prevdeleted", "_removed", "_restored"]
     ]
 
     results = Redix.transaction_pipeline!(commands)
-    [_, _, _, _, _, _, _, removed_ids, restored_ids, _] = results
+    [_, _, _, _, _, removed_ids, restored_ids, _] = results
     publish_event("restore_concepts", restored_ids)
     publish_event("remove_concepts", removed_ids)
     {:ok, results}
