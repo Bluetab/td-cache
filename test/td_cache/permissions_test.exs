@@ -18,7 +18,7 @@ defmodule TdCache.PermissionsTest do
     {:ok, _} = ConceptCache.put(concept)
 
     ingest = ingest_entry(domain)
-    {:ok, _} = IngestCache.put_ingest(ingest)
+    {:ok, _} = IngestCache.put(ingest)
 
     acl_entries = acl_entries(domain, user, [["create_business_concept"], ["create_ingest"]])
 
@@ -26,7 +26,7 @@ defmodule TdCache.PermissionsTest do
       TaxonomyCache.delete_domain(domain.id)
       TaxonomyCache.delete_domain(parent.id)
       ConceptCache.delete(concept.id)
-      IngestCache.delete_ingest(ingest.id)
+      IngestCache.delete(ingest.id)
       Redix.del!("session:*")
     end)
 
