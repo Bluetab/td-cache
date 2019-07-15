@@ -6,6 +6,7 @@ defmodule TdCache.LinkCache do
   alias TdCache.ConceptCache
   alias TdCache.EventStream.Publisher
   alias TdCache.FieldCache
+  alias TdCache.IngestCache
   alias TdCache.Redix
   alias TdCache.StructureCache
 
@@ -70,8 +71,13 @@ defmodule TdCache.LinkCache do
     {:ok, link} = Redix.read_map("link:#{id}")
 
     case link do
-      nil -> nil
-      l -> Map.put(l, :tags, tags)
+      nil ->
+        nil
+
+      l ->
+        l
+        |> Map.put(:tags, tags)
+        |> Map.put(:id, id)
     end
   end
 
@@ -310,50 +316,62 @@ defmodule TdCache.LinkCache do
     |> Enum.map(&String.replace_prefix(&1, "link:", ""))
     |> Enum.map(&get_link/1)
     |> Enum.filter(& &1)
-    |> Enum.flat_map(fn %{source: source, target: target, tags: tags} ->
-      [{source, tags}, {target, tags}]
+    |> Enum.flat_map(fn %{id: id, source: source, target: target, tags: tags} ->
+      [{source, tags, id}, {target, tags, id}]
     end)
-    |> Enum.reject(fn {resource_key, _tags} -> resource_key == key end)
-    |> Enum.map(fn {resource_key, tags} -> {String.split(resource_key, ":"), tags} end)
+    |> Enum.reject(fn {resource_key, _tags, _id} -> resource_key == key end)
+    |> Enum.map(fn {resource_key, tags, id} -> {String.split(resource_key, ":"), tags, id} end)
     |> Enum.map(&read_source/1)
     |> Enum.filter(& &1)
   end
 
-  defp read_source({["business_concept", business_concept_id], tags}) do
+  defp read_source({["business_concept", business_concept_id], tags, id}) do
     case ConceptCache.get(business_concept_id) do
       {:ok, nil} ->
         nil
 
       {:ok, concept} ->
-        resource_with_tags(concept, :concept, tags)
+        resource_with_tags(concept, :concept, tags, id)
     end
   end
 
-  defp read_source({["data_field", data_field_id], tags}) do
+  defp read_source({["data_field", data_field_id], tags, id}) do
     case FieldCache.get(data_field_id) do
       {:ok, nil} ->
         nil
 
       {:ok, field} ->
-        resource_with_tags(field, :data_field, tags)
+        resource_with_tags(field, :data_field, tags, id)
     end
   end
 
-  defp read_source({["data_structure", structure_id], tags}) do
+  defp read_source({["data_structure", structure_id], tags, id}) do
     case StructureCache.get(structure_id) do
       {:ok, nil} ->
         nil
 
       {:ok, structure} ->
-        resource_with_tags(structure, :data_structure, tags)
+        resource_with_tags(structure, :data_structure, tags, id)
     end
   end
 
-  defp read_source(_), do: []
+  defp read_source({["ingest", ingest_id], tags, id}) do
+    case IngestCache.get(ingest_id) do
+      {:ok, nil} ->
+        nil
 
-  defp resource_with_tags(resource, type, tags) do
+      {:ok, ingest} ->
+        resource_with_tags(ingest, :ingest, tags, id)
+    end
+  end
+
+  defp read_source(_), do: nil
+
+  defp resource_with_tags(%{id: resource_id} = resource, type, tags, link_id) do
     resource
+    |> Map.put(:resource_id, resource_id)
     |> Map.put(:resource_type, type)
     |> Map.put(:tags, tags)
+    |> Map.put(:id, link_id)
   end
 end

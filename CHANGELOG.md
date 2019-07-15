@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- [TD-1532] Retrieve linked ingests from `LinkCache`
+
 ## [3.0.5] 2019-06-27
 
 ### Added

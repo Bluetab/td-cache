@@ -50,6 +50,7 @@ defmodule TdCache.ConceptCache do
   Events will be emitted for newly inactivated ids.
   """
   def put_active_ids([]), do: {:ok, []}
+
   def put_active_ids(ids) do
     GenServer.call(__MODULE__, {:ids, ids})
   end
@@ -142,7 +143,7 @@ defmodule TdCache.ConceptCache do
 
   ## Private functions
 
-  @props [:id, :name, :domain_id, :business_concept_version_id, :current_version]
+  @props [:name, :domain_id, :business_concept_version_id, :current_version]
 
   defp read_concept(id) do
     concept_key = "business_concept:#{id}"
