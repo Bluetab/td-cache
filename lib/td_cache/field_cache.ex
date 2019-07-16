@@ -43,14 +43,6 @@ defmodule TdCache.FieldCache do
   end
 
   @doc """
-  Reads field external_id from cache. The external ids key "structures:external_ids:<system_external_id>"
-  is a Set of external ids written by td-dl.
-  """
-  def get_external_id(system_external_id, external_id) do
-    read_external_id(system_external_id, external_id)
-  end
-
-  @doc """
   Reads field links from cache.
   """
   def links(id) do
@@ -158,6 +150,7 @@ defmodule TdCache.FieldCache do
     {:ok, results}
   end
 
+  # TODO delete this function after deletion of data_fields in dd
   defp read_external_id(system_external_id, external_id) do
     case Redix.command!(["SISMEMBER", "#{@external_ids_key}:#{system_external_id}", external_id]) do
       1 -> external_id

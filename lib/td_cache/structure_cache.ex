@@ -6,6 +6,8 @@ defmodule TdCache.StructureCache do
   alias TdCache.Redix
   alias TdCache.SystemCache
 
+  @external_ids_key "structures:external_ids"
+
   ## Client API
 
   @doc """
@@ -49,6 +51,15 @@ defmodule TdCache.StructureCache do
         |> Map.put(:id, id)
     end
   end
+
+   @doc """
+  Reads structure external_id from cache. The external ids key "structures:external_ids:<system_external_id>"
+  is a Set of external ids written by td-dl.
+  """
+  def get_external_id(system_external_id, external_id) do
+    read_external_id(system_external_id, external_id)
+  end
+
 
   def put_optional(map, _key, nil), do: map
   def put_optional(map, key, value), do: Map.put(map, key, value)
@@ -107,4 +118,11 @@ defmodule TdCache.StructureCache do
   end
 
   defp structure_system_commands(_), do: []
+
+  defp read_external_id(system_external_id, external_id) do
+    case Redix.command!(["SISMEMBER", "#{@external_ids_key}:#{system_external_id}", external_id]) do
+      1 -> external_id
+      0 -> nil
+    end
+  end
 end
