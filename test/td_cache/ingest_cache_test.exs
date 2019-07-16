@@ -11,38 +11,37 @@ defmodule TdCache.IngestCacheTest do
     ingest = ingest_fixture()
 
     on_exit(fn ->
-      IngestCache.delete_ingest(ingest.id)
+      IngestCache.delete(ingest.id)
     end)
 
     {:ok, ingest: ingest}
   end
 
-  test "put_ingest returns Ok", %{ingest: ingest} do
-    assert IngestCache.put_ingest(ingest) == {:ok, "OK"}
+  test "put returns Ok", %{ingest: ingest} do
+    assert {:ok, ["OK", 1]} = IngestCache.put(ingest)
   end
 
   test "get_parent_id from an ingest", %{ingest: ingest} do
-    IngestCache.put_ingest(ingest)
+    {:ok, _} = IngestCache.put(ingest)
 
-    assert String.to_integer(IngestCache.get_parent_id(ingest.id)) ==
-             ingest.domain_id
+    assert IngestCache.get_domain_id(ingest.id) == "#{ingest.domain_id}"
   end
 
   test "get_name from a ingest", %{ingest: ingest} do
-    IngestCache.put_ingest(ingest)
+    {:ok, _} = IngestCache.put(ingest)
+
     assert IngestCache.get_name(ingest.id) == ingest.name
   end
 
   test "get_ingest_version_id from a ingest", %{ingest: ingest} do
-    IngestCache.put_ingest(ingest)
+    {:ok, _} = IngestCache.put(ingest)
 
-    assert String.to_integer(IngestCache.get_ingest_version_id(ingest.id)) ==
-             ingest.ingest_version_id
+    assert IngestCache.get_ingest_version_id(ingest.id) == "#{ingest.ingest_version_id}"
   end
 
-  test "delete_ingest deletes the ingest from cache", %{ingest: ingest} do
-    IngestCache.put_ingest(ingest)
-    IngestCache.delete_ingest(ingest.id)
+  test "delete deletes the ingest from cache", %{ingest: ingest} do
+    {:ok, _} = IngestCache.put(ingest)
+    assert {:ok, [1, 1]} = IngestCache.delete(ingest.id)
     assert not Redix.exists?("ingest:#{ingest.id}")
   end
 

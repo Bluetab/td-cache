@@ -6,6 +6,12 @@
 
 - [TD-1970] Changed data_fields:external_ids set for structures:external_ids:{system_external_id} set
 
+## [3.2.0] 2019-07-15
+
+### Changed
+
+- [TD-1532] Retrieve linked ingests from `LinkCache`
+
 ## [3.0.5] 2019-06-27
 
 ### Added
