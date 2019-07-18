@@ -5,12 +5,13 @@ defmodule TdCache.Permissions do
 
   alias TdCache.ConceptCache
   alias TdCache.IngestCache
+  alias TdCache.PermissionsConfig
   alias TdCache.Redix
   alias TdCache.TaxonomyCache
 
-  @permissions Application.get_env(:td_cache, :permissions) |> Enum.with_index() |> Map.new()
+  @permissions PermissionsConfig.permissions() |> Enum.with_index() |> Map.new()
 
-  @permissions_by_offset Application.get_env(:td_cache, :permissions)
+  @permissions_by_offset PermissionsConfig.permissions()
                          |> Enum.with_index()
                          |> Enum.map(fn {a, b} -> {b, a} end)
                          |> Enum.sort()

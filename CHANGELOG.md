@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.2.1] 2019-07-18
+
+### Changed
+
+- [TD-2002] Add static permissions config
+
 ## [3.2.0] 2019-07-15
 
 ### Changed
