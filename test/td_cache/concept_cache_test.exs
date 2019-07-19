@@ -43,7 +43,7 @@ defmodule TdCache.ConceptCacheTest do
 
     test "writes a concept entry in redis and reads it back", context do
       concept = context[:concept]
-      {:ok, ["OK", 1, 0, 1]} = ConceptCache.put(concept)
+      {:ok, ["OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert not is_nil(c)
       assert c.id == concept.id
@@ -60,7 +60,7 @@ defmodule TdCache.ConceptCacheTest do
         context[:concept]
         |> Map.put(:domain_id, domain.id)
 
-      {:ok, ["OK", 1, 0, 1]} = ConceptCache.put(concept)
+      {:ok, ["OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert not is_nil(c)
       assert c.id == concept.id

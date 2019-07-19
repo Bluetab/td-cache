@@ -17,6 +17,7 @@ defmodule TdCache.ConceptCache do
   @keys "business_concept:keys"
   @active_ids "business_concept:ids:active"
   @inactive_ids "business_concept:ids:inactive"
+  @confidential_ids "business_concept:ids:confidential"
 
   ## Client API
 
@@ -56,10 +57,24 @@ defmodule TdCache.ConceptCache do
   end
 
   @doc """
+  Updates cache entries for confidential ids.
+  """
+  def put_confidential_ids(ids) do
+    GenServer.call(__MODULE__, {:confidential_ids, ids})
+  end
+
+  @doc """
   Reads active concept ids (as a list of strings) from cache.
   """
   def active_ids do
     GenServer.call(__MODULE__, :active_ids)
+  end
+
+  @doc """
+  Reads confidential concept ids (as a list of strings) from cache.
+  """
+  def confidential_ids do
+    GenServer.call(__MODULE__, :confidential_ids)
   end
 
   @doc """
@@ -69,6 +84,13 @@ defmodule TdCache.ConceptCache do
     GenServer.call(__MODULE__, {:delete, id})
   end
 
+  @doc """
+  Verifies if id is member of confidential ids set.
+  """
+  def member_confidential_ids(id) do
+    GenServer.call(__MODULE__, {:member, :confidential_ids, id})
+  end
+  
   ## Callbacks
 
   @impl true
@@ -130,8 +152,20 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
+  def handle_call(:confidential_ids, _from, state) do
+    ids = read_confidential_ids()
+    {:reply, {:ok, ids}, state}
+  end
+
+  @impl true
   def handle_call({:delete, id}, _from, state) do
     reply = delete_concept(id)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:member, :confidential_ids, id}, _from, state) do
+    reply = is_member_confidential_ids?(id)
     {:reply, reply, state}
   end
 
@@ -141,9 +175,15 @@ defmodule TdCache.ConceptCache do
     {:reply, reply, state}
   end
 
+  @impl true
+  def handle_call({:confidential_ids, ids}, _from, state) do
+    reply = update_confidential_ids(ids)
+    {:reply, reply, state}
+  end
   ## Private functions
 
   @props [:name, :domain_id, :business_concept_version_id, :current_version]
+  @confidential "Si"
 
   defp read_concept(id) do
     concept_key = "business_concept:#{id}"
@@ -199,16 +239,21 @@ defmodule TdCache.ConceptCache do
     {:ok, results}
   end
 
+  defp is_member_confidential_ids?(id) do
+    ["SISMEMBER", @confidential_ids, id] |> Redix.command!()
+  end
+
   defp put_concept(%{id: id} = concept) do
+
     commands = [
       ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
       ["SADD", @keys, "business_concept:#{id}"],
       ["SREM", @inactive_ids, id],
       ["SADD", @active_ids, id]
-    ]
+    ] |> confidential_ids_command(concept)
 
     results = Redix.transaction_pipeline!(commands)
-    [_, _, activated, _] = results
+    [_, _, activated, _, _] = results
 
     unless activated == 0 do
       publish_event("restore_concepts", id)
@@ -219,6 +264,11 @@ defmodule TdCache.ConceptCache do
 
   defp read_active_ids do
     ["SMEMBERS", @active_ids]
+    |> Redix.command!()
+  end
+
+  def read_confidential_ids do
+    ["SMEMBERS", @confidential_ids]
     |> Redix.command!()
   end
 
@@ -241,6 +291,32 @@ defmodule TdCache.ConceptCache do
     publish_event("restore_concepts", restored_ids)
     publish_event("remove_concepts", removed_ids)
     {:ok, results}
+  end
+
+  defp update_confidential_ids(ids) do
+    commands = [
+      ["DEL", @confidential_ids],
+      ["SADD", @confidential_ids] ++ ids,
+    ]
+
+    results = Redix.transaction_pipeline!(commands)
+    [_, confidential_ids] = results
+    publish_event("confidential_concepts", confidential_ids)
+    {:ok, results}
+  end
+
+  defp confidential_ids_command(commands, %{id: id, content: content}) do
+    confidential_command = 
+      case Map.get("_confidential", content) do
+        @confidential -> ["SADD", @confidential_ids, id]
+        _ -> ["SREM", @confidential_ids, id]
+      end
+
+    commands ++ [confidential_command]
+  end
+
+  defp confidential_ids_command(commands, %{id: id}) do
+    commands ++ [["SREM", @confidential_ids, id]]
   end
 
   defp publish_event(_, []), do: :ok
