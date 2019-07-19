@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Improved `TemplateCache` performance
+
 ## [3.2.1] 2019-07-18
 
 ### Changed

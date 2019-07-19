@@ -11,7 +11,14 @@ defmodule TdCache.Application do
     children =
       [
         {TdCache.Redix.Pool, redis_host: redis_host},
-        TdCache.ConceptCache
+        TdCache.ConceptCache,
+        TdCache.TemplateCache,
+        {ConCache,
+         [
+           name: :templates,
+           ttl_check_interval: :timer.seconds(60),
+           global_ttl: :timer.seconds(60)
+         ]}
       ] ++ cache_cleaner_workers() ++ event_stream_workers()
 
     # See https://hexdocs.pm/elixir/Supervisor.html

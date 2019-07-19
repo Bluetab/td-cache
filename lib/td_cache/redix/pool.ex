@@ -3,7 +3,7 @@ defmodule TdCache.Redix.Pool do
   A simple connection pool for Redix.
   """
 
-  @pool_size 5
+  @pool_size 20
 
   def child_spec(config) do
     redis_host = Keyword.get(config, :redis_host, "redis")
