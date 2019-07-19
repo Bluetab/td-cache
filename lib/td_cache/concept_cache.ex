@@ -226,11 +226,12 @@ defmodule TdCache.ConceptCache do
       ["DEL", "business_concept:#{id}"],
       ["SREM", @keys, "business_concept:#{id}"],
       ["SADD", @inactive_ids, id],
-      ["SREM", @active_ids, id]
+      ["SREM", @active_ids, id],
+      ["SREM", @confidential_ids, id]
     ]
 
     results = Redix.transaction_pipeline!(commands)
-    [_, _, inactivated, _] = results
+    [_, _, inactivated, _, _] = results
 
     unless inactivated == 0 do
       publish_event("remove_concepts", id)
@@ -290,24 +291,25 @@ defmodule TdCache.ConceptCache do
     [_, _, _, _, _, _, _, removed_ids, restored_ids, _] = results
     publish_event("restore_concepts", restored_ids)
     publish_event("remove_concepts", removed_ids)
-    {:ok, results}
+    {:ok, results} 
   end
 
   defp update_confidential_ids(ids) do
     commands = [
       ["DEL", @confidential_ids],
       ["SADD", @confidential_ids] ++ ids,
+      ["SMEMBERS", @confidential_ids]
     ]
 
     results = Redix.transaction_pipeline!(commands)
-    [_, confidential_ids] = results
+    [_, _, confidential_ids] = results
     publish_event("confidential_concepts", confidential_ids)
     {:ok, results}
   end
 
   defp confidential_ids_command(commands, %{id: id, content: content}) do
     confidential_command = 
-      case Map.get("_confidential", content) do
+      case Map.get(content, "_confidential") do
         @confidential -> ["SADD", @confidential_ids, id]
         _ -> ["SREM", @confidential_ids, id]
       end
