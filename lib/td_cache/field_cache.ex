@@ -10,7 +10,7 @@ defmodule TdCache.FieldCache do
 
   require Logger
 
-  @external_ids_key "structures:external_ids"
+  @external_ids_key "data_fields:external_ids"
 
   ## Client API
 
@@ -30,16 +30,13 @@ defmodule TdCache.FieldCache do
   end
 
   @doc """
-  Reads structures external_id from cache. The external ids key "structures:external_ids:<system_external_id>"
-  is a Set of external ids written by td-dl.
+  Reads field external_id from cache. The external ids key "data_fields:external_ids"
+  is a Set of values "system.group.name.field" written by td-dl.
   """
-  # TODO delete this function after deletion of data_fields in dd
   def get_external_id(system, group, name, field) do
-    external_id =
-      [group, name, field]
-      |> Enum.join(".")
-
-    read_external_id(system, external_id)
+    [system, group, name, field]
+    |> Enum.join(".")
+    |> read_external_id
   end
 
   @doc """
@@ -150,10 +147,9 @@ defmodule TdCache.FieldCache do
     {:ok, results}
   end
 
-  # TODO delete this function after deletion of data_fields in dd
-  defp read_external_id(system_external_id, external_id) do
-    case Redix.command!(["SISMEMBER", "#{@external_ids_key}:#{system_external_id}", external_id]) do
-      1 -> external_id
+  defp read_external_id(value) do
+    case Redix.command!(["SISMEMBER", @external_ids_key, value]) do
+      1 -> value
       0 -> nil
     end
   end
