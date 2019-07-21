@@ -2,33 +2,32 @@ defmodule TdCache.TemplateCache do
   @moduledoc """
   Shared cache for form templates.
   """
+  use GenServer
 
   alias Jason, as: JSON
   alias TdCache.Redix
 
+  @props [:label, :scope, :name]
+  @name_to_id_key "templates:name_to_id"
+
   ## Client API
 
-  def start_link(options) do
+  def start_link(options \\ []) do
     GenServer.start_link(__MODULE__, options, name: __MODULE__)
   end
 
   def get(id) do
-    template = read_template(id)
-    {:ok, template}
+    GenServer.call(__MODULE__, {:get, id})
   end
 
   def get(id, prop) do
-    value =
-      id
-      |> read_template
-      |> Map.get(prop)
-
+    {:ok, template} = get(id)
+    value = Map.get(template, prop)
     {:ok, value}
   end
 
   def get_by_name(name) do
-    template = read_by_name(name)
-    {:ok, template}
+    GenServer.call(__MODULE__, {:name, name})
   end
 
   def get_by_name!(name) do
@@ -39,8 +38,7 @@ defmodule TdCache.TemplateCache do
   end
 
   def list do
-    templates = list_templates()
-    {:ok, templates}
+    GenServer.call(__MODULE__, :list)
   end
 
   def list!() do
@@ -51,11 +49,13 @@ defmodule TdCache.TemplateCache do
   end
 
   def list_by_scope(scope) do
-    templates =
-      list_templates()
-      |> Enum.filter(&(Map.get(&1, :scope) == scope))
+    case list() do
+      {:ok, templates} ->
+        {:ok, Enum.filter(templates, &(Map.get(&1, :scope) == scope))}
 
-    {:ok, templates}
+      error ->
+        error
+    end
   end
 
   def list_by_scope!(scope) do
@@ -66,17 +66,85 @@ defmodule TdCache.TemplateCache do
   end
 
   def put(template) do
-    put_template(template)
+    GenServer.call(__MODULE__, {:put, template})
   end
 
   def delete(id) do
+    GenServer.call(__MODULE__, {:delete, id})
+  end
+
+  ## Callbacks
+
+  @impl true
+  def init(_options) do
+    {:ok, nil}
+  end
+
+  @impl true
+  def handle_call({:get, id}, _from, state) do
+    template = read_template(id)
+    {:reply, {:ok, template}, state}
+  end
+
+  @impl true
+  def handle_call({:name, name}, _from, state) do
+    template = get_cache(name, fn -> read_by_name(name) end)
+    {:reply, {:ok, template}, state}
+  end
+
+  @impl true
+  def handle_call(:list, _from, state) do
+    templates = get_cache(:all, fn -> list_templates() end)
+    {:reply, {:ok, templates}, state}
+  end
+
+  @impl true
+  def handle_call({:put, %{id: id, name: name} = template}, _from, state) do
     delete_template(id)
+    reply = put_template(template)
+
+    put_cache(name, read_template(id))
+    put_cache(:all, list_templates())
+
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:delete, id}, _from, state) do
+    case read_template(id) do
+      nil ->
+        :ok
+
+      %{name: name} ->
+        delete_cache(name)
+    end
+
+    reply = delete_template(id)
+
+    put_cache(:all, list_templates())
+
+    {:reply, reply, state}
   end
 
   ## Private functions
 
-  @props [:label, :scope, :name]
-  @name_to_id_key "templates:name_to_id"
+  defp get_cache(key, fun) do
+    ConCache.isolated(:templates, key, nil, fn ->
+      ConCache.get_or_store(:templates, key, fn -> fun.() end)
+    end)
+  end
+
+  defp put_cache(key, value) do
+    ConCache.isolated(:templates, key, nil, fn ->
+      ConCache.put(:templates, key, value)
+    end)
+  end
+
+  defp delete_cache(key) do
+    ConCache.isolated(:templates, key, nil, fn ->
+      ConCache.delete(:templates, key)
+    end)
+  end
 
   defp read_template(id) when is_binary(id) do
     id
@@ -118,7 +186,8 @@ defmodule TdCache.TemplateCache do
 
     commands = [
       ["HMSET", "template:#{id}", template],
-      ["HSET", @name_to_id_key, name, id]
+      ["HSET", @name_to_id_key, name, id],
+      ["SADD", "template:keys", "template:#{id}"]
     ]
 
     Redix.transaction_pipeline(commands)
@@ -140,12 +209,16 @@ defmodule TdCache.TemplateCache do
   defp delete_template(id) do
     case Redix.command!(["HGET", "template:#{id}", :name]) do
       nil ->
-        Redix.command(["DEL", "template:#{id}"])
+        Redix.transaction_pipeline([
+          ["DEL", "template:#{id}"],
+          ["SREM", "template:keys", "template:#{id}"]
+        ])
 
       name ->
         Redix.transaction_pipeline([
           ["DEL", "template:#{id}"],
-          ["HDEL", @name_to_id_key, name]
+          ["HDEL", @name_to_id_key, name],
+          ["SREM", "template:keys", "template:#{id}"]
         ])
     end
   end
