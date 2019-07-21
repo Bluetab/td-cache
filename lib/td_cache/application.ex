@@ -7,18 +7,15 @@ defmodule TdCache.Application do
 
   def start(_type, _args) do
     redis_host = Application.get_env(:td_cache, :redis_host, "redis")
+    port = Application.get_env(:td_cache, :port, 6379)
 
     children =
       [
-        {TdCache.Redix.Pool, redis_host: redis_host},
+        {TdCache.Redix.Pool, redis_host: redis_host, port: port},
         TdCache.ConceptCache,
         TdCache.TemplateCache,
-        {ConCache,
-         [
-           name: :templates,
-           ttl_check_interval: :timer.seconds(60),
-           global_ttl: :timer.seconds(60)
-         ]}
+        con_cache_child_spec(:templates, 10, 60),
+        con_cache_child_spec(:concepts, 10, 60)
       ] ++ cache_cleaner_workers() ++ event_stream_workers()
 
     # See https://hexdocs.pm/elixir/Supervisor.html
@@ -39,5 +36,17 @@ defmodule TdCache.Application do
       nil -> []
       config -> [{TdCache.CacheCleaner, config}]
     end
+  end
+
+  defp con_cache_child_spec(name, ttl, global_ttl) do
+    Supervisor.child_spec(
+      {ConCache,
+       [
+         name: name,
+         ttl_check_interval: :timer.seconds(ttl),
+         global_ttl: :timer.seconds(global_ttl)
+       ]},
+      id: {ConCache, name}
+    )
   end
 end
