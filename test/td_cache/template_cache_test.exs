@@ -10,6 +10,8 @@ defmodule TdCache.TemplateCacheTest do
       templates
       |> Enum.map(& &1.id)
       |> Enum.each(&TemplateCache.delete/1)
+
+      ConCache.delete(:templates, :all)
     end)
 
     {:ok, templates: templates}
@@ -17,7 +19,7 @@ defmodule TdCache.TemplateCacheTest do
 
   test "put/1 returns Ok", context do
     [template | _] = context[:templates]
-    assert {:ok, ["OK", 1]} == TemplateCache.put(template)
+    assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
   end
 
   test "get/1 gets content", context do
@@ -43,6 +45,7 @@ defmodule TdCache.TemplateCacheTest do
     |> Enum.take(3)
     |> Enum.map(&TemplateCache.put/1)
 
+    ConCache.delete(:templates, :all)
     {:ok, list} = TemplateCache.list()
     assert length(list) == 3
   end
@@ -67,7 +70,7 @@ defmodule TdCache.TemplateCacheTest do
   test "delete/1 deletes from cache", context do
     [template | _] = context[:templates]
     TemplateCache.put(template)
-    assert {:ok, [1, 1]} == TemplateCache.delete(template.id)
+    assert {:ok, [1, 1, 1]} == TemplateCache.delete(template.id)
     assert {:ok, nil} == TemplateCache.get(template.id)
   end
 

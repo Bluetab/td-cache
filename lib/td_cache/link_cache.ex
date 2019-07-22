@@ -7,6 +7,7 @@ defmodule TdCache.LinkCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.FieldCache
   alias TdCache.IngestCache
+  alias TdCache.Link
   alias TdCache.Redix
   alias TdCache.StructureCache
 
@@ -68,16 +69,19 @@ defmodule TdCache.LinkCache do
 
   defp get_link(id) do
     {:ok, tags} = Redix.command(["SMEMBERS", "link:#{id}:tags"])
-    {:ok, link} = Redix.read_map("link:#{id}")
+    {:ok, map} = Redix.read_map("link:#{id}")
 
-    case link do
+    case map do
       nil ->
         nil
 
-      l ->
-        l
-        |> Map.put(:tags, tags)
-        |> Map.put(:id, id)
+      _ ->
+        link =
+          map
+          |> Map.put(:tags, tags)
+          |> Map.put(:id, id)
+
+        struct(Link, link)
     end
   end
 
@@ -170,8 +174,22 @@ defmodule TdCache.LinkCache do
 
   def delete_link(id) do
     {:ok, keys} = Redix.command(["HMGET", "link:#{id}", "source", "target"])
-    delete_link(id, keys)
+    result = delete_link(id, keys)
+
+    if did_delete?(result) do
+      Publisher.publish(%{
+        stream: "link:commands",
+        event: "delete_link",
+        link_id: id
+      })
+    end
+
+    result
   end
+
+  def did_delete?({:ok, [count, _]}), do: count > 0
+  def did_delete?({:ok, [_, _, _, _, count, _]}), do: count > 0
+  def did_delete?(_), do: false
 
   defp delete_link(id, [nil, nil]) do
     Redix.transaction_pipeline([

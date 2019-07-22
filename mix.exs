@@ -4,7 +4,7 @@ defmodule TdCache.MixProject do
   def project do
     [
       app: :td_cache,
-      version: "3.2.1",
+      version: "3.2.3",
       elixir: "~> 1.6",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -15,7 +15,7 @@ defmodule TdCache.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :redix],
+      extra_applications: [:logger, :redix, :con_cache],
       mod: {TdCache.Application, []}
     ]
   end
@@ -26,6 +26,7 @@ defmodule TdCache.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:con_cache, "~> 0.13"},
       {:redix, "~> 0.8.2"},
       {:credo, "~> 1.0.0", only: [:dev, :test], runtime: false},
       {:jason, "~> 1.1"}

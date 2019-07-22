@@ -92,14 +92,14 @@ defmodule TdCache.ConceptCache do
 
   @impl true
   def handle_call({:get, id}, _from, state) do
-    concept = read_concept(id)
+    concept = get_cache(id, fn -> read_concept(id) end)
     {:reply, {:ok, concept}, state}
   end
 
   @impl true
   def handle_call({:get, id, :domain_ids}, _from, state) do
     domain_ids =
-      case read_concept(id) do
+      case get_cache(id, fn -> read_concept(id) end) do
         %{domain_id: domain_id} ->
           domain_id
           |> String.to_integer()
@@ -115,7 +115,7 @@ defmodule TdCache.ConceptCache do
   @impl true
   def handle_call({:get, id, property}, _from, state) do
     prop =
-      case read_concept(id) do
+      case get_cache(id, fn -> read_concept(id) end) do
         nil -> nil
         concept -> Map.get(concept, property)
       end
@@ -144,6 +144,10 @@ defmodule TdCache.ConceptCache do
   ## Private functions
 
   @props [:name, :domain_id, :business_concept_version_id, :current_version]
+
+  defp get_cache(key, fun) do
+    ConCache.get_or_store(:concepts, key, fn -> fun.() end)
+  end
 
   defp read_concept(id) do
     concept_key = "business_concept:#{id}"
