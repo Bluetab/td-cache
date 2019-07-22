@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- [TD-1775] Added permission manage_quality_rule_implementations
+
 ## [3.2.3] 2019-07-22
 
 ### Changed
