@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0] 2019-07-24
+
+### Added
+
+- [TD-1776] Permission view_quality_rule
+- [TD-1776] Set of confidential business concetp ids
+
 ## [3.2.1] 2019-07-18
 
 ### Changed
