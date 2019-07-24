@@ -166,7 +166,7 @@ defmodule TdCache.ConceptCache do
   @impl true
   def handle_call({:member, :confidential_ids, id}, _from, state) do
     reply = is_member_confidential_ids?(id)
-    {:reply, reply, state}
+    {:reply, {:ok, reply}, state}
   end
 
   @impl true
