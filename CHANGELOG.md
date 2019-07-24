@@ -5,7 +5,15 @@
 ### Added
 
 - [TD-1776] Permission view_quality_rule
-- [TD-1776] Set of confidential business concetp ids
+- [TD-1776] Set of confidential business concept ids
+
+## [3.2.3] 2019-07-22
+
+### Changed
+
+- Performance improvements for `TemplateCache` and `ConceptCache`
+- Support configurable port for Redis
+- Publish `delete_link` command when a link is deleted
 
 ## [3.2.1] 2019-07-18
 
