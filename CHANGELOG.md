@@ -6,6 +6,7 @@
 
 - [TD-1776] Permission view_quality_rule
 - [TD-1776] Set of confidential business concept ids
+- [TD-1775] Permission manage_quality_rule_implementations
 
 ## [3.2.3] 2019-07-22
 
