@@ -43,7 +43,7 @@ defmodule TdCache.ConceptCacheTest do
 
     test "writes a concept entry in redis and reads it back", context do
       concept = context[:concept]
-      {:ok, ["OK", 1, 0, 1]} = ConceptCache.put(concept)
+      {:ok, ["OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert not is_nil(c)
       assert c.id == concept.id
@@ -60,7 +60,7 @@ defmodule TdCache.ConceptCacheTest do
         context[:concept]
         |> Map.put(:domain_id, domain.id)
 
-      {:ok, ["OK", 1, 0, 1]} = ConceptCache.put(concept)
+      {:ok, ["OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert not is_nil(c)
       assert c.id == concept.id
@@ -90,7 +90,7 @@ defmodule TdCache.ConceptCacheTest do
     test "deletes an entry in redis", context do
       concept = context[:concept]
       {:ok, _} = ConceptCache.put(concept)
-      {:ok, [1, 1, 1, 1]} = ConceptCache.delete(concept.id)
+      {:ok, [1, 1, 1, 1, 0]} = ConceptCache.delete(concept.id)
       assert {:ok, nil} == ConceptCache.get(concept.id)
     end
 
@@ -149,6 +149,27 @@ defmodule TdCache.ConceptCacheTest do
       assert e1.ids |> String.split(",") == restored_ids
       assert e2.event == "remove_concepts"
       assert e2.ids |> String.split(",") == removed_ids
+    end
+
+    test "updates confidential ids, publishes events identifying the ids" do
+      ids =
+        1..100
+        |> Enum.map(fn _ -> random_id() end)
+        |> Enum.uniq()
+        |> Enum.take(50)
+        |> Enum.map(&to_string/1)
+
+      {current_ids, next_ids} = Enum.split(ids, 40)
+
+      {:ok, _} = ConceptCache.put_confidential_ids(current_ids)
+      Stream.trim(@stream, 0)
+
+      assert {:ok, [_, 10, _]} =
+               ConceptCache.put_confidential_ids(next_ids)
+
+      {:ok, [e]} = Stream.read([@stream], transform: true)
+      assert e.event == "confidential_concepts"
+      assert e.ids |> String.split(",") |> Enum.all?(fn ci -> Enum.any?(next_ids, & &1 == ci) end)
     end
   end
 
