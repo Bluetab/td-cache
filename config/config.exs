@@ -20,7 +20,7 @@ use Mix.Config
 #
 #     config :logger, level: :info
 #
-config :td_cache, redis_host: "redis"
+config :td_cache, redis_host: "redis", port: 6380
 
 config :td_cache, :cache_cleaner,
   clean_on_startup: false,

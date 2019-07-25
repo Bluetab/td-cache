@@ -2,10 +2,52 @@ defmodule TdCache.TaxonomyCache do
   @moduledoc """
   Shared cache for taxonomy hierarchy.
   """
+  use GenServer
 
   alias TdCache.DomainCache
 
-  def get_domain(domain_id) do
+  ## Client API
+
+  def start_link(options \\ []) do
+    GenServer.start_link(__MODULE__, options, name: __MODULE__)
+  end
+
+  def get_domain(id) do
+    GenServer.call(__MODULE__, {:get, id})
+  end
+
+  def get_parent_ids(domain_id, with_self \\ true)
+
+  def get_parent_ids(id, with_self) do
+    GenServer.call(__MODULE__, {:parent_ids, id, with_self})
+  end
+
+  ## Callbacks
+
+  @impl true
+  def init(_options) do
+    {:ok, nil}
+  end
+
+  @impl true
+  def handle_call({:get, id}, _from, state) do
+    domain = get_cache({:id, id}, fn -> do_get_domain(id) end)
+    {:reply, domain, state}
+  end
+
+  @impl true
+  def handle_call({:parent_ids, id, with_self}, _from, state) do
+    reply = get_cache({:parent, id}, fn -> do_get_parent_ids(id, with_self) end)
+    {:reply, reply, state}
+  end
+
+  ## Private functions
+
+  defp get_cache(key, fun) do
+    ConCache.get_or_store(:taxonomy, key, fn -> fun.() end)
+  end
+
+  defp do_get_domain(domain_id) do
     case DomainCache.get(domain_id) do
       {:ok, nil} ->
         nil
@@ -21,17 +63,15 @@ defmodule TdCache.TaxonomyCache do
     end
   end
 
-  def get_parent_ids(domain_id, with_self \\ true)
-
-  def get_parent_ids(domain_id, false) do
+  defp do_get_parent_ids(domain_id, false) do
     case DomainCache.prop(domain_id, :parent_ids) do
       {:ok, ""} -> []
       {:ok, ids} -> to_integer_list(ids)
     end
   end
 
-  def get_parent_ids(domain_id, true) do
-    [domain_id | get_parent_ids(domain_id, false)]
+  defp do_get_parent_ids(domain_id, true) do
+    [domain_id | do_get_parent_ids(domain_id, false)]
   end
 
   defp to_integer_list(""), do: []

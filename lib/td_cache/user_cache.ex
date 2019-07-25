@@ -2,19 +2,22 @@ defmodule TdCache.UserCache do
   @moduledoc """
   Shared cache for users.
   """
+  use GenServer
 
   alias TdCache.Redix
 
   ## Client API
 
+  def start_link(options \\ []) do
+    GenServer.start_link(__MODULE__, options, name: __MODULE__)
+  end
+
   def get(id) do
-    user = read_user(id)
-    {:ok, user}
+    GenServer.call(__MODULE__, {:get, id})
   end
 
   def get_by_name(name) do
-    user = read_by_name(name)
-    {:ok, user}
+    GenServer.call(__MODULE__, {:name, name})
   end
 
   def get_by_name!(name) do
@@ -25,17 +28,52 @@ defmodule TdCache.UserCache do
   end
 
   def put(user) do
-    put_user(user)
+    GenServer.call(__MODULE__, {:put, user})
   end
 
   def delete(id) do
-    delete_user(id)
+    GenServer.call(__MODULE__, {:delete, id})
+  end
+
+  ## Callbacks
+
+  @impl true
+  def init(_options) do
+    {:ok, nil}
+  end
+
+  @impl true
+  def handle_call({:get, id}, _from, state) do
+    user = get_cache(id, fn -> read_user(id) end)
+    {:reply, {:ok, user}, state}
+  end
+
+  @impl true
+  def handle_call({:name, name}, _from, state) do
+    user = read_by_name(name)
+    {:reply, {:ok, user}, state}
+  end
+
+  @impl true
+  def handle_call({:put, user}, _from, state) do
+    reply = put_user(user)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:delete, id}, _from, state) do
+    reply = delete_user(id)
+    {:reply, reply, state}
   end
 
   ## Private functions
 
   @props [:user_name, :full_name, :email]
   @name_to_id_key "users:name_to_id"
+
+  defp get_cache(key, fun) do
+    ConCache.get_or_store(:users, key, fn -> fun.() end)
+  end
 
   defp read_user(id) when is_binary(id) do
     id
