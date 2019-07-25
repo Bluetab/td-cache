@@ -10,8 +10,6 @@ defmodule TdCache.FieldCache do
 
   require Logger
 
-  @external_ids_key "data_fields:external_ids"
-
   ## Client API
 
   @doc """
@@ -27,16 +25,6 @@ defmodule TdCache.FieldCache do
   def get(id) do
     field = read_field(id)
     {:ok, field}
-  end
-
-  @doc """
-  Reads field external_id from cache. The external ids key "data_fields:external_ids"
-  is a Set of values "system.group.name.field" written by td-dl.
-  """
-  def get_external_id(system, group, name, field) do
-    [system, group, name, field]
-    |> Enum.join(".")
-    |> read_external_id
   end
 
   @doc """
@@ -145,12 +133,5 @@ defmodule TdCache.FieldCache do
     |> Publisher.publish()
 
     {:ok, results}
-  end
-
-  defp read_external_id(value) do
-    case Redix.command!(["SISMEMBER", @external_ids_key, value]) do
-      1 -> value
-      0 -> nil
-    end
   end
 end
