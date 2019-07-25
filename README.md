@@ -23,3 +23,10 @@ The `TdCache.CacheCleaner` config expect a keyword list with the options:
    * `patterns` - a list of [KEYS patterns](https://redis.io/commands/keys) to be deleted from Redis
 
 After startup, cleanup can be perfomed programatically by using `TdCache.CacheCleaner.clean`.
+
+## Running the tests
+
+The test environment expect a clean Redis server to be listening on port 6380.
+To start redis as a docker container, run `docker-compose up -d redis`.
+
+Run all aplication tests with `mix test`. 

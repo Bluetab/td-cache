@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.3.1] 2019-07-25
+
+### Changed
+
+- [TD-2027] Performance improvements for `UserCache` and `TaxonomyCache`
+
 ## [3.3.0] 2019-07-24
 
 ### Added

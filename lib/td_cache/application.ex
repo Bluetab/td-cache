@@ -14,7 +14,11 @@ defmodule TdCache.Application do
         {TdCache.Redix.Pool, redis_host: redis_host, port: port},
         TdCache.ConceptCache,
         TdCache.TemplateCache,
+        TdCache.UserCache,
+        TdCache.TaxonomyCache,
         con_cache_child_spec(:templates, 10, 60),
+        con_cache_child_spec(:users, 10, 60),
+        con_cache_child_spec(:taxonomy, 10, 60),
         con_cache_child_spec(:concepts, 10, 60)
       ] ++ cache_cleaner_workers() ++ event_stream_workers()
 
