@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- [TD-2009] Changed data_fields:external_ids set for structures:external_ids:{system_external_id} set
+
 ## [3.3.0] 2019-07-24
 
 ### Added
