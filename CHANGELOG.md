@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.3.2] 2019-07-26
+
+### Changed
+
+- [TD-1991] Stream consumers now each use a dedicated connection with Redis
+
 ## [3.3.1] 2019-07-25
 
 ### Changed

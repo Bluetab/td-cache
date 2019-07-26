@@ -48,37 +48,37 @@ defmodule TdCache.Redix.Stream do
     Logger.info("Destroyed consumer group #{group} for stream #{key}")
   end
 
-  def read(stream, options \\ [])
+  def read(redix, stream, options)
 
-  def read(stream, options) when is_binary(stream) do
-    read([stream], options)
+  def read(redix, stream, options) when is_binary(stream) do
+    read(redix, [stream], options)
   end
 
-  def read(streams, options) when is_list(streams) do
+  def read(redix, streams, options) when is_list(streams) do
     count = Commands.option("COUNT", Keyword.get(options, :count))
     block = Commands.option("BLOCK", Keyword.get(options, :block))
     ids = Keyword.get(options, :ids, Enum.map(streams, fn _ -> "0-0" end))
 
     command = ["XREAD"] ++ count ++ block ++ ["STREAMS"] ++ streams ++ ids
-    events = read_events(command, options)
+    events = read_events(redix, command, options)
 
     {:ok, events}
   end
 
-  def read_group(stream, group, consumer, options \\ []) do
+  def read_group(redix, stream, group, consumer, options \\ []) do
     count = Commands.option("COUNT", Keyword.get(options, :count))
     block = Commands.option("BLOCK", Keyword.get(options, :block))
 
     command =
       ["XREADGROUP", "GROUP", group, consumer] ++ count ++ block ++ ["STREAMS", stream, ">"]
 
-    events = read_events(command, options)
+    events = read_events(redix, command, options)
 
     {:ok, events}
   end
 
-  defp read_events(command, options) do
-    case Redix.command(command) do
+  defp read_events(redix, command, options) do
+    case Redix.command(redix, command) do
       {:ok, nil} ->
         []
 

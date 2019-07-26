@@ -99,7 +99,7 @@ defmodule TdCache.ConceptCacheTest do
       Redix.command!(["SADD", "business_concept:ids:active", concept.id])
       {:ok, _} = ConceptCache.delete(concept.id)
 
-      {:ok, [e]} = Stream.read([@stream], transform: true)
+      {:ok, [e]} = Stream.read(:redix, [@stream], transform: true)
       assert e.event == "remove_concepts"
       assert e.ids == "#{concept.id}"
     end
@@ -109,7 +109,7 @@ defmodule TdCache.ConceptCacheTest do
       Redix.command!(["SADD", "business_concept:ids:inactive", concept.id])
       {:ok, _} = ConceptCache.put(concept)
 
-      {:ok, [e]} = Stream.read([@stream], transform: true)
+      {:ok, [e]} = Stream.read(:redix, [@stream], transform: true)
       assert e.event == "restore_concepts"
       assert e.ids == "#{concept.id}"
     end
@@ -133,7 +133,7 @@ defmodule TdCache.ConceptCacheTest do
       assert MapSet.new(removed_ids) == MapSet.new(deleted_ids)
       assert restored_ids == []
 
-      {:ok, [e]} = Stream.read([@stream], transform: true)
+      {:ok, [e]} = Stream.read(:redix, [@stream], transform: true)
       assert e.event == "remove_concepts"
       assert e.ids |> String.split(",") == removed_ids
       Stream.trim(@stream, 0)
@@ -144,7 +144,7 @@ defmodule TdCache.ConceptCacheTest do
       assert MapSet.new(restored_ids) == MapSet.new(deleted_ids)
       assert MapSet.new(removed_ids) == MapSet.new(new_ids)
 
-      {:ok, [e1, e2]} = Stream.read([@stream], transform: true)
+      {:ok, [e1, e2]} = Stream.read(:redix, [@stream], transform: true)
       assert e1.event == "restore_concepts"
       assert e1.ids |> String.split(",") == restored_ids
       assert e2.event == "remove_concepts"
@@ -164,12 +164,14 @@ defmodule TdCache.ConceptCacheTest do
       {:ok, _} = ConceptCache.put_confidential_ids(current_ids)
       Stream.trim(@stream, 0)
 
-      assert {:ok, [_, 10, _]} =
-               ConceptCache.put_confidential_ids(next_ids)
+      assert {:ok, [_, 10, _]} = ConceptCache.put_confidential_ids(next_ids)
 
-      {:ok, [e]} = Stream.read([@stream], transform: true)
+      {:ok, [e]} = Stream.read(:redix, [@stream], transform: true)
       assert e.event == "confidential_concepts"
-      assert e.ids |> String.split(",") |> Enum.all?(fn ci -> Enum.any?(next_ids, & &1 == ci) end)
+
+      assert e.ids
+             |> String.split(",")
+             |> Enum.all?(fn ci -> Enum.any?(next_ids, &(&1 == ci)) end)
     end
   end
 
