@@ -9,6 +9,8 @@ defmodule TdCache.EventStream.ConsumerTest do
     stream = "test:events"
 
     config = [
+      redis_host: Application.get_env(:td_cache, :redis_host, "redis"),
+      port: Application.get_env(:td_cache, :port, 6380),
       consumer_group: "test_group",
       consumer_id: "test_consumer",
       stream: stream,

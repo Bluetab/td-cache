@@ -5,7 +5,6 @@ defmodule TdCache.EventStream.Consumer do
 
   use GenServer
 
-  alias TdCache.Redix
   alias TdCache.Redix.Stream
 
   require Logger
@@ -29,20 +28,19 @@ defmodule TdCache.EventStream.Consumer do
 
   @impl true
   def init(opts) do
-    consumer = opts[:consumer]
-    quiesce = Keyword.get(opts, :quiesce, 5_000)
-
     state = %{
       consumer_group: opts[:consumer_group],
       consumer_id: opts[:consumer_id],
       stream: opts[:stream],
-      consumer: consumer,
+      consumer: opts[:consumer],
       parent: opts[:parent],
       block: Keyword.get(opts, :block, 1_000),
       count: Keyword.get(opts, :count, 8),
-      interval: Keyword.get(opts, :interval, 200)
+      interval: Keyword.get(opts, :interval, 200),
+      redix: start_redix(opts)
     }
 
+    quiesce = Keyword.get(opts, :quiesce, 5_000)
     Process.send_after(self(), :initialize, quiesce)
     {:ok, state}
   end
@@ -81,7 +79,16 @@ defmodule TdCache.EventStream.Consumer do
 
   ## Private functions
 
+  defp start_redix(opts) do
+    # Starts a dedicated Redis connection for the consumer
+    redis_host = Keyword.get(opts, :redis_host, "redis")
+    port = Keyword.get(opts, :port, 6379)
+    {:ok, redix} = Redix.start_link(host: redis_host, port: port)
+    redix
+  end
+
   defp do_work(%{
+         redix: redix,
          stream: stream,
          consumer: consumer,
          consumer_group: consumer_group,
@@ -90,7 +97,7 @@ defmodule TdCache.EventStream.Consumer do
          count: count
        }) do
     {:ok, events} =
-      Stream.read_group(stream, consumer_group, consumer_id,
+      Stream.read_group(redix, stream, consumer_group, consumer_id,
         count: count,
         block: block,
         transform: true
@@ -103,12 +110,12 @@ defmodule TdCache.EventStream.Consumer do
       _ ->
         consumer.consume(events)
         event_ids = events |> Enum.map(& &1.id)
-        {:ok, count} = ack(stream, consumer_group, event_ids)
+        {:ok, count} = ack(redix, stream, consumer_group, event_ids)
         Logger.info("Consumed #{count} events from #{stream}")
     end
   end
 
-  defp ack(stream, consumer_group, ids) do
-    Redix.command(["XACK", stream, consumer_group] ++ ids)
+  defp ack(redix, stream, consumer_group, ids) do
+    Redix.command(redix, ["XACK", stream, consumer_group] ++ ids)
   end
 end

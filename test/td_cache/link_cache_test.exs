@@ -30,7 +30,7 @@ defmodule TdCache.LinkCacheTest do
       target_key = "#{link.target_type}:#{link.target_id}"
       assert {:ok, [0, "OK", 1, 1, 1, 1, 1]} == LinkCache.put(link)
 
-      {:ok, events} = Stream.read(["foo:events", "bar:events"], transform: true)
+      {:ok, events} = Stream.read(:redix, ["foo:events", "bar:events"], transform: true)
       assert Enum.count(events) == 2
       assert Enum.all?(events, &(&1.event == "add_link"))
       assert Enum.all?(events, &(&1.link == link_key))
@@ -77,7 +77,7 @@ defmodule TdCache.LinkCacheTest do
       {:ok, [1, 1, 1, 1, 1, 1]} = LinkCache.delete(link.id)
       assert {:ok, nil} == LinkCache.get(link.id)
 
-      {:ok, events} = Stream.read(["foo:events", "bar:events"], transform: true)
+      {:ok, events} = Stream.read(:redix, ["foo:events", "bar:events"], transform: true)
       assert Enum.count(events) == 2
       assert Enum.all?(events, &(&1.event == "remove_link"))
       assert Enum.all?(events, &(&1.link == link_key))
@@ -117,7 +117,7 @@ defmodule TdCache.LinkCacheTest do
       assert {:ok, 0} == LinkCache.count(target_key1, link1.source_type)
       assert {:ok, 0} == LinkCache.count(target_key2, link2.source_type)
 
-      {:ok, events} = Stream.read("bar:events", transform: true)
+      {:ok, events} = Stream.read(:redix, "bar:events", transform: true)
       assert Enum.all?(events, &(&1.event == "remove_link"))
       assert Enum.all?(events, &(&1.stream == "bar:events"))
       assert Enum.all?(events, &(&1.source == source_key))

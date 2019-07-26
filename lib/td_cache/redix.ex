@@ -3,8 +3,13 @@ defmodule TdCache.Redix do
   A facade for Redix using a pool of connections.
   """
 
+  alias Redix
   alias TdCache.Redix.Commands
   alias TdCache.Redix.Pool
+
+  def command(pid, command) do
+    Redix.command(pid, Commands.transform(command))
+  end
 
   def command(command) do
     command
