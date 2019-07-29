@@ -58,7 +58,7 @@ defmodule TdCache.FieldCacheTest do
       field = context[:field]
       {:ok, _} = FieldCache.put(field)
 
-      assert {:ok, [event]} = Stream.read(["data_field:events"], transform: true)
+      assert {:ok, [event]} = Stream.read(:redix, ["data_field:events"], transform: true)
       assert event.event == "migrate_field"
       assert event.field_id == "#{field.id}"
       assert event.structure_id == "#{field.structure.id}"
@@ -75,7 +75,7 @@ defmodule TdCache.FieldCacheTest do
       field = context[:field] |> Map.delete(:structure)
       assert {:error, :missing_structure} = FieldCache.put(field)
 
-      assert {:ok, [event]} = Stream.read(["data_field:events"], transform: true)
+      assert {:ok, [event]} = Stream.read(:redix, ["data_field:events"], transform: true)
       assert event.event == "unlink_field"
       assert event.field_id == "#{field.id}"
     end

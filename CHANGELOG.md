@@ -6,6 +6,18 @@
 
 - [TD-2009] Changed data_fields:external_ids set for structures:external_ids:{system_external_id} set
 
+## [3.3.2] 2019-07-26
+
+### Changed
+
+- [TD-1991] Stream consumers now each use a dedicated connection with Redis
+
+## [3.3.1] 2019-07-25
+
+### Changed
+
+- [TD-2027] Performance improvements for `UserCache` and `TaxonomyCache`
+
 ## [3.3.0] 2019-07-24
 
 ### Added
