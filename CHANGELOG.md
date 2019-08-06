@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+
+- [TD-2044] Permission execute_quality_rule
+
+## Unreleased
+
 ### Changed
 
 - [TD-2009] Changed data_fields:external_ids set for structures:external_ids:{system_external_id} set
