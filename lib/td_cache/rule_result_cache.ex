@@ -93,7 +93,10 @@ defmodule TdCache.RuleResultCache do
   end
 
   defp update_failed_ids_cache(ids) do
-    Redix.command!(["SADD", @failed_ids] ++ ids)
+    Redix.transaction_pipeline!([
+      ["DEL", @failed_ids],
+      ["SADD", @failed_ids] ++ ids
+    ])
   end
 
   defp delete_failed_ids_from_cache do

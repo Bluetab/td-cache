@@ -14,7 +14,7 @@ defmodule TdCache.RuleResultCacheTest do
     }
 
     {:ok, "OK"} = RuleResultCache.put(rule_result)
-    {:ok, 1} = RuleResultCache.update_failed_ids([rule_result.id])
+    {:ok, [0, 1]} = RuleResultCache.update_failed_ids([rule_result.id])
 
     on_exit(fn ->
       RuleResultCache.delete(rule_result.id)
