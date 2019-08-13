@@ -39,7 +39,7 @@ defmodule TdCache.RuleCache do
 
   ## Private functions
 
-  @props [:active, :name, :updated_at, :business_concept_id]
+  @props [:active, :name, :updated_at, :business_concept_id, :minimum]
 
   defp read_rule(id) do
     {:ok, map} = Redix.read_map("rule:#{id}")
