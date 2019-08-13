@@ -49,5 +49,11 @@ defmodule TdCache.RuleResultCacheTest do
       assert {:ok, 1} = RuleResultCache.delete_from_failed_ids(rule_result.id)
       assert {:ok, 0} = RuleResultCache.member_failed_ids?(rule_result.id)
     end
+
+    test "fetch members_failed_ids", context do
+      rule_result = context[:rule_result]
+      {:ok, members} = RuleResultCache.members_failed_ids()
+      assert members == [Integer.to_string(rule_result.id)]
+    end
   end
 end

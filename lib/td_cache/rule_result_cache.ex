@@ -67,6 +67,14 @@ defmodule TdCache.RuleResultCache do
     {:ok, reply}
   end
 
+  @doc """
+  Members from failed ids.
+  """
+  def members_failed_ids do
+    reply = members()
+    {:ok, reply}
+  end
+
   defp put_rule_result(%{id: id} = rule_result) do
     Redix.command!([
       "HMSET",
@@ -102,5 +110,9 @@ defmodule TdCache.RuleResultCache do
 
   defp delete_rule_result(id) do
     Redix.command!(["DEL", "rule_result:#{id}"])
+  end
+
+  defp members do
+    Redix.command!(["SMEMBERS", @failed_ids])
   end
 end
