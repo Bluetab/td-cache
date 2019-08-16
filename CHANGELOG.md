@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.4.0] 2019-08-16
+
+### Added
+
+- [TD-2044] Permission execute_quality_rule
+
 ## [3.3.3] 2019-08-01
 
 ### Changed
