@@ -49,7 +49,8 @@ defmodule TdCache.PermissionsConfig do
     :manage_ingest_relations,
     :view_data_structures_profile,
     :view_quality_rule,
-    :manage_quality_rule_implementations
+    :manage_quality_rule_implementations,
+    :execute_quality_rule
   ]
 
   def permissions, do: @permissions
