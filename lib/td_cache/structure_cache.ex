@@ -52,14 +52,13 @@ defmodule TdCache.StructureCache do
     end
   end
 
-   @doc """
+  @doc """
   Reads structure external_id from cache. The external ids key "structures:external_ids:<system_external_id>"
   is a Set of external ids written by td-dl.
   """
   def get_external_id(system_external_id, external_id) do
     read_external_id(system_external_id, external_id)
   end
-
 
   def put_optional(map, _key, nil), do: map
   def put_optional(map, key, value), do: Map.put(map, key, value)
@@ -91,9 +90,7 @@ defmodule TdCache.StructureCache do
     [
       ["HMSET", "data_structure:#{id}", Map.take(structure, @props)],
       ["SADD", "data_structure:keys", "data_structure:#{id}"]
-    ] ++
-      structure_path_commands(structure) ++
-      structure_system_commands(structure)
+    ] ++ structure_path_commands(structure) ++ structure_system_commands(structure)
   end
 
   defp structure_path_commands(%{id: id, path: []}) do

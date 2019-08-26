@@ -12,7 +12,8 @@ defmodule TdCache.RuleCacheTest do
       id: :rand.uniform(100_000_000),
       active: true,
       updated_at: DateTime.utc_now(),
-      business_concept_id: concept.id
+      business_concept_id: concept.id,
+      minimum: 20
     }
 
     {:ok, _} = ConceptCache.put(concept)

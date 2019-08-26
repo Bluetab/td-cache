@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.5.0] 2019-08-26
+
+### Added
+
+- [TD-1907] Rule results cache
+
 ## [3.4.0] 2019-08-16
 
 ### Added
