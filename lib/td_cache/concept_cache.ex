@@ -200,7 +200,7 @@ defmodule TdCache.ConceptCache do
 
       m ->
         {:ok, rule_count} = RuleCache.count(concept_key)
-        {:ok, link_count} = LinkCache.count(concept_key, "data_field")
+        {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
 
         m
         |> Map.put(:id, id)
