@@ -1,11 +1,12 @@
 # Changelog
 
-## [Unreleased]
+## [3.5.1] 2019-09-03
 
 ### Fixed
 
 - [TD-2074] Changed LinkCache.count target to data_structure
-- [TD-2075] Concept rule_count is not updated correctly
+- [TD-2075] Evict concept from local cache on put (rule_count was not reindexed correctly)
+- [TD-2081] Event stream consumer did not respect redis_host and port config options
 
 ## [3.5.0] 2019-08-26
 
