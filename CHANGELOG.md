@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- [TD-2074] Changed LinkCache.count target to data_structure
+
 ## [3.5.0] 2019-08-26
 
 ### Added
