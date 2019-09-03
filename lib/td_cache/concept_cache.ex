@@ -266,6 +266,8 @@ defmodule TdCache.ConceptCache do
       publish_event("restore_concepts", id)
     end
 
+    :ok = ConCache.delete(:concepts, id)
+
     {:ok, results}
   end
 

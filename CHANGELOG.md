@@ -5,6 +5,7 @@
 ### Fixed
 
 - [TD-2074] Changed LinkCache.count target to data_structure
+- [TD-2075] Concept rule_count is not updated correctly
 
 ## [3.5.0] 2019-08-26
 

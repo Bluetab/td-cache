@@ -53,6 +53,18 @@ defmodule TdCache.ConceptCacheTest do
       assert c.rule_count == 0
     end
 
+    test "get/1 caches a concept entry locally and put/1 evicts it", context do
+      concept = context[:concept]
+      {:ok, _} = ConceptCache.put(concept)
+      assert is_nil(ConCache.get(:concepts, concept.id))
+
+      {:ok, _} = ConceptCache.get(concept.id)
+      assert not is_nil(ConCache.get(:concepts, concept.id))
+
+      {:ok, _} = ConceptCache.put(concept)
+      assert is_nil(ConCache.get(:concepts, concept.id))
+    end
+
     test "writes a concept entry with domain in redis and reads it back", context do
       domain = context[:domain]
 

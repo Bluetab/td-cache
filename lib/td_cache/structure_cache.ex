@@ -32,6 +32,14 @@ defmodule TdCache.StructureCache do
     delete_structure(id)
   end
 
+  @doc """
+  Reads structure external_id from cache. The external ids key "structures:external_ids:<system_external_id>"
+  is a Set of external ids written by td-dl.
+  """
+  def get_external_id(system_external_id, external_id) do
+    read_external_id(system_external_id, external_id)
+  end
+
   ## Private functions
 
   @props [:name, :type, :group, :system_id, :parent_id]
@@ -50,14 +58,6 @@ defmodule TdCache.StructureCache do
         |> put_optional(:system, system)
         |> Map.put(:id, id)
     end
-  end
-
-  @doc """
-  Reads structure external_id from cache. The external ids key "structures:external_ids:<system_external_id>"
-  is a Set of external ids written by td-dl.
-  """
-  def get_external_id(system_external_id, external_id) do
-    read_external_id(system_external_id, external_id)
   end
 
   def put_optional(map, _key, nil), do: map
