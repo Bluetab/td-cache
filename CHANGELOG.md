@@ -1,12 +1,18 @@
 # Changelog
 
+## [3.7.0] 2019-09-16
+
+### Added
+
+- [TD-2090] [TD-2091] New permission `link_data_structure`
+
 ## [3.5.1] 2019-09-03
 
 ### Fixed
 
-- [TD-2074] Changed LinkCache.count target to data_structure
-- [TD-2075] Evict concept from local cache on put (rule_count was not reindexed correctly)
-- [TD-2081] Event stream consumer did not respect redis_host and port config options
+- [TD-2074] Changed `LinkCache.count` target to `data_structure`
+- [TD-2075] Evict concept from local cache on put (`rule_count` was not reindexed correctly)
+- [TD-2081] Event stream consumer did not respect `redis_host` and `port` config options
 
 ## [3.5.0] 2019-08-26
 
@@ -18,13 +24,13 @@
 
 ### Added
 
-- [TD-2044] Permission execute_quality_rule
+- [TD-2044] New permission `execute_quality_rule`
 
 ## [3.3.3] 2019-08-01
 
 ### Changed
 
-- [TD-2009] Changed data_fields:external_ids set for structures:external_ids:{system_external_id} set
+- [TD-2009] Changed `data_fields:external_ids` set for `structures:external_ids:{system_external_id}` set
 
 ## [3.3.2] 2019-07-26
 
@@ -42,9 +48,9 @@
 
 ### Added
 
-- [TD-1776] Permission view_quality_rule
+- [TD-1776] New permission `view_quality_rule`
 - [TD-1776] Set of confidential business concept ids
-- [TD-1775] Permission manage_quality_rule_implementations
+- [TD-1775] New permission `manage_quality_rule_implementations`
 
 ## [3.2.3] 2019-07-22
 
@@ -71,11 +77,11 @@
 ### Added
 
 - [TD-1782] Emit a `migrate_field` event when a new field is cached
-- [TD-1782] Emit an `unlink_field` event for fields without structure_id
+- [TD-1782] Emit an `unlink_field` event for fields without `structure_id`
 
 ### Fixed
 
-- Issue with ConceptCache.put_active_ids/1 when keys do not exist in Redis
+- Issue with `ConceptCache.put_active_ids/1` when keys do not exist in Redis
 
 ## [3.0.0] 2019-06-26
 
