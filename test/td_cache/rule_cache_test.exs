@@ -45,7 +45,7 @@ defmodule TdCache.RuleCacheTest do
     test "deletes an entry in redis", context do
       rule = context[:rule]
       {:ok, _} = RuleCache.put(rule)
-      {:ok, _} = RuleCache.delete(rule.id)
+      {:ok, [1, 1, 1]} = RuleCache.delete(rule.id)
       assert {:ok, nil} == RuleCache.get(rule.id)
     end
 
@@ -61,8 +61,8 @@ defmodule TdCache.RuleCacheTest do
     test "returns keys in cache", context do
       rule = context[:rule]
       {:ok, _} = RuleCache.put(rule)
-      assert {:ok, keys} = RuleCache.read_rule_keys()
-      assert Enum.any?(keys, fn k -> k == "rule:#{Map.get(rule, :id)}" end) 
+      assert {:ok, keys} = RuleCache.keys()
+      assert Enum.any?(keys, fn k -> k == "rule:#{rule.id}" end)
     end
   end
 end
