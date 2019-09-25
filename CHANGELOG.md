@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-2084] Get rule keys' set
+
 ## [3.7.0] 2019-09-16
 
 ### Added
