@@ -57,5 +57,12 @@ defmodule TdCache.RuleCacheTest do
       {:ok, _} = RuleCache.delete(rule.id)
       assert {:ok, 0} == RuleCache.count("business_concept:#{rule.business_concept_id}")
     end
+
+    test "returns keys in cache", context do
+      rule = context[:rule]
+      {:ok, _} = RuleCache.put(rule)
+      assert {:ok, keys} = RuleCache.read_rule_keys()
+      assert Enum.any?(keys, fn k -> k == "rule:#{Map.get(rule, :id)}" end) 
+    end
   end
 end

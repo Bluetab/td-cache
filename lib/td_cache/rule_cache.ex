@@ -37,6 +37,13 @@ defmodule TdCache.RuleCache do
     delete_rule(id)
   end
 
+  @doc """
+  Gets all rule keys.
+  """
+  def read_rule_keys do
+    Redix.command(["SMEMBERS", "rule:keys"])
+  end
+
   ## Private functions
 
   @props [:active, :name, :updated_at, :business_concept_id, :minimum]
