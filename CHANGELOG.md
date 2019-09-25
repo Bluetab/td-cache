@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.7.1] 2019-09-25
+
+### Added
+
+- [TD-2084] `RuleCache.keys/0` to list rule keys in cache
+
 ## [3.7.0] 2019-09-16
 
 ### Added

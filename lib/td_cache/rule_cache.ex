@@ -37,6 +37,13 @@ defmodule TdCache.RuleCache do
     delete_rule(id)
   end
 
+  @doc """
+  List all rule keys.
+  """
+  def keys do
+    Redix.command(["SMEMBERS", "rule:keys"])
+  end
+
   ## Private functions
 
   @props [:active, :name, :updated_at, :business_concept_id, :minimum]
@@ -103,13 +110,13 @@ defmodule TdCache.RuleCache do
   end
 
   defp delete_rule(id, business_concept_id) do
-    commands = [
-      ["SREM", "business_concept:#{business_concept_id}:rules", "rule:#{id}"],
-      ["DEL", "rule:#{id}"],
-      ["SREM", "rule:keys", "rule:#{id}"]
-    ]
+    {:ok, results} =
+      Redix.transaction_pipeline([
+        ["SREM", "business_concept:#{business_concept_id}:rules", "rule:#{id}"],
+        ["DEL", "rule:#{id}"],
+        ["SREM", "rule:keys", "rule:#{id}"]
+      ])
 
-    {:ok, results} = Redix.transaction_pipeline(commands)
     [removed, _, _] = results
 
     unless removed == 0 do
