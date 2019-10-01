@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-1721] `add_template` event when a template is put 
+
 ## [3.7.1] 2019-09-25
 
 ### Added

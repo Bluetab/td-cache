@@ -5,6 +5,7 @@ defmodule TdCache.TemplateCache do
   use GenServer
 
   alias Jason, as: JSON
+  alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
   @props [:label, :scope, :name]
@@ -178,7 +179,7 @@ defmodule TdCache.TemplateCache do
     end
   end
 
-  defp put_template(%{id: id, name: name, content: content} = template) do
+  defp put_template(%{id: id, name: name, content: content, scope: scope} = template) do
     template =
       template
       |> Map.take(@props)
@@ -190,7 +191,21 @@ defmodule TdCache.TemplateCache do
       ["SADD", "template:keys", "template:#{id}"]
     ]
 
-    Redix.transaction_pipeline(commands)
+    {:ok, results} = Redix.transaction_pipeline(commands)
+
+    [_, _, added] = results
+
+    unless added == 0 do
+      event = %{
+        event: "add_template",
+        template: "template:#{id}",
+        scope: scope
+      }
+
+      {:ok, _event_id} = Publisher.publish(event, "template:events")
+    end
+
+    {:ok, results}
   end
 
   defp list_templates do
