@@ -8,7 +8,7 @@ defmodule TdCache.TemplateCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
-  @props [:label, :scope, :name]
+  @props [:label, :scope, :name, :updated_at]
   @name_to_id_key "templates:name_to_id"
 
   ## Client API
@@ -101,7 +101,6 @@ defmodule TdCache.TemplateCache do
 
   @impl true
   def handle_call({:put, %{id: id, name: name} = template}, _from, state) do
-    delete_template(id)
     reply = put_template(template)
 
     put_cache(name, read_template(id))
@@ -179,7 +178,20 @@ defmodule TdCache.TemplateCache do
     end
   end
 
-  defp put_template(%{id: id, name: name, content: content, scope: scope} = template) do
+  defp put_template(%{id: id, updated_at: updated_at} = template) do
+    last_updated = Redix.command!(["HGET", "template:#{id}", :updated_at])
+
+    template
+    |> Map.put(:updated_at, "#{updated_at}")
+    |> put_template(last_updated)
+  end
+
+  defp put_template(%{updated_at: ts}, ts), do: {:ok, []}
+
+  defp put_template(
+         %{id: id, name: name, content: content, scope: scope} = template,
+         _last_updated
+       ) do
     template =
       template
       |> Map.take(@props)
