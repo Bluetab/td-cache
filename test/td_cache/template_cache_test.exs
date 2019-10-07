@@ -22,6 +22,12 @@ defmodule TdCache.TemplateCacheTest do
     assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
   end
 
+  test "put/1 returns updates only when updated at is changed", context do
+    [template | _] = context[:templates]
+    assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
+    assert {:ok, []} == TemplateCache.put(template)
+  end
+
   test "get/1 gets content", context do
     [template | _] = context[:templates]
     {:ok, _} = TemplateCache.put(template)
@@ -33,7 +39,11 @@ defmodule TdCache.TemplateCacheTest do
     [template | _] = context[:templates]
     TemplateCache.put(template)
     {:ok, t} = TemplateCache.get_by_name(template.name)
-    assert t == template
+    assert t.content == template.content
+    assert t.id == template.id
+    assert t.name == template.name
+    assert t.scope == template.scope
+    assert t.updated_at == to_string(template.updated_at)
   end
 
   test "get_by_name invalid key will return nil" do
@@ -82,7 +92,8 @@ defmodule TdCache.TemplateCacheTest do
       name: "Template #{id}",
       label: "Label #{id}",
       scope: "Scope #{id}",
-      content: [%{"name" => "field", "type" => "string"}]
+      content: [%{"name" => "field", "type" => "string"}],
+      updated_at: DateTime.utc_now()
     }
   end
 
