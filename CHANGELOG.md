@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-1859] save users roles content info when concept is created/updated
+
 ## [3.7.2]
 
 ### Added

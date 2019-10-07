@@ -5,12 +5,14 @@ defmodule TdCache.ConceptCache do
 
   use GenServer
 
+  alias Jason, as: JSON
   alias TdCache.DomainCache
   alias TdCache.EventStream.Publisher
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.RuleCache
   alias TdCache.TaxonomyCache
+  alias TdCache.TemplateCache
 
   require Logger
 
@@ -250,9 +252,14 @@ defmodule TdCache.ConceptCache do
   end
 
   defp put_concept(%{id: id} = concept) do
+    users_info = concept |> get_content("user")
     commands =
       [
-        ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
+        [
+          "HMSET",
+          "business_concept:#{id}",
+          Map.merge(Map.take(concept, @props), %{content: JSON.encode!(users_info)})
+        ],
         ["SADD", @keys, "business_concept:#{id}"],
         ["SREM", @inactive_ids, id],
         ["SADD", @active_ids, id]
@@ -270,6 +277,23 @@ defmodule TdCache.ConceptCache do
 
     {:ok, results}
   end
+
+  defp get_content(%{type: type, content: concept_content} = _concept, "user") do
+    %{content: template_content} = TemplateCache.get_by_name!(type)
+
+    Enum.reduce(
+      Enum.filter(template_content, fn f -> Map.get(f, "name") != "user" end),
+      %{},
+      fn field, acc ->
+        case Map.get(concept_content, Map.get(field, "name")) do
+          nil -> acc
+          user -> Map.put(acc, Map.get(field, "name"), user)
+        end
+      end
+    )
+  end
+
+  defp get_content(_concept, _field), do: %{}
 
   defp read_active_ids do
     ["SMEMBERS", @active_ids]
