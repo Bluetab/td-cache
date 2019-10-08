@@ -6,6 +6,12 @@
 
 - [TD-1859] save users roles content info when concept is created/updated
 
+## [3.7.3]
+
+### Changed
+
+- [TD-1721] template is not updated if updated_at does not change 
+
 ## [3.7.2]
 
 ### Added
