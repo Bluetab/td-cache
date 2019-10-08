@@ -1,9 +1,11 @@
 defmodule TdCache.ConceptCacheTest do
   use ExUnit.Case
+  alias Jason, as: JSON
   alias TdCache.ConceptCache
   alias TdCache.DomainCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
+  alias TdCache.TemplateCache
   doctest TdCache.ConceptCache
 
   @stream "business_concept:events"
@@ -15,7 +17,51 @@ defmodule TdCache.ConceptCacheTest do
       parent_ids: [random_id(), random_id()]
     }
 
-    concept = %{id: random_id(), business_concept_version_id: random_id(), name: "foo"}
+    concept = %{
+      id: random_id(),
+      type: "mytemp",
+      business_concept_version_id: random_id(),
+      name: "foo",
+      content: %{"data_officer" => nil, "data_owner" => "pepito diaz", "foo" => "bar"}
+    }
+
+    template = %{
+      id: random_id(),
+      label: "mytemp",
+      name: "mytemp",
+      scope: "bg",
+      content: [
+        %{
+          "cardinality" => "?",
+          "disabled" => true,
+          "group" => "Organización y roles",
+          "label" => "Data Officer",
+          "name" => "data_officer",
+          "type" => "user",
+          "values" => %{"processed_users" => [], "role_users" => "Data Officer"},
+          "widget" => "dropdown"
+        },
+        %{
+          "cardinality" => "?",
+          "disabled" => true,
+          "group" => "Organización y roles",
+          "label" => "Data Owner",
+          "name" => "data_owner",
+          "type" => "user",
+          "values" => %{"processed_users" => [], "role_users" => "Data Owner"},
+          "widget" => "dropdown"
+        },
+        %{
+          "cardinality" => "*",
+          "group" => "Organización y roles",
+          "label" => "No user",
+          "name" => "no_user",
+          "type" => "string",
+          "widget" => "string"
+        }
+      ],
+      updated_at: DateTime.utc_now()
+    }
 
     {:ok, _} = DomainCache.put(domain)
 
@@ -24,6 +70,7 @@ defmodule TdCache.ConceptCacheTest do
     on_exit(fn ->
       ConceptCache.delete(concept.id)
       DomainCache.delete(domain.id)
+      TemplateCache.delete(template.id)
 
       Redix.command([
         "DEL",
@@ -33,7 +80,7 @@ defmodule TdCache.ConceptCacheTest do
       ])
     end)
 
-    {:ok, concept: concept, domain: domain}
+    {:ok, concept: concept, domain: domain, template: template}
   end
 
   describe "ConceptCache" do
@@ -184,6 +231,21 @@ defmodule TdCache.ConceptCacheTest do
       assert e.ids
              |> String.split(",")
              |> Enum.all?(fn ci -> Enum.any?(next_ids, &(&1 == ci)) end)
+    end
+
+    test "writes a concept with user info in redis and reads it back", context do
+      concept = context[:concept]
+      template = context[:template]
+      assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
+      {:ok, ["OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
+      {:ok, c} = ConceptCache.get(concept.id)
+      assert not is_nil(c)
+      assert c.id == concept.id
+      assert c.name == concept.name
+      assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
+      assert c.link_count == 0
+      assert c.rule_count == 0
+      assert JSON.decode!(c.content) == %{"data_owner" => "pepito diaz"}
     end
   end
 
