@@ -76,7 +76,9 @@ defmodule TdCache.ConceptCacheTest do
         "DEL",
         @stream,
         "business_concept:ids:active",
-        "business_concept:ids:inactive"
+        "business_concept:ids:inactive",
+        "business_concept:ids:confidential",
+        "template:events"
       ])
     end)
 

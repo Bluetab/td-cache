@@ -16,7 +16,7 @@ defmodule TdCache.LinkCacheTest do
     on_exit(fn ->
       LinkCache.delete(link.id)
       LinkCache.delete(tagged_link.id)
-      Redix.command(["DEL", "foo:events", "bar:events", "_:foo:#{link.source_id}:links"])
+      Redix.command(["DEL", "foo:events", "bar:events", "_:foo:#{link.source_id}:links", "link:commands"])
     end)
 
     {:ok, link: link, tagged_link: tagged_link}

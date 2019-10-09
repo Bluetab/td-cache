@@ -4,6 +4,13 @@ defmodule TdCache.AclCacheTest do
   alias TdCache.Redix
   doctest TdCache.AclCache
 
+  setup do
+    on_exit fn ->
+      Redix.command!(["DEL", "acl_roles:1:test_type", "acl_role_users:1:test_type:role1"])
+    end
+    :ok
+  end
+
   test "set_acl_roles returns Ok" do
     resource_id = 1
     resource_type = "test_type"

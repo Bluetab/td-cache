@@ -1,6 +1,9 @@
 defmodule TdCache.TemplateCacheTest do
   use ExUnit.Case
+
+  alias TdCache.Redix
   alias TdCache.TemplateCache
+
   doctest TdCache.TemplateCache
 
   setup do
@@ -12,6 +15,8 @@ defmodule TdCache.TemplateCacheTest do
       |> Enum.each(&TemplateCache.delete/1)
 
       ConCache.delete(:templates, :all)
+
+      Redix.command!(["DEL", "template:events"])
     end)
 
     {:ok, templates: templates}
