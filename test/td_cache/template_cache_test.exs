@@ -16,7 +16,7 @@ defmodule TdCache.TemplateCacheTest do
 
       ConCache.delete(:templates, :all)
 
-      Redix.command!(["DEL", "template:events"])
+      Redix.del!("template:events")
     end)
 
     {:ok, templates: templates}
