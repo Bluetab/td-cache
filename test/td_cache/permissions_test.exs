@@ -27,7 +27,7 @@ defmodule TdCache.PermissionsTest do
       TaxonomyCache.delete_domain(parent.id)
       ConceptCache.delete(concept.id)
       IngestCache.delete(ingest.id)
-      Redix.del!("session:*")
+      Redix.del!(["session:*", "business_concept:ids:inactive", "business_concept:events"])
     end)
 
     {:ok, concept: concept, domain: domain, ingest: ingest, acl_entries: acl_entries}

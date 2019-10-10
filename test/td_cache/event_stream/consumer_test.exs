@@ -19,7 +19,7 @@ defmodule TdCache.EventStream.ConsumerTest do
       parent: self()
     ]
 
-    on_exit(fn -> Redix.command!(["DEL", stream]) end)
+    on_exit(fn -> Redix.del!(stream) end)
 
     {:ok, _pid} = TestConsumer.start_link(parent: self())
     :ok = start_consumer(config)

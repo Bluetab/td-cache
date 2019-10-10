@@ -23,6 +23,13 @@ defmodule TdCache.DomainCache do
   end
 
   @doc """
+  Reads domain information for a given id from cache.
+  """
+  def get!(id) do
+    read_domain(id)
+  end
+
+  @doc """
   Reads a domain property for a given id from cache.
   """
   def prop(id, property) do

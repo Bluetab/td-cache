@@ -14,10 +14,12 @@ defmodule TdCache.ConceptCache do
 
   require Logger
 
-  @keys "business_concept:keys"
   @active_ids "business_concept:ids:active"
-  @inactive_ids "business_concept:ids:inactive"
+  @confidential "Si"
   @confidential_ids "business_concept:ids:confidential"
+  @inactive_ids "business_concept:ids:inactive"
+  @keys "business_concept:keys"
+  @props [:name, :domain_id, :business_concept_version_id, :current_version]
 
   ## Client API
 
@@ -183,9 +185,6 @@ defmodule TdCache.ConceptCache do
 
   ## Private functions
 
-  @props [:name, :domain_id, :business_concept_version_id, :current_version]
-  @confidential "Si"
-
   defp get_cache(key, fun) do
     ConCache.get_or_store(:concepts, key, fn -> fun.() end)
   end
@@ -199,6 +198,7 @@ defmodule TdCache.ConceptCache do
         nil
 
       m ->
+        {:ok, content} = Redix.read_map("business_concept:#{id}:content", fn [k, v] -> {k, v} end)
         {:ok, rule_count} = RuleCache.count(concept_key)
         {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
 
@@ -206,29 +206,23 @@ defmodule TdCache.ConceptCache do
         |> Map.put(:id, id)
         |> Map.put(:rule_count, rule_count)
         |> Map.put(:link_count, link_count)
+        |> Map.put(:content, content || %{})
     end
   end
 
   def concept_entry_to_map(nil), do: nil
 
-  def concept_entry_to_map(concept) do
-    domain =
-      case Map.get(concept, :domain_id) do
-        nil ->
-          nil
+  def concept_entry_to_map(%{domain_id: domain_id} = concept) when not is_nil(domain_id) do
+    Map.put(concept, :domain, DomainCache.get!(domain_id))
+  end
 
-        id ->
-          {:ok, d} = DomainCache.get(id)
-          d
-      end
-
-    concept
-    |> Map.put(:domain, domain)
+  def concept_entry_to_map(%{} = concept) do
+    Map.put(concept, :domain, nil)
   end
 
   defp delete_concept(id) do
     commands = [
-      ["DEL", "business_concept:#{id}"],
+      ["DEL", "business_concept:#{id}", "business_concept:#{id}:content"],
       ["SREM", @keys, "business_concept:#{id}"],
       ["SADD", @inactive_ids, id],
       ["SREM", @active_ids, id],
@@ -250,17 +244,17 @@ defmodule TdCache.ConceptCache do
   end
 
   defp put_concept(%{id: id} = concept) do
-    commands =
-      [
-        ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
-        ["SADD", @keys, "business_concept:#{id}"],
-        ["SREM", @inactive_ids, id],
-        ["SADD", @active_ids, id]
-      ]
-      |> confidential_ids_command(concept)
+    commands = [
+      ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
+      ["HMSET", "business_concept:#{id}:content", Map.get(concept, :content, %{})],
+      ["SADD", @keys, "business_concept:#{id}"],
+      ["SREM", @inactive_ids, id],
+      ["SADD", @active_ids, id],
+      confidential_ids_command(concept)
+    ]
 
     results = Redix.transaction_pipeline!(commands)
-    [_, _, activated, _, _] = results
+    [_, _, _, activated, _, _] = results
 
     unless activated == 0 do
       publish_event("restore_concepts", id)
@@ -315,18 +309,13 @@ defmodule TdCache.ConceptCache do
     {:ok, results}
   end
 
-  defp confidential_ids_command(commands, %{id: id, content: content}) do
-    confidential_command =
-      case Map.get(content, "_confidential") do
-        @confidential -> ["SADD", @confidential_ids, id]
-        _ -> ["SREM", @confidential_ids, id]
-      end
-
-    commands ++ [confidential_command]
+  defp confidential_ids_command(%{id: id, content: content}) do
+    verb = if Map.get(content, "_confidential") == @confidential, do: "SADD", else: "SREM"
+    [verb, @confidential_ids, id]
   end
 
-  defp confidential_ids_command(commands, %{id: id}) do
-    commands ++ [["SREM", @confidential_ids, id]]
+  defp confidential_ids_command(%{id: id}) do
+    ["SREM", @confidential_ids, id]
   end
 
   defp publish_event(_, []), do: :ok

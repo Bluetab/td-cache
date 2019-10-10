@@ -43,7 +43,16 @@ defmodule TdCache.Redix do
     command!(["KEYS", pattern])
   end
 
-  def del!(pattern \\ "*") do
+  def del!(pattern \\ "*")
+
+  def del!(patterns) when is_list(patterns) do
+    case Enum.flat_map(patterns, &keys!/1) do
+      [] -> {:ok, 0}
+      keys -> command!(["DEL" | keys])
+    end
+  end
+
+  def del!(pattern) do
     case keys!(pattern) do
       [] -> {:ok, 0}
       keys -> command!(["DEL" | keys])
