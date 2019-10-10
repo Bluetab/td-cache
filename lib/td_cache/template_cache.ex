@@ -66,6 +66,14 @@ defmodule TdCache.TemplateCache do
     end
   end
 
+  def fields_by_type!(scope, type) do
+    scope
+    |> list_by_scope!()
+    |> Enum.map(fn t -> {t.name, content_fields(t, type)} end)
+    |> Enum.reject(fn {_, v} -> Enum.empty?(v) end)
+    |> Map.new()
+  end
+
   def put(template) do
     GenServer.call(__MODULE__, {:put, template})
   end
@@ -205,17 +213,13 @@ defmodule TdCache.TemplateCache do
 
     {:ok, results} = Redix.transaction_pipeline(commands)
 
-    [_, _, added] = results
+    event = %{
+      event: "template_updated",
+      template: "template:#{id}",
+      scope: scope
+    }
 
-    unless added == 0 do
-      event = %{
-        event: "add_template",
-        template: "template:#{id}",
-        scope: scope
-      }
-
-      {:ok, _event_id} = Publisher.publish(event, "template:events")
-    end
+    {:ok, _event_id} = Publisher.publish(event, "template:events")
 
     {:ok, results}
   end
@@ -249,4 +253,12 @@ defmodule TdCache.TemplateCache do
         ])
     end
   end
+
+  defp content_fields(%{content: content}, type) do
+    content
+    |> Enum.filter(&(&1["type"] == type))
+    |> Enum.map(& &1["name"])
+  end
+
+  defp content_fields(_, _), do: []
 end
