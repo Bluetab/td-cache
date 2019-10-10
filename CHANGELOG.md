@@ -1,19 +1,19 @@
 # Changelog
 
-## [Unreleased]
+## [3.8.0] 2019-10-10
 
 ### Added
 
 - [TD-1859] ConceptCache: Store content in key `business_concept:{id}:content`
 - [TD-1721] TemplateCache: Emit `template_updated` event instead of `add_template` when a template is updated
 
-## [3.7.3]
+## [3.7.3] 2019-10-07
 
 ### Changed
 
 - [TD-1721] Only update template if `updated_at` has changed
 
-## [3.7.2]
+## [3.7.2] 2019-10-01
 
 ### Added
 
