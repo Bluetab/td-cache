@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-2170] permission to load metadata in dd
+
 ## [3.8.0] 2019-10-10
 
 ### Added
@@ -29,7 +35,7 @@
 
 ### Added
 
-- [TD-2090] [TD-2091] New permission `link_data_structure`
+- [TD-2090][td-2091] New permission `link_data_structure`
 
 ## [3.5.1] 2019-09-03
 
