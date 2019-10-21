@@ -52,7 +52,7 @@ defmodule TdCache.PermissionsConfig do
     :manage_quality_rule_implementations,
     :execute_quality_rule,
     :link_data_structure,
-    :manage_dd_metadata
+    :manage_structures_metadata
   ]
 
   def permissions, do: @permissions
