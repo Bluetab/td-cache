@@ -42,7 +42,7 @@ defmodule TdCache.StructureCache do
 
   ## Private functions
 
-  @props [:name, :type, :group, :system_id, :parent_id, :external_id]
+  @props [:name, :type, :group, :system_id, :parent_id, :external_id, :updated_at]
 
   defp read_structure(id) do
     case Redix.read_map("data_structure:#{id}") do
@@ -79,6 +79,8 @@ defmodule TdCache.StructureCache do
   end
 
   defp put_structure(%{updated_at: ts}, ts, false), do: {:ok, []}
+
+  defp put_structure(%{updated_at: ts}, ts, nil), do: {:ok, []}
 
   defp put_structure(structure, _last_updated, _force) do
     structure
