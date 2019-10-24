@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- [TD-2187] StructureCache: store Structure external_id. Added force option in put function
+
 ## [3.9.0] 2019-10-22
 
 ### Added

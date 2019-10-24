@@ -13,8 +13,8 @@ defmodule TdCache.StructureCache do
   @doc """
   Creates cache entries relating to a given structure.
   """
-  def put(structure) do
-    put_structure(structure)
+  def put(structure, opts \\ []) do
+    put_structure(structure, opts)
   end
 
   @doc """
@@ -42,7 +42,7 @@ defmodule TdCache.StructureCache do
 
   ## Private functions
 
-  @props [:name, :type, :group, :system_id, :parent_id]
+  @props [:name, :type, :group, :system_id, :parent_id, :external_id]
 
   defp read_structure(id) do
     case Redix.read_map("data_structure:#{id}") do
@@ -70,17 +70,17 @@ defmodule TdCache.StructureCache do
     ])
   end
 
-  defp put_structure(%{id: id, updated_at: updated_at} = structure) do
+  defp put_structure(%{id: id, updated_at: updated_at} = structure, opts) do
     last_updated = Redix.command!(["HGET", "data_structure:#{id}", :updated_at])
 
     structure
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_structure(last_updated)
+    |> put_structure(last_updated, opts[:force])
   end
 
-  defp put_structure(%{updated_at: ts}, ts), do: {:ok, []}
+  defp put_structure(%{updated_at: ts}, ts, false), do: {:ok, []}
 
-  defp put_structure(structure, _last_updated) do
+  defp put_structure(structure, _last_updated, _force) do
     structure
     |> structure_commands()
     |> Redix.transaction_pipeline()
