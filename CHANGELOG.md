@@ -1,10 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [3.9.1] 2019-10-25
+
+### Added
+
+- [TD-2187] StructureCache: force option in put function.
 
 ### Changed
 
-- [TD-2187] StructureCache: store Structure external_id and updated_at. Added force option in put function
+- [TD-2187] StructureCache: store Structure external_id and updated_at.
 
 ## [3.9.0] 2019-10-22
 
