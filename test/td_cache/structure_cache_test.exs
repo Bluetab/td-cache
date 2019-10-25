@@ -11,6 +11,7 @@ defmodule TdCache.StructureCacheTest do
     structure = %{
       id: :rand.uniform(100_000_000),
       name: "name",
+      external_id: "ext_id",
       group: "group",
       type: "type",
       path: ["foo", "bar"],
@@ -35,6 +36,7 @@ defmodule TdCache.StructureCacheTest do
       assert not is_nil(s)
       assert s.id == structure.id
       assert s.name == structure.name
+      assert s.external_id == structure.external_id
       assert s.group == structure.group
       assert s.path == structure.path
       assert s.type == structure.type
@@ -52,11 +54,59 @@ defmodule TdCache.StructureCacheTest do
       assert not is_nil(s)
       assert s.id == structure.id
       assert s.name == structure.name
+      assert s.external_id == structure.external_id
       assert s.group == structure.group
       assert s.path == structure.path
       assert s.type == structure.type
       assert s.system_id == "#{system.id}"
       assert s.system == system
+    end
+
+    test "updates a structure already cached in redis passing force option in put", context do
+      system = context[:system]
+
+      structure =
+        context[:structure]
+        |> Map.put(:system_id, system.id)
+      {:ok, _} = StructureCache.put(structure)
+      {:ok, s} = StructureCache.get(structure.id)
+      assert not is_nil(s)
+      updated_structure = Map.put(structure, :external_id, "new_ext_id")
+      {:ok, _} = StructureCache.put(updated_structure, [force: true])
+      {:ok, s} = StructureCache.get(structure.id)
+      assert s.external_id == "new_ext_id"
+    end
+
+    test "updates a structure already cached in redis when updated_at has changed", context do
+      system = context[:system]
+
+      structure =
+        context[:structure]
+        |> Map.put(:system_id, system.id)
+      {:ok, _} = StructureCache.put(structure)
+      {:ok, s} = StructureCache.get(structure.id)
+      assert not is_nil(s)
+      updated_structure = structure
+      |> Map.put(:external_id, "new_ext_id")
+      |> Map.put(:updated_at, DateTime.utc_now())
+      {:ok, _} = StructureCache.put(updated_structure)
+      {:ok, s} = StructureCache.get(structure.id)
+      assert s.external_id == "new_ext_id"
+    end
+
+    test "does not update a structure already cached in redis having same update_at value", context do
+      system = context[:system]
+
+      structure =
+        context[:structure]
+        |> Map.put(:system_id, system.id)
+      {:ok, _} = StructureCache.put(structure)
+      {:ok, s} = StructureCache.get(structure.id)
+      assert not is_nil(s)
+      updated_structure = Map.put(structure, :external_id, "new_ext_id")
+      {:ok, _} = StructureCache.put(updated_structure)
+      {:ok, s} = StructureCache.get(structure.id)
+      assert s.external_id == "ext_id"
     end
 
     test "deletes an entry in redis", context do
