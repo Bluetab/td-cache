@@ -1,6 +1,5 @@
 defmodule TdCache.StructureCacheTest do
   use ExUnit.Case
-  alias TdCache.Redix
   alias TdCache.StructureCache
   alias TdCache.SystemCache
   doctest TdCache.StructureCache
@@ -62,21 +61,6 @@ defmodule TdCache.StructureCacheTest do
       assert s.system == system
     end
 
-    test "updates a structure already cached in redis passing force option in put", context do
-      system = context[:system]
-
-      structure =
-        context[:structure]
-        |> Map.put(:system_id, system.id)
-      {:ok, _} = StructureCache.put(structure)
-      {:ok, s} = StructureCache.get(structure.id)
-      assert not is_nil(s)
-      updated_structure = Map.put(structure, :external_id, "new_ext_id")
-      {:ok, _} = StructureCache.put(updated_structure, [force: true])
-      {:ok, s} = StructureCache.get(structure.id)
-      assert s.external_id == "new_ext_id"
-    end
-
     test "updates a structure already cached in redis when updated_at has changed", context do
       system = context[:system]
 
@@ -114,17 +98,6 @@ defmodule TdCache.StructureCacheTest do
       assert {:ok, ["OK", 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
-    end
-
-    test "reads an structure external id" do
-      system_external_id = "Test System"
-      [group, name, field] = ["Test Group", "Test Structure", "Test Field"]
-      external_id = Enum.join([group, name, field], ".")
-      assert {:ok, 1} = Redix.command(["SADD", "structures:external_ids:#{system_external_id}", external_id])
-      assert StructureCache.get_external_id(system_external_id, external_id) == external_id
-      unexisting_external_id = Enum.join([group, name, "foo"], ".")
-      assert StructureCache.get_external_id(system_external_id, unexisting_external_id) == nil
-      assert {:ok, 1} = Redix.command(["SREM", "structures:external_ids:#{system_external_id}", external_id])
     end
   end
 end

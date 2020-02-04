@@ -1,14 +1,20 @@
 # Changelog
 
+## [3.15.0] 2019-02-04
+
+### Removed
+
+- [TD-1595] `StructureCache.get_external_id/2` removed
+
 ## [3.9.1] 2019-10-25
 
 ### Added
 
-- [TD-2187] StructureCache: force option in put function.
+- [TD-2187] StructureCache: force option in put function
 
 ### Changed
 
-- [TD-2187] StructureCache: store Structure external_id and updated_at.
+- [TD-2187] StructureCache: store Structure external_id and updated_at
 
 ## [3.9.0] 2019-10-22
 
