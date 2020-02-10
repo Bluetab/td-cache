@@ -71,7 +71,7 @@ defmodule TdCache.DomainCache do
 
   ## Private functions
 
-  @props [:name, :parent_ids]
+  @props [:name, :parent_ids, :external_id]
   @roots_key "domains:root"
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
