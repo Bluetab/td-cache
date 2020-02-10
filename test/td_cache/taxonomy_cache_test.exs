@@ -82,7 +82,7 @@ defmodule TdCache.TaxonomyCacheTest do
     map = TaxonomyCache.get_domain_external_id_to_id_map()
 
     domains
-    |> Enum.all?(&Map.has_key?(map, &1.external_id))
+    |> Enum.all?(&Map.get(map, &1.external_id) == &1.id)
     |> assert
   end
 
