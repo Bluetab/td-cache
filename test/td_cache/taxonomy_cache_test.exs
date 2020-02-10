@@ -19,7 +19,7 @@ defmodule TdCache.TaxonomyCacheTest do
 
   test "put_domain returns OK", context do
     domain = context[:domain]
-    assert {:ok, ["OK", 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, ["OK", 1, 1, 0, 1]} = TaxonomyCache.put_domain(domain)
   end
 
   test "get_parent_ids with self returns parent ids including domain_id", context do
@@ -71,9 +71,24 @@ defmodule TdCache.TaxonomyCacheTest do
     |> assert
   end
 
+  test "get_domain_external_id_to_id_map returns a map with names as keys and ids as values", context do
+    domains =
+      [:root, :parent, :domain]
+      |> Enum.map(&Map.get(context, &1))
+
+    domains
+    |> Enum.map(&TaxonomyCache.put_domain(&1))
+
+    map = TaxonomyCache.get_domain_external_id_to_id_map()
+
+    domains
+    |> Enum.all?(&Map.has_key?(map, &1.external_id))
+    |> assert
+  end
+
   defp random_domain do
     id = random_id()
-    %{id: id, name: "domain #{id}"}
+    %{id: id, name: "domain #{id}", external_id: "external id #{id}"}
   end
 
   defp random_id, do: :rand.uniform(100_000_000)

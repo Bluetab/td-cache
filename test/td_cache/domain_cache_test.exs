@@ -29,7 +29,7 @@ defmodule TdCache.DomainCacheTest do
     test "deletes an entry in redis", context do
       domain = context[:domain]
       {:ok, _} = DomainCache.put(domain)
-      {:ok, [1, 1, 1, 0]} = DomainCache.delete(domain.id)
+      {:ok, [1, 1, 1, 0, 0]} = DomainCache.delete(domain.id)
       assert {:ok, nil} == DomainCache.get(domain.id)
     end
   end
