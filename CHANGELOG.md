@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] 
+
+### Added
+
+- [TD-2328] External id in taxonomy cache
+
 ## [3.15.0] 2019-02-04
 
 ### Removed
