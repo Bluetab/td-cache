@@ -19,7 +19,7 @@ defmodule TdCache.TaxonomyCacheTest do
 
   test "put_domain returns OK", context do
     domain = context[:domain]
-    assert {:ok, ["OK", 1, 1, 0, 1]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, ["OK", 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
   end
 
   test "get_parent_ids with self returns parent ids including domain_id", context do

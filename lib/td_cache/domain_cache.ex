@@ -110,14 +110,13 @@ defmodule TdCache.DomainCache do
   defp delete_domain(id) do
     key = "domain:#{id}"
 
-    commands =
-      [
-        ["DEL", key],
-        ["HDEL", @ids_to_names_key, id],
-        ["SREM", "domain:keys", key],
-        ["SREM", @roots_key, id]
-      ]
-      |> add_command("HDEL", @ids_to_external_ids_key, id)
+    commands = [
+      ["DEL", key],
+      ["HDEL", @ids_to_names_key, id],
+      ["HDEL", @ids_to_external_ids_key, id],
+      ["SREM", "domain:keys", key],
+      ["SREM", @roots_key, id]
+    ]
 
     Redix.transaction_pipeline(commands)
   end
@@ -128,29 +127,24 @@ defmodule TdCache.DomainCache do
     domain = Map.put(domain, :parent_ids, parent_ids)
     add_or_remove_root = if parent_ids == "", do: "SADD", else: "SREM"
 
-    commands =
-      [
-        ["HMSET", "domain:#{id}", Map.take(domain, @props)],
-        ["HSET", @ids_to_names_key, id, name],
-        ["SADD", "domain:keys", "domain:#{id}"],
-        [add_or_remove_root, @roots_key, id]
-      ]
-      |> add_command("HSET", @ids_to_external_ids_key, id, external_id)
+    add_or_remove_external_id =
+      case external_id do
+        nil -> ["HDEL", @ids_to_external_ids_key, id]
+        _ -> ["HSET", @ids_to_external_ids_key, id, external_id]
+      end
+
+    commands = [
+      ["HMSET", "domain:#{id}", Map.take(domain, @props)],
+      ["HSET", @ids_to_names_key, id, name],
+      ["SADD", "domain:keys", "domain:#{id}"],
+      add_or_remove_external_id,
+      [add_or_remove_root, @roots_key, id]
+    ]
 
     Redix.transaction_pipeline(commands)
   end
 
   defp put_domain(_), do: {:error, :empty}
-
-  defp add_command(commands, command, key, id) do
-    commands ++ [[command, key, id]]
-  end
-
-  defp add_command(commands, _command, _key, _field, nil), do: commands
-
-  defp add_command(commands, command, key, field, value) do
-    commands ++ [[command, key, field, value]]
-  end
 
   defp read_map(collection) do
     case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do
