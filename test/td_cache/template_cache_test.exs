@@ -2,6 +2,7 @@ defmodule TdCache.TemplateCacheTest do
   use ExUnit.Case
 
   alias TdCache.Redix
+  alias TdCache.Redix.Stream
   alias TdCache.TemplateCache
 
   doctest TdCache.TemplateCache
@@ -31,6 +32,20 @@ defmodule TdCache.TemplateCacheTest do
     [template | _] = context[:templates]
     assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
     assert {:ok, []} == TemplateCache.put(template)
+  end
+
+  test "put/1 emits an event when a new template is cached", context do
+    [template | _] = context[:templates]
+    assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
+
+    assert {:ok, [event]} = Stream.read(:redix, ["template:events"], transform: true)
+    assert event.event == "template_updated"
+    assert event.template == "template:#{template.id}"
+  end
+
+  test "put/2 suppresses events if publish option is false", context do
+    [template | _] = context[:templates]
+    assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template, publish: false)
   end
 
   test "get/1 gets content", context do
