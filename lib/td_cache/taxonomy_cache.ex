@@ -115,6 +115,22 @@ defmodule TdCache.TaxonomyCache do
   end
 
   @doc """
+  Obtain a map of domain external ids and the corresponding id.
+
+    ## Examples
+
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, parent_ids: [], name: "Some domain", external_id: "External id"})
+      iex> TaxonomyCache.get_domain_external_id_to_id_map()
+      ...> |> Map.get("External id")
+      42
+
+  """
+  def get_domain_external_id_to_id_map do
+    {:ok, map} = DomainCache.external_id_to_id_map()
+    map
+  end
+
+  @doc """
   Obtain the set of root domain ids.
 
     ## Examples

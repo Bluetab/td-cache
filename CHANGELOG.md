@@ -1,12 +1,18 @@
 # Changelog
 
-## [3.16.0] 2019-02-12
+## [3.16.1] 2020-02-12
+
+### Added
+
+- [TD-2328] External id in taxonomy cache
+
+## [3.16.0] 2020-02-12
 
 ### Changed
 
 - [TD-2235] `TemplateCache.put` can now be passed keyword options
 
-## [3.15.0] 2019-02-04
+## [3.15.0] 2020-02-04
 
 ### Removed
 

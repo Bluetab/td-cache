@@ -45,6 +45,15 @@ defmodule TdCache.DomainCache do
   end
 
   @doc """
+  Reads domain external id to id map from cache.
+  """
+  def external_id_to_id_map do
+    map = get_domain_external_id_to_id_map()
+
+    {:ok, map}
+  end
+
+  @doc """
   Reads domain name to id map from cache.
   """
   def name_to_id_map do
@@ -62,9 +71,10 @@ defmodule TdCache.DomainCache do
 
   ## Private functions
 
-  @props [:name, :parent_ids]
+  @props [:name, :parent_ids, :external_id]
   @roots_key "domains:root"
   @ids_to_names_key "domains:ids_to_names"
+  @ids_to_external_ids_key "domains:ids_to_external_ids"
 
   defp read_domain(id) when is_binary(id) do
     id = String.to_integer(id)
@@ -90,10 +100,11 @@ defmodule TdCache.DomainCache do
   end
 
   defp get_domain_name_to_id_map do
-    case Redix.read_map(@ids_to_names_key, fn [id, name] -> {name, String.to_integer(id)} end) do
-      {:ok, nil} -> %{}
-      {:ok, map} -> map
-    end
+    read_map(@ids_to_names_key)
+  end
+
+  defp get_domain_external_id_to_id_map do
+    read_map(@ids_to_external_ids_key)
   end
 
   defp delete_domain(id) do
@@ -102,6 +113,7 @@ defmodule TdCache.DomainCache do
     commands = [
       ["DEL", key],
       ["HDEL", @ids_to_names_key, id],
+      ["HDEL", @ids_to_external_ids_key, id],
       ["SREM", "domain:keys", key],
       ["SREM", @roots_key, id]
     ]
@@ -111,16 +123,33 @@ defmodule TdCache.DomainCache do
 
   defp put_domain(%{id: id, name: name} = domain) do
     parent_ids = domain |> Map.get(:parent_ids, []) |> Enum.join(",")
+    external_id = Map.get(domain, :external_id)
     domain = Map.put(domain, :parent_ids, parent_ids)
     add_or_remove_root = if parent_ids == "", do: "SADD", else: "SREM"
 
-    Redix.transaction_pipeline([
+    add_or_remove_external_id =
+      case external_id do
+        nil -> ["HDEL", @ids_to_external_ids_key, id]
+        _ -> ["HSET", @ids_to_external_ids_key, id, external_id]
+      end
+
+    commands = [
       ["HMSET", "domain:#{id}", Map.take(domain, @props)],
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", "domain:keys", "domain:#{id}"],
+      add_or_remove_external_id,
       [add_or_remove_root, @roots_key, id]
-    ])
+    ]
+
+    Redix.transaction_pipeline(commands)
   end
 
   defp put_domain(_), do: {:error, :empty}
+
+  defp read_map(collection) do
+    case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do
+      {:ok, nil} -> %{}
+      {:ok, map} -> map
+    end
+  end
 end
