@@ -74,8 +74,12 @@ defmodule TdCache.TemplateCache do
     |> Map.new()
   end
 
-  def put(template) do
-    GenServer.call(__MODULE__, {:put, template})
+  @doc """
+  Puts or updates a template in cache. Events may be suppressed by passing the
+  option `publish: false`.
+  """
+  def put(template, opts \\ []) do
+    GenServer.call(__MODULE__, {:put, template, opts})
   end
 
   def delete(id) do
@@ -108,8 +112,8 @@ defmodule TdCache.TemplateCache do
   end
 
   @impl true
-  def handle_call({:put, %{id: id, name: name} = template}, _from, state) do
-    reply = put_template(template)
+  def handle_call({:put, %{id: id, name: name} = template, opts}, _from, state) do
+    reply = put_template(template, opts)
 
     put_cache(name, read_template(id))
     put_cache(:all, list_templates())
@@ -186,19 +190,20 @@ defmodule TdCache.TemplateCache do
     end
   end
 
-  defp put_template(%{id: id, updated_at: updated_at} = template) do
+  defp put_template(%{id: id, updated_at: updated_at} = template, opts) do
     last_updated = Redix.command!(["HGET", "template:#{id}", :updated_at])
 
     template
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_template(last_updated)
+    |> put_template(last_updated, opts)
   end
 
-  defp put_template(%{updated_at: ts}, ts), do: {:ok, []}
+  defp put_template(%{updated_at: ts}, ts, _opts), do: {:ok, []}
 
   defp put_template(
          %{id: id, name: name, content: content, scope: scope} = template,
-         _last_updated
+         _last_updated,
+         opts
        ) do
     template =
       template
@@ -213,13 +218,15 @@ defmodule TdCache.TemplateCache do
 
     {:ok, results} = Redix.transaction_pipeline(commands)
 
-    event = %{
-      event: "template_updated",
-      template: "template:#{id}",
-      scope: scope
-    }
+    if Keyword.get(opts, :publish, true) do
+      event = %{
+        event: "template_updated",
+        template: "template:#{id}",
+        scope: scope
+      }
 
-    {:ok, _event_id} = Publisher.publish(event, "template:events")
+      {:ok, _event_id} = Publisher.publish(event, "template:events")
+    end
 
     {:ok, results}
   end
