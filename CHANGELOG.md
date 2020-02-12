@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.16.0] 2019-02-12
+
+### Changed
+
+- [TD-2235] `TemplateCache.put` can now be passed keyword options
+
 ## [3.15.0] 2019-02-04
 
 ### Removed
