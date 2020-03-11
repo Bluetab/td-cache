@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-2328] Permissions `view_dashboard` and `view_lineage`
+
 ## [3.16.1] 2020-02-12
 
 ### Added
