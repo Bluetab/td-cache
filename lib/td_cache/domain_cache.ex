@@ -3,6 +3,7 @@ defmodule TdCache.DomainCache do
   Shared cache for domains.
   """
 
+  alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
   ## Client API
@@ -141,7 +142,16 @@ defmodule TdCache.DomainCache do
       [add_or_remove_root, @roots_key, id]
     ]
 
-    Redix.transaction_pipeline(commands)
+    {:ok, results} = Redix.transaction_pipeline(commands)
+
+    event = %{
+      event: "domain_updated",
+      domain: "domain:#{id}"
+    }
+
+    {:ok, _event_id} = Publisher.publish(event, "domain:events")
+
+    {:ok, results}
   end
 
   defp put_domain(_), do: {:error, :empty}
