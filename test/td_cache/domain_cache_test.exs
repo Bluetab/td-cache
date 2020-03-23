@@ -1,6 +1,9 @@
 defmodule TdCache.DomainCacheTest do
   use ExUnit.Case
   alias TdCache.DomainCache
+  alias TdCache.Redix
+  alias TdCache.Redix.Stream
+
   doctest TdCache.DomainCache
 
   setup do
@@ -10,6 +13,7 @@ defmodule TdCache.DomainCacheTest do
     on_exit(fn ->
       DomainCache.delete(domain.id)
       DomainCache.delete(parent.id)
+      Redix.command(["DEL", "domain:events"]) 
     end)
 
     {:ok, domain: domain, parent: parent}
@@ -24,6 +28,10 @@ defmodule TdCache.DomainCacheTest do
       assert d.id == domain.id
       assert d.name == domain.name
       assert d.parent_ids == Enum.join(domain.parent_ids, ",")
+      assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
+      assert Enum.count(events) == 1
+      assert Enum.all?(events, &(&1.event == "domain_updated"))
+      assert Enum.all?(events, &(&1.domain == "domain:#{d.id}"))
     end
 
     test "deletes an entry in redis", context do

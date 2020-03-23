@@ -1,7 +1,9 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
   alias TdCache.Redix
+  alias TdCache.Redix.Stream
   alias TdCache.TaxonomyCache
+  
   doctest TdCache.TaxonomyCache
 
   setup do
@@ -12,6 +14,7 @@ defmodule TdCache.TaxonomyCacheTest do
     on_exit(fn ->
       Redix.del!("domain:*")
       Redix.del!("domains:*")
+      Redix.command(["DEL", "domain:events"])
     end)
 
     {:ok, root: root, parent: parent, domain: domain}
@@ -20,6 +23,10 @@ defmodule TdCache.TaxonomyCacheTest do
   test "put_domain returns OK", context do
     domain = context[:domain]
     assert {:ok, ["OK", 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
+    assert Enum.count(events) == 1
+    assert Enum.all?(events, &(&1.event == "domain_updated"))
+    assert Enum.all?(events, &(&1.domain == "domain:#{domain.id}"))
   end
 
   test "get_parent_ids with self returns parent ids including domain_id", context do

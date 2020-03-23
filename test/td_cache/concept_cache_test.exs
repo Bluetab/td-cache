@@ -38,7 +38,8 @@ defmodule TdCache.ConceptCacheTest do
         @stream,
         "business_concept:ids:active",
         "business_concept:ids:inactive",
-        "business_concept:ids:confidential"
+        "business_concept:ids:confidential",
+        "domain:events"
       ])
     end)
 
