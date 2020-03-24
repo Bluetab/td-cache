@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-2365] ConceptCache: added function `ConceptCache.invalidate/1`  to invalidate concept from ConCache
+
 ## [3.18.0] 2020-03-17
 
 ### Added
