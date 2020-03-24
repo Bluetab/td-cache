@@ -102,7 +102,7 @@ defmodule TdCache.TaxonomyCache do
 
     ## Examples
 
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, parent_ids: [], name: "Some domain"})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, parent_ids: [], name: "Some domain", updated_at: DateTime.utc_now()})
       iex> TaxonomyCache.get_domain_name_to_id_map()
       ...> |> Map.get("Some domain")
       42
@@ -119,7 +119,7 @@ defmodule TdCache.TaxonomyCache do
 
     ## Examples
 
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, parent_ids: [], name: "Some domain", external_id: "External id"})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, parent_ids: [], name: "Some domain", external_id: "External id", updated_at: DateTime.utc_now()})
       iex> TaxonomyCache.get_domain_external_id_to_id_map()
       ...> |> Map.get("External id")
       42
@@ -135,10 +135,10 @@ defmodule TdCache.TaxonomyCache do
 
     ## Examples
 
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, parent_ids: [], name: "D1"})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 43, parent_ids: [], name: "D2"})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 44, parent_ids: [1], name: "D3"})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 45, parent_ids: [], name: "D3"})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, parent_ids: [], name: "D1", updated_at: DateTime.utc_now()})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 43, parent_ids: [], name: "D2", updated_at: DateTime.utc_now()})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 44, parent_ids: [1], name: "D3", updated_at: DateTime.utc_now()})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 45, parent_ids: [], name: "D3", updated_at: DateTime.utc_now()})
       iex> root_domain_ids = TaxonomyCache.get_root_domain_ids() |> MapSet.new()
       iex> [42,43,44,45] |> Enum.map(&(MapSet.member?(root_domain_ids, &1)))
       [true, true, false, true]
