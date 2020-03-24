@@ -7,13 +7,19 @@ defmodule TdCache.DomainCacheTest do
   doctest TdCache.DomainCache
 
   setup do
-    parent = %{id: :rand.uniform(100_000_000), name: "parent"}
-    domain = %{id: :rand.uniform(100_000_000), name: "child", parent_ids: [parent.id]}
+    parent = %{id: :rand.uniform(100_000_000), name: "parent", updated_at: DateTime.utc_now()}
+
+    domain = %{
+      id: :rand.uniform(100_000_000),
+      name: "child",
+      parent_ids: [parent.id],
+      updated_at: DateTime.utc_now()
+    }
 
     on_exit(fn ->
       DomainCache.delete(domain.id)
       DomainCache.delete(parent.id)
-      Redix.command(["DEL", "domain:events"]) 
+      Redix.command(["DEL", "domain:events"])
     end)
 
     {:ok, domain: domain, parent: parent}

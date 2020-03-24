@@ -14,7 +14,8 @@ defmodule TdCache.ConceptCacheTest do
     domain = %{
       id: random_id(),
       name: "foo",
-      parent_ids: [random_id(), random_id()]
+      parent_ids: [random_id(), random_id()],
+      updated_at: DateTime.utc_now()
     }
 
     concept = %{

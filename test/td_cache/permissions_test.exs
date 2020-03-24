@@ -9,8 +9,8 @@ defmodule TdCache.PermissionsTest do
 
   setup do
     user = %{id: random_id()}
-    parent = %{id: random_id(), name: "parent"}
-    domain = %{id: random_id(), name: "child", parent_ids: [parent.id]}
+    parent = %{id: random_id(), name: "parent", updated_at: DateTime.utc_now()}
+    domain = %{id: random_id(), name: "child", parent_ids: [parent.id], updated_at: DateTime.utc_now()}
     {:ok, _} = TaxonomyCache.put_domain(domain)
     {:ok, _} = TaxonomyCache.put_domain(parent)
 
