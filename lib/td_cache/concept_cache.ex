@@ -49,14 +49,6 @@ defmodule TdCache.ConceptCache do
   end
 
   @doc """
-  Invalidates concept for a given id from local cache .
-  """
-  def invalidate(id) do
-    GenServer.call(__MODULE__, {:invalidate, id})
-  end
-
-
-  @doc """
   Updates cache entries for active and inactive (deleted/deprecated) ids.
   Events will be emitted for newly inactivated ids.
   """
@@ -174,12 +166,6 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call({:invalidate, id}, _from, state) do
-    reply = invalidate_concept(id)
-    {:reply, reply, state}
-  end
-
-  @impl true
   def handle_call({:member, :confidential_ids, id}, _from, state) do
     reply = is_member_confidential_ids?(id)
     {:reply, {:ok, reply}, state}
@@ -251,10 +237,6 @@ defmodule TdCache.ConceptCache do
     end
 
     {:ok, results}
-  end
-
-  defp invalidate_concept(id) do
-    :ok = ConCache.delete(:concepts, id)
   end
 
   defp is_member_confidential_ids?(id) do

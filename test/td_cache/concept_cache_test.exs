@@ -209,15 +209,6 @@ defmodule TdCache.ConceptCacheTest do
       assert c.rule_count == 0
       assert c.content == %{"data_owner" => "pepito diaz"}
     end
-
-    test "invalidates concept from local cache", context do
-      concept = context[:concept]
-      {:ok, ["OK", "OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
-      {:ok, _} = ConceptCache.get(concept.id)
-      assert not is_nil(ConCache.get(:concepts, concept.id))
-      :ok = ConceptCache.invalidate(concept.id)
-      assert is_nil(ConCache.get(:concepts, concept.id))
-    end
   end
 
   defp random_id, do: :rand.uniform(100_000_000)
