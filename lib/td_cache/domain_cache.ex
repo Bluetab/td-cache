@@ -135,6 +135,7 @@ defmodule TdCache.DomainCache do
   defp put_domain(%{id: id, name: name} = domain, _ts) do
     parent_ids = domain |> Map.get(:parent_ids, []) |> Enum.join(",")
     external_id = Map.get(domain, :external_id)
+    children_ids = domain |> Map.get(:children_ids, []) |> Enum.join(",")
     domain = Map.put(domain, :parent_ids, parent_ids)
     add_or_remove_root = if parent_ids == "", do: "SADD", else: "SREM"
 
@@ -156,7 +157,8 @@ defmodule TdCache.DomainCache do
 
     event = %{
       event: "domain_updated",
-      domain: "domain:#{id}"
+      domain: "domain:#{id}",
+      children_ids: children_ids
     }
 
     {:ok, _event_id} = Publisher.publish(event, "domain:events")

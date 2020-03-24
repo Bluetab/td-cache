@@ -8,11 +8,13 @@ defmodule TdCache.DomainCacheTest do
 
   setup do
     parent = %{id: :rand.uniform(100_000_000), name: "parent", updated_at: DateTime.utc_now()}
+    child = %{id: :rand.uniform(100_000_000), name: "childs_child", updated_at: DateTime.utc_now()}
 
     domain = %{
       id: :rand.uniform(100_000_000),
       name: "child",
       parent_ids: [parent.id],
+      children_ids: [child.id],
       updated_at: DateTime.utc_now()
     }
 
@@ -28,6 +30,7 @@ defmodule TdCache.DomainCacheTest do
   describe "DomainCache" do
     test "writes a domain entry in redis and reads it back", context do
       domain = context[:domain]
+      children_ids = Enum.join(domain.children_ids, ",")
       {:ok, ["OK", 1, 1, 0, 0]} = DomainCache.put(domain)
       {:ok, d} = DomainCache.get(domain.id)
       assert not is_nil(d)
@@ -38,6 +41,7 @@ defmodule TdCache.DomainCacheTest do
       assert Enum.count(events) == 1
       assert Enum.all?(events, &(&1.event == "domain_updated"))
       assert Enum.all?(events, &(&1.domain == "domain:#{d.id}"))
+      assert Enum.any?(events, &(&1.children_ids == children_ids))
     end
 
     test "updates a domain entry only it changed", context do
