@@ -40,6 +40,19 @@ defmodule TdCache.DomainCacheTest do
       assert Enum.all?(events, &(&1.domain == "domain:#{d.id}"))
     end
 
+    test "updates a domain entry only it changed", context do
+      domain = context[:domain]
+      {:ok, uppdated_ts} = DateTime.from_unix(DateTime.to_unix(domain.updated_at) + 60)
+      update = %{name: "random name", updated_at: uppdated_ts}
+      assert {:ok, ["OK", 1, 1, 0, 0]} = DomainCache.put(domain)
+      assert {:ok, []} = DomainCache.put(domain)
+      assert {:ok, ["OK", 0, 0, 0, 0]} = DomainCache.put(Map.merge(domain, update))
+
+      assert {:ok, d} = DomainCache.get(domain.id)
+      assert d.id == domain.id
+      assert d.name == update.name
+    end
+
     test "deletes an entry in redis", context do
       domain = context[:domain]
       {:ok, _} = DomainCache.put(domain)
