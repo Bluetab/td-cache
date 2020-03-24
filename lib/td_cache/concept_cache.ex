@@ -55,6 +55,7 @@ defmodule TdCache.ConceptCache do
     GenServer.call(__MODULE__, {:invalidate, id})
   end
 
+
   @doc """
   Updates cache entries for active and inactive (deleted/deprecated) ids.
   Events will be emitted for newly inactivated ids.
