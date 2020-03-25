@@ -4,7 +4,7 @@
 
 ### Changed
 
-- [TD-2365] Added options to `ConceptCache.get` to force reading from redis
+- [TD-2365] `ConceptCache.get` now supports `refresh` option to force read from redis
 
 ## [3.18.0] 2020-03-17
 
