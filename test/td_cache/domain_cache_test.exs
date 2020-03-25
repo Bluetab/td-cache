@@ -40,7 +40,7 @@ defmodule TdCache.DomainCacheTest do
       assert Enum.all?(events, &(&1.domain == "domain:#{d.id}"))
     end
 
-    test "updates a domain entry only it changed", context do
+    test "updates a domain entry only if changed", context do
       domain = context[:domain]
       {:ok, uppdated_ts} = DateTime.from_unix(DateTime.to_unix(domain.updated_at) + 60)
       update = %{name: "random name", updated_at: uppdated_ts}
