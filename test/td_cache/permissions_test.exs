@@ -10,7 +10,14 @@ defmodule TdCache.PermissionsTest do
   setup do
     user = %{id: random_id()}
     parent = %{id: random_id(), name: "parent", updated_at: DateTime.utc_now()}
-    domain = %{id: random_id(), name: "child", parent_ids: [parent.id], updated_at: DateTime.utc_now()}
+
+    domain = %{
+      id: random_id(),
+      name: "child",
+      parent_ids: [parent.id],
+      updated_at: DateTime.utc_now()
+    }
+
     {:ok, _} = TaxonomyCache.put_domain(domain)
     {:ok, _} = TaxonomyCache.put_domain(parent)
 
@@ -27,8 +34,13 @@ defmodule TdCache.PermissionsTest do
       TaxonomyCache.delete_domain(parent.id)
       ConceptCache.delete(concept.id)
       IngestCache.delete(ingest.id)
-      Redix.command(["DEL", "domain:events"])
-      Redix.del!(["session:*", "business_concept:ids:inactive", "business_concept:events"])
+
+      Redix.del!([
+        "session:*",
+        "business_concept:ids:inactive",
+        "business_concept:events",
+        "domain:events"
+      ])
     end)
 
     {:ok, concept: concept, domain: domain, ingest: ingest, acl_entries: acl_entries}
