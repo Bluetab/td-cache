@@ -38,14 +38,21 @@ defmodule TdCache.ConceptCache do
   Reads concept information for a given id from cache.
   """
   def get(id) do
-    GenServer.call(__MODULE__, {:get, id})
+    GenServer.call(__MODULE__, {:get, id, []})
   end
 
   @doc """
-  Reads a property of a concept for a given id from cache.
+  Reads concept information for a given id from cache with options.
   """
-  def get(id, property) do
-    GenServer.call(__MODULE__, {:get, id, property})
+  def get(id, options) when is_list(options) do
+    GenServer.call(__MODULE__, {:get, id, options})
+  end
+
+  @doc """
+  Reads a property of a concept for a given id from cache with options
+  """
+  def get(id, property, options \\ []) do
+    GenServer.call(__MODULE__, {:get, id, property, options})
   end
 
   @doc """
@@ -115,15 +122,15 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call({:get, id}, _from, state) do
-    concept = get_cache(id, fn -> read_concept(id) end)
+  def handle_call({:get, id, options}, _from, state) do
+    concept = get_cache(id, fn -> read_concept(id) end, options)
     {:reply, {:ok, concept}, state}
   end
 
   @impl true
-  def handle_call({:get, id, :domain_ids}, _from, state) do
+  def handle_call({:get, id, :domain_ids, options}, _from, state) do
     domain_ids =
-      case get_cache(id, fn -> read_concept(id) end) do
+      case get_cache(id, fn -> read_concept(id) end, options) do
         %{domain_id: domain_id} ->
           domain_id
           |> String.to_integer()
@@ -137,9 +144,9 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call({:get, id, property}, _from, state) do
+  def handle_call({:get, id, property, options}, _from, state) do
     prop =
-      case get_cache(id, fn -> read_concept(id) end) do
+      case get_cache(id, fn -> read_concept(id) end, options) do
         nil -> nil
         concept -> Map.get(concept, property)
       end
@@ -185,8 +192,16 @@ defmodule TdCache.ConceptCache do
 
   ## Private functions
 
-  defp get_cache(key, fun) do
-    ConCache.get_or_store(:concepts, key, fn -> fun.() end)
+  defp get_cache(key, fun, options) do
+    case Keyword.get(options, :force_redis, false) do
+      true ->
+        concept = fun.()
+        ConCache.put(:concepts, key, concept)
+        concept
+
+      _ ->
+        ConCache.get_or_store(:concepts, key, fn -> fun.() end)
+    end
   end
 
   defp read_concept(id) do

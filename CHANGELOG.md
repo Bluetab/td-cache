@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- [TD-2365] Added options to `ConceptCache.get` to force reading from redis
+
 ## [3.18.0] 2020-03-17
 
 ### Added
