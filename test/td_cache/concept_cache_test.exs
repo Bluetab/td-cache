@@ -199,8 +199,6 @@ defmodule TdCache.ConceptCacheTest do
 
     test "writes a concept with user info in redis and reads it back", context do
       concept = context[:concept]
-      # template = context[:template]
-      # assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
       {:ok, ["OK", "OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert not is_nil(c)
@@ -211,6 +209,24 @@ defmodule TdCache.ConceptCacheTest do
       assert c.rule_count == 0
       assert c.content == %{"data_owner" => "pepito diaz"}
     end
+  end
+
+  test "get with refresh option reads from redis and updates local cache", context do
+    %{id: id} = concept = context[:concept]
+    {:ok, ["OK", "OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
+
+    # Inital read stores concept in local cache
+    assert {:ok, %{id: ^id, name: name}} = ConceptCache.get(id)
+
+    # update concept name in Redis
+    Redix.command!(["HMSET", "business_concept:#{id}", %{name: "updated"}])
+
+    # get without refresh option returns name from local cache
+    assert {:ok, %{name: ^name}} = ConceptCache.get(id)
+
+    # get with refresh option reads from Redis and updates local cache
+    assert {:ok, %{name: "updated"}} = ConceptCache.get(id, refresh: true)
+    assert {:ok, %{name: "updated"}} = ConceptCache.get(id)
   end
 
   defp random_id, do: :rand.uniform(100_000_000)

@@ -7,6 +7,12 @@
 - [TD-2364]:
     - Update domain on cache only when it changes
     - Create event `updated_domain` on domain put
+    
+## [3.19.0] 2020-03-25
+
+### Changed
+
+- [TD-2365] `ConceptCache.get` now supports `refresh` option to force read from redis
 
 ## [3.18.0] 2020-03-17
 

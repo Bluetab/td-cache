@@ -23,8 +23,8 @@ defmodule TdCache.ConceptCache do
 
   ## Client API
 
-  def start_link(options) do
-    GenServer.start_link(__MODULE__, options, name: __MODULE__)
+  def start_link(opts) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @doc """
@@ -37,15 +37,25 @@ defmodule TdCache.ConceptCache do
   @doc """
   Reads concept information for a given id from cache.
   """
-  def get(id) do
-    GenServer.call(__MODULE__, {:get, id})
+  def get(id), do: get(id, [])
+
+  @doc """
+  Reads concept information for a given id from cache.
+
+  ## Options
+
+    * `refresh` - if `true`, the locally cached value will be refreshed from
+      Redis before returning the value
+  """
+  def get(id, opts) when is_list(opts) do
+    GenServer.call(__MODULE__, {:get, id, opts})
   end
 
   @doc """
-  Reads a property of a concept for a given id from cache.
+  Reads a property of a concept for a given id from cache with options
   """
-  def get(id, property) do
-    GenServer.call(__MODULE__, {:get, id, property})
+  def get(id, property, opts \\ []) do
+    GenServer.call(__MODULE__, {:get, id, property, opts})
   end
 
   @doc """
@@ -115,15 +125,15 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call({:get, id}, _from, state) do
-    concept = get_cache(id, fn -> read_concept(id) end)
+  def handle_call({:get, id, opts}, _from, state) do
+    concept = get_cache(id, fn -> read_concept(id) end, opts)
     {:reply, {:ok, concept}, state}
   end
 
   @impl true
-  def handle_call({:get, id, :domain_ids}, _from, state) do
+  def handle_call({:get, id, :domain_ids, opts}, _from, state) do
     domain_ids =
-      case get_cache(id, fn -> read_concept(id) end) do
+      case get_cache(id, fn -> read_concept(id) end, opts) do
         %{domain_id: domain_id} ->
           domain_id
           |> String.to_integer()
@@ -137,9 +147,9 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call({:get, id, property}, _from, state) do
+  def handle_call({:get, id, property, opts}, _from, state) do
     prop =
-      case get_cache(id, fn -> read_concept(id) end) do
+      case get_cache(id, fn -> read_concept(id) end, opts) do
         nil -> nil
         concept -> Map.get(concept, property)
       end
@@ -185,8 +195,14 @@ defmodule TdCache.ConceptCache do
 
   ## Private functions
 
-  defp get_cache(key, fun) do
-    ConCache.get_or_store(:concepts, key, fn -> fun.() end)
+  defp get_cache(key, fun, opts) do
+    if Keyword.get(opts, :refresh, false) do
+      concept = fun.()
+      ConCache.put(:concepts, key, concept)
+      concept
+    else
+      ConCache.get_or_store(:concepts, key, fn -> fun.() end)
+    end
   end
 
   defp read_concept(id) do
