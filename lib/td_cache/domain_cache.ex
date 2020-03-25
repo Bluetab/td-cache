@@ -3,6 +3,7 @@ defmodule TdCache.DomainCache do
   Shared cache for domains.
   """
 
+  alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
   ## Client API
@@ -71,7 +72,7 @@ defmodule TdCache.DomainCache do
 
   ## Private functions
 
-  @props [:name, :parent_ids, :external_id]
+  @props [:name, :parent_ids, :external_id, :updated_at]
   @roots_key "domains:root"
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
@@ -121,7 +122,17 @@ defmodule TdCache.DomainCache do
     Redix.transaction_pipeline(commands)
   end
 
-  defp put_domain(%{id: id, name: name} = domain) do
+  defp put_domain(%{id: id, updated_at: updated_at} = domain) do
+    last_updated = Redix.command!(["HGET", "domain:#{id}", :updated_at])
+
+    domain
+    |> Map.put(:updated_at, "#{updated_at}")
+    |> put_domain(last_updated)
+  end
+
+  defp put_domain(%{updated_at: ts}, ts), do: {:ok, []}
+
+  defp put_domain(%{id: id, name: name} = domain, _ts) do
     parent_ids = domain |> Map.get(:parent_ids, []) |> Enum.join(",")
     external_id = Map.get(domain, :external_id)
     domain = Map.put(domain, :parent_ids, parent_ids)
@@ -141,10 +152,19 @@ defmodule TdCache.DomainCache do
       [add_or_remove_root, @roots_key, id]
     ]
 
-    Redix.transaction_pipeline(commands)
+    {:ok, [_, _, added, _, _] = results} = Redix.transaction_pipeline(commands)
+
+    event = %{
+      event: if(added == 0, do: "domain_updated", else: "domain_created"),
+      domain: "domain:#{id}"
+    }
+
+    {:ok, _event_id} = Publisher.publish(event, "domain:events")
+
+    {:ok, results}
   end
 
-  defp put_domain(_), do: {:error, :empty}
+  defp put_domain(_, _), do: {:error, :empty}
 
   defp read_map(collection) do
     case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do

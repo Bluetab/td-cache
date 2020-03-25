@@ -1,10 +1,18 @@
 # Changelog
 
+## [3.19.1] 2020-03-25
+
+### Changed
+
+- [TD-2364] `DomainCache.put/1` emits event `domain_created` and
+  `domain_updated` on domain creation or modification, respectively.
+
 ## [3.19.0] 2020-03-25
 
 ### Changed
 
-- [TD-2365] `ConceptCache.get` now supports `refresh` option to force read from redis
+- [TD-2365] `ConceptCache.get` now supports `refresh` option to force read from
+  redis
 
 ## [3.18.0] 2020-03-17
 
@@ -34,11 +42,11 @@
 
 ### Added
 
-- [TD-2187] StructureCache: force option in put function
+- [TD-2187] `StructureCache`: `force` option in `put/2`
 
 ### Changed
 
-- [TD-2187] StructureCache: store Structure external_id and updated_at
+- [TD-2187] `StructureCache`: store structure `external_id` and `updated_at`
 
 ## [3.9.0] 2019-10-22
 
@@ -50,8 +58,9 @@
 
 ### Added
 
-- [TD-1859] ConceptCache: Store content in key `business_concept:{id}:content`
-- [TD-1721] TemplateCache: Emit `template_updated` event instead of `add_template` when a template is updated
+- [TD-1859] `ConceptCache`: Store content in key `business_concept:{id}:content`
+- [TD-1721] `TemplateCache`: Emit `template_updated` event instead of
+  `add_template` when a template is updated
 
 ## [3.7.3] 2019-10-07
 
@@ -75,15 +84,17 @@
 
 ### Added
 
-- [TD-2090][td-2091] New permission `link_data_structure`
+- [TD-2090], [TD-2091] New permission `link_data_structure`
 
 ## [3.5.1] 2019-09-03
 
 ### Fixed
 
 - [TD-2074] Changed `LinkCache.count` target to `data_structure`
-- [TD-2075] Evict concept from local cache on put (`rule_count` was not reindexed correctly)
-- [TD-2081] Event stream consumer did not respect `redis_host` and `port` config options
+- [TD-2075] Evict concept from local cache on put (`rule_count` was not
+  reindexed correctly)
+- [TD-2081] Event stream consumer did not respect `redis_host` and `port` config
+  options
 
 ## [3.5.0] 2019-08-26
 
@@ -101,7 +112,8 @@
 
 ### Changed
 
-- [TD-2009] Changed `data_fields:external_ids` set for `structures:external_ids:{system_external_id}` set
+- [TD-2009] Changed `data_fields:external_ids` set for
+  `structures:external_ids:{system_external_id}` set
 
 ## [3.3.2] 2019-07-26
 
@@ -172,4 +184,5 @@
 
 ### Added
 
-- `TdCache.CacheCleaner` gen server for performing cleanup of deprecated cache entries
+- `TdCache.CacheCleaner` gen server for performing cleanup of deprecated cache
+  entries

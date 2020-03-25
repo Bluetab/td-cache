@@ -1,7 +1,9 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
   alias TdCache.Redix
+  alias TdCache.Redix.Stream
   alias TdCache.TaxonomyCache
+
   doctest TdCache.TaxonomyCache
 
   setup do
@@ -12,6 +14,7 @@ defmodule TdCache.TaxonomyCacheTest do
     on_exit(fn ->
       Redix.del!("domain:*")
       Redix.del!("domains:*")
+      Redix.command(["DEL", "domain:events"])
     end)
 
     {:ok, root: root, parent: parent, domain: domain}
@@ -20,6 +23,8 @@ defmodule TdCache.TaxonomyCacheTest do
   test "put_domain returns OK", context do
     domain = context[:domain]
     assert {:ok, ["OK", 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
+    assert [%{event: "domain_created"}] = events
   end
 
   test "get_parent_ids with self returns parent ids including domain_id", context do
@@ -71,7 +76,8 @@ defmodule TdCache.TaxonomyCacheTest do
     |> assert
   end
 
-  test "get_domain_external_id_to_id_map returns a map with names as keys and ids as values", context do
+  test "get_domain_external_id_to_id_map returns a map with names as keys and ids as values",
+       context do
     domains =
       [:root, :parent, :domain]
       |> Enum.map(&Map.get(context, &1))
@@ -82,13 +88,19 @@ defmodule TdCache.TaxonomyCacheTest do
     map = TaxonomyCache.get_domain_external_id_to_id_map()
 
     domains
-    |> Enum.all?(&Map.get(map, &1.external_id) == &1.id)
+    |> Enum.all?(&(Map.get(map, &1.external_id) == &1.id))
     |> assert
   end
 
   defp random_domain do
     id = random_id()
-    %{id: id, name: "domain #{id}", external_id: "external id #{id}"}
+
+    %{
+      id: id,
+      name: "domain #{id}",
+      external_id: "external id #{id}",
+      updated_at: DateTime.utc_now()
+    }
   end
 
   defp random_id, do: :rand.uniform(100_000_000)
