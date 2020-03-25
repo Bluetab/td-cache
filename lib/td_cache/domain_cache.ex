@@ -152,10 +152,10 @@ defmodule TdCache.DomainCache do
       [add_or_remove_root, @roots_key, id]
     ]
 
-    {:ok, results} = Redix.transaction_pipeline(commands)
+    {:ok, [_, _, added, _, _] = results} = Redix.transaction_pipeline(commands)
 
     event = %{
-      event: "domain_updated",
+      event: if(added == 0, do: "domain_updated", else: "domain_created"),
       domain: "domain:#{id}"
     }
 

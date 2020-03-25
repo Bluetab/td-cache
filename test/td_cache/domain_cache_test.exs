@@ -1,5 +1,6 @@
 defmodule TdCache.DomainCacheTest do
   use ExUnit.Case
+
   alias TdCache.DomainCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
@@ -19,7 +20,7 @@ defmodule TdCache.DomainCacheTest do
     on_exit(fn ->
       DomainCache.delete(domain.id)
       DomainCache.delete(parent.id)
-      Redix.command(["DEL", "domain:events"])
+      Redix.del!("domain:events")
     end)
 
     {:ok, domain: domain, parent: parent}
@@ -35,22 +36,22 @@ defmodule TdCache.DomainCacheTest do
       assert d.name == domain.name
       assert d.parent_ids == Enum.join(domain.parent_ids, ",")
       assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
-      assert Enum.count(events) == 1
-      assert Enum.all?(events, &(&1.event == "domain_updated"))
-      assert Enum.all?(events, &(&1.domain == "domain:#{d.id}"))
+      assert [%{event: "domain_created"}] = events
     end
 
     test "updates a domain entry only if changed", context do
       domain = context[:domain]
-      {:ok, uppdated_ts} = DateTime.from_unix(DateTime.to_unix(domain.updated_at) + 60)
-      update = %{name: "random name", updated_at: uppdated_ts}
+
       assert {:ok, ["OK", 1, 1, 0, 0]} = DomainCache.put(domain)
       assert {:ok, []} = DomainCache.put(domain)
-      assert {:ok, ["OK", 0, 0, 0, 0]} = DomainCache.put(Map.merge(domain, update))
 
-      assert {:ok, d} = DomainCache.get(domain.id)
-      assert d.id == domain.id
-      assert d.name == update.name
+      updated = %{domain | name: "updated name", updated_at: DateTime.utc_now()}
+
+      assert {:ok, ["OK", 0, 0, 0, 0]} = DomainCache.put(updated)
+      assert {:ok, %{name: "updated name"}} = DomainCache.get(domain.id)
+
+      assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
+      assert [%{event: "domain_created"}, %{event: "domain_updated"}] = events
     end
 
     test "deletes an entry in redis", context do
