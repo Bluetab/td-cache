@@ -48,42 +48,42 @@ defmodule TdCache.Redix.Stream do
     Logger.info("Destroyed consumer group #{group} for stream #{key}")
   end
 
-  def read(redix, stream, options)
+  def read(redix, stream, opts)
 
-  def read(redix, stream, options) when is_binary(stream) do
-    read(redix, [stream], options)
+  def read(redix, stream, opts) when is_binary(stream) do
+    read(redix, [stream], opts)
   end
 
-  def read(redix, streams, options) when is_list(streams) do
-    count = Commands.option("COUNT", Keyword.get(options, :count))
-    block = Commands.option("BLOCK", Keyword.get(options, :block))
-    ids = Keyword.get(options, :ids, Enum.map(streams, fn _ -> "0-0" end))
+  def read(redix, streams, opts) when is_list(streams) do
+    count = Commands.option("COUNT", Keyword.get(opts, :count))
+    block = Commands.option("BLOCK", Keyword.get(opts, :block))
+    ids = Keyword.get(opts, :ids, Enum.map(streams, fn _ -> "0-0" end))
 
     command = ["XREAD"] ++ count ++ block ++ ["STREAMS"] ++ streams ++ ids
-    events = read_events(redix, command, options)
+    events = read_events(redix, command, opts)
 
     {:ok, events}
   end
 
-  def read_group(redix, stream, group, consumer, options \\ []) do
-    count = Commands.option("COUNT", Keyword.get(options, :count))
-    block = Commands.option("BLOCK", Keyword.get(options, :block))
+  def read_group(redix, stream, group, consumer, opts \\ []) do
+    count = Commands.option("COUNT", Keyword.get(opts, :count))
+    block = Commands.option("BLOCK", Keyword.get(opts, :block))
 
     command =
       ["XREADGROUP", "GROUP", group, consumer] ++ count ++ block ++ ["STREAMS", stream, ">"]
 
-    events = read_events(redix, command, options)
+    events = read_events(redix, command, opts)
 
     {:ok, events}
   end
 
-  defp read_events(redix, command, options) do
+  defp read_events(redix, command, opts) do
     case Redix.command(redix, command) do
       {:ok, nil} ->
         []
 
       {:ok, events_by_stream} ->
-        parse_results(events_by_stream, options)
+        parse_results(events_by_stream, opts)
     end
   end
 
@@ -91,8 +91,8 @@ defmodule TdCache.Redix.Stream do
     Redix.command(["XTRIM", stream, "MAXLEN", count])
   end
 
-  defp parse_results(events_by_stream, options) do
-    case Keyword.get(options, :transform) do
+  defp parse_results(events_by_stream, opts) do
+    case Keyword.get(opts, :transform) do
       true ->
         events_by_stream
         |> Enum.flat_map(&stream_events/1)

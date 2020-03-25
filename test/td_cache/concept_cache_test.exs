@@ -197,8 +197,6 @@ defmodule TdCache.ConceptCacheTest do
 
     test "writes a concept with user info in redis and reads it back", context do
       concept = context[:concept]
-      # template = context[:template]
-      # assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
       {:ok, ["OK", "OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert not is_nil(c)
@@ -211,30 +209,22 @@ defmodule TdCache.ConceptCacheTest do
     end
   end
 
-  test "get with option force_redis does not read from local con_cache", context do
-    concept = context[:concept]
+  test "get with refresh option reads from redis and updates local cache", context do
+    %{id: id} = concept = context[:concept]
     {:ok, ["OK", "OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
-    # modify concept in Redis
-    updated_concept = %{
-      id: concept.id,
-      business_concept_version_id: random_id(),
-      name: "changed"
-    }
-    # read from redis to store it in con_cache
-    {:ok, original_concept} = ConceptCache.get(concept.id)
-    assert original_concept.name == concept.name
-    # modify it in redis
-    Redix.command!(["HMSET", "business_concept:#{concept.id}", updated_concept])
-    # read from cache and verify that local cache has old concept values
-    {:ok, original_concept} = ConceptCache.get(concept.id)
-    assert original_concept.name == concept.name
-    # read from cache skipping local cache
-    {:ok, new_concept} = ConceptCache.get(concept.id, [force_redis: true])
-    assert new_concept.name == updated_concept.name
-    # once read from cache the value is refreshed in local cache
-    {:ok, new_concept} = ConceptCache.get(concept.id)
-    assert new_concept.name == updated_concept.name
 
+    # Inital read stores concept in local cache
+    assert {:ok, %{id: ^id, name: name}} = ConceptCache.get(id)
+
+    # update concept name in Redis
+    Redix.command!(["HMSET", "business_concept:#{id}", %{name: "updated"}])
+
+    # get without refresh option returns name from local cache
+    assert {:ok, %{name: ^name}} = ConceptCache.get(id)
+
+    # get with refresh option reads from Redis and updates local cache
+    assert {:ok, %{name: "updated"}} = ConceptCache.get(id, refresh: true)
+    assert {:ok, %{name: "updated"}} = ConceptCache.get(id)
   end
 
   defp random_id, do: :rand.uniform(100_000_000)
