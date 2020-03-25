@@ -24,9 +24,7 @@ defmodule TdCache.TaxonomyCacheTest do
     domain = context[:domain]
     assert {:ok, ["OK", 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
-    assert Enum.count(events) == 1
-    assert Enum.all?(events, &(&1.event == "domain_updated"))
-    assert Enum.all?(events, &(&1.domain == "domain:#{domain.id}"))
+    assert [%{event: "domain_created"}] = events
   end
 
   test "get_parent_ids with self returns parent ids including domain_id", context do
