@@ -29,7 +29,7 @@ defmodule TdCache.RuleCacheTest do
   describe "RuleCache" do
     test "writes a rule entry in redis and reads it back", context do
       rule = context[:rule]
-      {:ok, [1, "OK", 1]} = RuleCache.put(rule)
+      {:ok, [0, 1, "OK", 1]} = RuleCache.put(rule)
       {:ok, s} = RuleCache.get(rule.id)
       assert s <~> rule
     end
@@ -37,9 +37,25 @@ defmodule TdCache.RuleCacheTest do
     test "adds a rule to the concept's rules", context do
       rule = context[:rule]
       concept = context[:concept]
-      {:ok, [1, "OK", 1]} = RuleCache.put(rule)
+      {:ok, [0, 1, "OK", 1]} = RuleCache.put(rule)
       {:ok, c} = ConceptCache.get(concept.id)
       assert c.rule_count == 1
+    end
+
+    test "adds a rule to the concept's and then it is deleted", context do
+      rule = context[:rule]
+      concept = context[:concept]
+      {:ok, [0, 1, "OK", 1]} = RuleCache.put(rule)
+      {:ok, c} = ConceptCache.get(concept.id)
+      assert c.rule_count == 1
+      now = DateTime.from_unix!(DateTime.to_unix(DateTime.utc_now()) + 100)
+
+      {:ok, [1, "OK", 0]} = rule
+      |> Map.merge(%{business_concept_id: nil, updated_at: now})
+      |> RuleCache.put
+
+      {:ok, c} = ConceptCache.get(concept.id, refresh: true)
+      assert c.rule_count == 0
     end
 
     test "deletes an entry in redis", context do

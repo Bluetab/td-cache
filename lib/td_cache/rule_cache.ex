@@ -59,23 +59,53 @@ defmodule TdCache.RuleCache do
 
   defp put_rule(%{id: id, updated_at: updated_at} = rule) do
     last_updated = Redix.command!(["HGET", "rule:#{id}", :updated_at])
+    current_concept_id = Redix.command!(["HGET", "rule:#{id}", :business_concept_id])
 
     rule
     |> Map.put(:updated_at, "#{updated_at}")
+    |> Map.put(:current_concept_id, current_concept_id)
     |> put_rule(last_updated)
   end
 
   defp put_rule(%{updated_at: ts}, ts), do: {:ok, []}
 
-  defp put_rule(%{id: id, business_concept_id: business_concept_id} = rule, _last_updated) do
+  defp put_rule(%{id: id, business_concept_id: nil} = rule, _last_updated) do
+    current_concept_id = Map.get(rule, :current_concept_id)
+
     results =
       Redix.transaction_pipeline!([
+        ["SREM", "business_concept:#{current_concept_id}:rules", "rule:#{id}"],
+        ["HMSET", "rule:#{id}", Map.take(rule, @props)],
+        ["SADD", "rule:keys", "rule:#{id}"]
+      ])
+
+    [removed, _, _] = results
+
+    unless removed == 0 do
+      event = %{
+        event: "add_rule",
+        rule: "rule:#{id}",
+        concept: "business_concept:#{current_concept_id}"
+      }
+
+      {:ok, _event_id} = Publisher.publish(event, "business_concept:events")
+    end
+
+    {:ok, results}
+  end
+
+  defp put_rule(%{id: id, business_concept_id: business_concept_id} = rule, _last_updated) do
+    current_concept_id = Map.get(rule, :current_concept_id)
+
+    results =
+      Redix.transaction_pipeline!([
+        ["SREM", "business_concept:#{current_concept_id}:rules", "rule:#{id}"],
         ["SADD", "business_concept:#{business_concept_id}:rules", "rule:#{id}"],
         ["HMSET", "rule:#{id}", Map.take(rule, @props)],
         ["SADD", "rule:keys", "rule:#{id}"]
       ])
 
-    [added, _, _] = results
+    [_, added, _, _] = results
 
     unless added == 0 do
       event = %{

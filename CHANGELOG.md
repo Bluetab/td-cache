@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.19.2] 2020-04-02
+
+### Changed
+
+- [TD-1691] `RuleCache.put/1` updates concept linked to a rule on
+  rule creation and modification
+
 ## [3.19.1] 2020-03-25
 
 ### Changed
