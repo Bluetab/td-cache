@@ -50,8 +50,9 @@ defmodule TdCache.RuleCacheTest do
       assert c.rule_count == 1
       now = DateTime.from_unix!(DateTime.to_unix(DateTime.utc_now()) + 100)
 
-      {:ok, [1, "OK", 0]} =
-        RuleCache.put(Map.merge(rule, %{business_concept_id: nil, updated_at: now}))
+      {:ok, [1, "OK", 0]} = rule
+      |> Map.merge(%{business_concept_id: nil, updated_at: now})
+      |> RuleCache.put
 
       {:ok, c} = ConceptCache.get(concept.id, refresh: true)
       assert c.rule_count == 0
