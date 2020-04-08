@@ -54,8 +54,8 @@ defmodule TdCache.PermissionsTest do
   } do
     import Permissions, only: :functions
     session_id = "#{random_id()}"
-    now = DateTime.utc_now() |> DateTime.to_unix()
-    cache_session_permissions!(session_id, now + 100, acl_entries)
+    expire_at = DateTime.utc_now() |> DateTime.add(100) |> DateTime.to_unix()
+    cache_session_permissions!(session_id, expire_at, acl_entries)
     assert has_permission?(session_id, :create_business_concept, "domain", domain.id)
     assert has_permission?(session_id, :create_business_concept, "business_concept", concept.id)
     assert has_permission?(session_id, :create_ingest, "ingest", ingest.id)

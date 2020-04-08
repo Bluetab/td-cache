@@ -67,23 +67,29 @@ defmodule TdCache.StructureCacheTest do
       structure =
         context[:structure]
         |> Map.put(:system_id, system.id)
+
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
       assert not is_nil(s)
-      updated_structure = structure
-      |> Map.put(:external_id, "new_ext_id")
-      |> Map.put(:updated_at, DateTime.utc_now())
+
+      updated_structure =
+        structure
+        |> Map.put(:external_id, "new_ext_id")
+        |> Map.put(:updated_at, DateTime.utc_now())
+
       {:ok, _} = StructureCache.put(updated_structure)
       {:ok, s} = StructureCache.get(structure.id)
       assert s.external_id == "new_ext_id"
     end
 
-    test "does not update a structure already cached in redis having same update_at value", context do
+    test "does not update a structure already cached in redis having same update_at value",
+         context do
       system = context[:system]
 
       structure =
         context[:structure]
         |> Map.put(:system_id, system.id)
+
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
       assert not is_nil(s)
