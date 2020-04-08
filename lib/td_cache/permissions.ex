@@ -113,11 +113,9 @@ defmodule TdCache.Permissions do
   end
 
   def cache_session_permissions!(session_id, expire_at, acl_entries) do
-    commands =
-      acl_entries
-      |> Enum.flat_map(&entry_to_commands(session_id, expire_at, &1))
-
-    Redix.transaction_pipeline!(commands)
+    acl_entries
+    |> Enum.flat_map(&entry_to_commands(session_id, expire_at, &1))
+    |> Redix.transaction_pipeline!()
   end
 
   defp entry_to_commands(session_id, expire_at, %{

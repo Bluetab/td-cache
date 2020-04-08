@@ -6,6 +6,20 @@
 
 - [TD-2361] Permission `manage_raw_quality_rule_implementations`
 
+## [3.20.0] 2020-04-08
+
+### Changed
+
+- Requires elixir>=1.8
+
+### Added
+
+- `UserCache.list/1` to list all cached users
+
+### Fixed
+
+- `TemplateCache.fields_by_type!/2` was always returning an empty map
+
 ## [3.19.2] 2020-04-02
 
 ### Changed

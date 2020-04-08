@@ -48,11 +48,12 @@ defmodule TdCache.RuleCacheTest do
       {:ok, [0, 1, "OK", 1]} = RuleCache.put(rule)
       {:ok, c} = ConceptCache.get(concept.id)
       assert c.rule_count == 1
-      now = DateTime.from_unix!(DateTime.to_unix(DateTime.utc_now()) + 100)
+      updated_at = DateTime.add(DateTime.utc_now(), 100)
 
-      {:ok, [1, "OK", 0]} = rule
-      |> Map.merge(%{business_concept_id: nil, updated_at: now})
-      |> RuleCache.put
+      {:ok, [1, "OK", 0]} =
+        rule
+        |> Map.merge(%{business_concept_id: nil, updated_at: updated_at})
+        |> RuleCache.put()
 
       {:ok, c} = ConceptCache.get(concept.id, refresh: true)
       assert c.rule_count == 0

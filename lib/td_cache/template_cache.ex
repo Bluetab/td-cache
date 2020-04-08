@@ -263,6 +263,7 @@ defmodule TdCache.TemplateCache do
 
   defp content_fields(%{content: content}, type) do
     content
+    |> Enum.flat_map(& &1["fields"])
     |> Enum.filter(&(&1["type"] == type))
     |> Enum.map(& &1["name"])
   end
