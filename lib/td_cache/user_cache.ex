@@ -6,10 +6,18 @@ defmodule TdCache.UserCache do
 
   alias TdCache.Redix
 
+  @ids "users:ids"
+  @props [:user_name, :full_name, :email]
+  @name_to_id_key "users:name_to_id"
+
   ## Client API
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  def list() do
+    GenServer.call(__MODULE__, :list)
   end
 
   def get(id) do
@@ -43,6 +51,12 @@ defmodule TdCache.UserCache do
   end
 
   @impl true
+  def handle_call(:list, _from, state) do
+    users = list_users()
+    {:reply, {:ok, users}, state}
+  end
+
+  @impl true
   def handle_call({:get, id}, _from, state) do
     user = get_cache(id, fn -> read_user(id) end)
     {:reply, {:ok, user}, state}
@@ -68,11 +82,15 @@ defmodule TdCache.UserCache do
 
   ## Private functions
 
-  @props [:user_name, :full_name, :email]
-  @name_to_id_key "users:name_to_id"
-
   defp get_cache(key, fun) do
     ConCache.get_or_store(:users, key, fn -> fun.() end)
+  end
+
+  defp list_users do
+    case Redix.command(["SMEMBERS", @ids]) do
+      {:ok, ids} ->
+        Enum.map(ids, fn id -> get_cache(id, fn -> read_user(id) end) end)
+    end
   end
 
   defp read_user(id) when is_binary(id) do
@@ -102,23 +120,31 @@ defmodule TdCache.UserCache do
   defp put_user(%{id: id, full_name: full_name} = user) do
     Redix.transaction_pipeline([
       ["HMSET", "user:#{id}", Map.take(user, @props)],
+      ["SADD", @ids, "#{id}"],
       ["HSET", @name_to_id_key, full_name, id]
     ])
   end
 
   defp put_user(%{id: id} = user) do
-    Redix.command(["HMSET", "user:#{id}", Map.take(user, @props)])
+    Redix.transaction_pipeline([
+      ["HMSET", "user:#{id}", Map.take(user, @props)],
+      ["SADD", @ids, "#{id}"]
+    ])
   end
 
   defp delete_user(id) do
     case Redix.command!(["HGET", "user:#{id}", :full_name]) do
       nil ->
-        Redix.command(["DEL", "user:#{id}"])
+        Redix.transaction_pipeline([
+          ["DEL", "user:#{id}"],
+          ["SREM", @ids, "#{id}"]
+        ])
 
       name ->
         Redix.transaction_pipeline([
           ["DEL", "user:#{id}"],
-          ["HDEL", @name_to_id_key, name]
+          ["HDEL", @name_to_id_key, name],
+          ["SREM", @ids, "#{id}"]
         ])
     end
   end

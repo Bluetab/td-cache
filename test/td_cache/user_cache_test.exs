@@ -21,19 +21,25 @@ defmodule TdCache.UserCacheTest do
 
   test "put returns OK", context do
     [user | _] = context[:users]
-    assert {:ok, ["OK", 1]} == UserCache.put(user)
+    assert {:ok, ["OK", 1, 1]} == UserCache.put(user)
   end
 
   test "put without full name returns OK", context do
     [user | _] = context[:users]
     user = user |> Map.delete(:full_name)
-    assert {:ok, "OK"} == UserCache.put(user)
+    assert {:ok, ["OK", 1]} == UserCache.put(user)
   end
 
   test "put without email returns OK", context do
     [user | _] = context[:users]
     user = user |> Map.delete(:email)
-    assert {:ok, ["OK", 1]} == UserCache.put(user)
+    assert {:ok, ["OK", 1, 1]} == UserCache.put(user)
+  end
+
+  test "list returns all users", %{users: users} do
+    Enum.each(users, &UserCache.put/1)
+    {:ok, res} = UserCache.list()
+    assert Enum.count(res) == Enum.count(users)
   end
 
   test "get_user returns a map with user_name, full_name and email", context do
