@@ -104,15 +104,26 @@ defmodule TdCache.TemplateCacheTest do
     assert {:ok, nil} == TemplateCache.get(template.id)
   end
 
+  test "fields_by_type!/2 returns fields by type", %{templates: [template | _]} do
+    %{name: name, scope: scope} = template
+    TemplateCache.put(template)
+    assert TemplateCache.fields_by_type!(scope, "string") == %{name => ["field"]}
+  end
+
   defp random_template do
     id = random_id()
+
+    field_group = %{
+      "name" => "group_name",
+      "fields" => [%{"name" => "field", "type" => "string"}]
+    }
 
     %{
       id: id,
       name: "Template #{id}",
       label: "Label #{id}",
       scope: "Scope #{id}",
-      content: [%{"name" => "field", "type" => "string"}],
+      content: [field_group],
       updated_at: DateTime.utc_now()
     }
   end
