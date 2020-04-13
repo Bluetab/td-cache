@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.20.1] 2020-04-13
+
+### Changed
+
+- Avoid redundant reads in `ConceptCache.get/3` on `:content` property
+
 ## [3.20.0] 2020-04-08
 
 ### Changed

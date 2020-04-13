@@ -98,6 +98,11 @@ defmodule TdCache.ConceptCacheTest do
       assert c.domain.parent_ids == Enum.join(domain.parent_ids, ",")
     end
 
+    test "reads the content property of a concept", %{concept: %{content: content} = concept} do
+      {:ok, _} = ConceptCache.put(concept)
+      assert {:ok, ^content} = ConceptCache.get(concept.id, :content)
+    end
+
     test "reads the domain_ids property of a concept", context do
       domain = context[:domain]
 
