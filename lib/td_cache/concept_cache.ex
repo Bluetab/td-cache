@@ -147,6 +147,12 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
+  def handle_call({:get, id, :content, _opts}, _from, state) do
+    reply = read_content(id)
+    {:reply, reply, state}
+  end
+
+  @impl true
   def handle_call({:get, id, property, opts}, _from, state) do
     prop =
       case get_cache(id, fn -> read_concept(id) end, opts) do
@@ -214,7 +220,7 @@ defmodule TdCache.ConceptCache do
         nil
 
       m ->
-        {:ok, content} = Redix.read_map("business_concept:#{id}:content", fn [k, v] -> {k, v} end)
+        {:ok, content} = read_content(id)
         {:ok, rule_count} = RuleCache.count(concept_key)
         {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
 
@@ -226,13 +232,17 @@ defmodule TdCache.ConceptCache do
     end
   end
 
-  def concept_entry_to_map(nil), do: nil
+  defp read_content(id) do
+    Redix.read_map("business_concept:#{id}:content", fn [k, v] -> {k, v} end)
+  end
 
-  def concept_entry_to_map(%{domain_id: domain_id} = concept) when not is_nil(domain_id) do
+  defp concept_entry_to_map(nil), do: nil
+
+  defp concept_entry_to_map(%{domain_id: domain_id} = concept) when not is_nil(domain_id) do
     Map.put(concept, :domain, DomainCache.get!(domain_id))
   end
 
-  def concept_entry_to_map(%{} = concept) do
+  defp concept_entry_to_map(%{} = concept) do
     Map.put(concept, :domain, nil)
   end
 
