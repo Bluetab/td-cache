@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.20.2] 2020-04-14
+
+### Added
+
+- [TD-2361] Permission `manage_raw_quality_rule_implementations`
+
 ## [3.20.1] 2020-04-13
 
 ### Changed
