@@ -89,13 +89,9 @@ defmodule TdCache.TaxonomyCache do
     name
   end
 
-  def put_domain(domain) do
-    DomainCache.put(domain)
-  end
+  defdelegate put_domain(domain), to: DomainCache, as: :put
 
-  def delete_domain(domain_id) do
-    DomainCache.delete(domain_id)
-  end
+  defdelegate delete_domain(domain_id), to: DomainCache, as: :delete
 
   @doc """
   Obtain a map of domain names and the corresponding id.

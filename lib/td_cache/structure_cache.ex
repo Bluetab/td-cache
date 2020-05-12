@@ -33,31 +33,29 @@ defmodule TdCache.StructureCache do
 
   ## Private functions
 
-  @props [:name, :type, :group, :system_id, :parent_id, :external_id, :updated_at, :metadata]
+  @props [:name, :type, :group, :system_id, :parent_id, :external_id, :updated_at]
 
   defp read_structure(id) do
     case Redix.read_map("data_structure:#{id}") do
       {:ok, nil} ->
         nil
 
-      {:ok, %{metadata: metadata} = structure} ->
+      {:ok, structure} ->
         {:ok, path} = Redix.read_list("data_structure:#{id}:path")
         {:ok, system} = SystemCache.get(Map.get(structure, :system_id))
+
+        metadata =
+          case Map.get(structure, :metadata) do
+            nil -> %{}
+            metadata -> JSON.decode!(metadata)
+          end
 
         structure
         |> put_optional(:path, path)
         |> put_optional(:system, system)
-        |> put_optional(:metadata, decode_metadata(metadata))
+        |> Map.put(:metadata, metadata)
         |> Map.put(:id, id)
     end
-  end
-
-  defp decode_metadata(nil) do
-    %{}
-  end
-
-  defp decode_metadata(metadata) do
-    JSON.decode!(metadata)
   end
 
   def put_optional(map, _key, nil), do: map
@@ -89,12 +87,16 @@ defmodule TdCache.StructureCache do
   end
 
   defp structure_commands(%{id: id} = structure) do
-    metadata = Map.get(structure, :metadata)
+    structure_props = Map.take(structure, @props)
 
     structure_props =
-      structure
-      |> Map.take(@props)
-      |> Map.put(:metadata, JSON.encode!(metadata))
+      case Map.get(structure, :metadata) do
+        %{} = metadata when map_size(metadata) > 0 ->
+          Map.put(structure_props, :metadata, JSON.encode!(metadata))
+
+        _ ->
+          structure_props
+      end
 
     [
       ["HMSET", "data_structure:#{id}", structure_props],

@@ -15,7 +15,8 @@ defmodule TdCache.StructureCacheTest do
       type: "type",
       path: ["foo", "bar"],
       updated_at: DateTime.utc_now(),
-      metadata: %{"alias" => "source_alias"}
+      metadata: %{"alias" => "source_alias"},
+      system_id: system.id
     }
 
     {:ok, _} = SystemCache.put(system)
@@ -29,8 +30,7 @@ defmodule TdCache.StructureCacheTest do
   end
 
   describe "StructureCache" do
-    test "writes a structure entry in redis and reads it back", context do
-      structure = context[:structure]
+    test "writes a structure entry in redis and reads it back", %{structure: structure} do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
       assert not is_nil(s)
@@ -43,13 +43,10 @@ defmodule TdCache.StructureCacheTest do
       assert s.metadata == structure.metadata
     end
 
-    test "writes a structure entry with system in redis and reads it back", context do
-      system = context[:system]
-
-      structure =
-        context[:structure]
-        |> Map.put(:system_id, system.id)
-
+    test "writes a structure entry with system in redis and reads it back", %{
+      structure: structure,
+      system: system
+    } do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
       assert not is_nil(s)
@@ -64,13 +61,16 @@ defmodule TdCache.StructureCacheTest do
       assert s.system == system
     end
 
-    test "updates a structure already cached in redis when updated_at has changed", context do
-      system = context[:system]
+    test "returns an empty map for metadata if not present", %{structure: structure} do
+      structure = Map.delete(structure, :metadata)
+      assert {:ok, _} = StructureCache.put(structure)
+      assert {:ok, s} = StructureCache.get(structure.id)
+      assert s.metadata == %{}
+    end
 
-      structure =
-        context[:structure]
-        |> Map.put(:system_id, system.id)
-
+    test "updates a structure already cached in redis when updated_at has changed", %{
+      structure: structure
+    } do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
       assert not is_nil(s)
@@ -85,14 +85,9 @@ defmodule TdCache.StructureCacheTest do
       assert s.external_id == "new_ext_id"
     end
 
-    test "does not update a structure already cached in redis having same update_at value",
-         context do
-      system = context[:system]
-
-      structure =
-        context[:structure]
-        |> Map.put(:system_id, system.id)
-
+    test "does not update a structure already cached in redis having same update_at value", %{
+      structure: structure
+    } do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
       assert not is_nil(s)
@@ -102,8 +97,7 @@ defmodule TdCache.StructureCacheTest do
       assert s.external_id == "ext_id"
     end
 
-    test "deletes an entry in redis", context do
-      structure = context[:structure]
+    test "deletes an entry in redis", %{structure: structure} do
       assert {:ok, ["OK", 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
