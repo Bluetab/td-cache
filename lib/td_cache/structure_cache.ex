@@ -3,6 +3,7 @@ defmodule TdCache.StructureCache do
   Shared cache for data structures.
   """
 
+  alias Jason, as: JSON
   alias TdCache.Redix
   alias TdCache.SystemCache
 
@@ -32,22 +33,31 @@ defmodule TdCache.StructureCache do
 
   ## Private functions
 
-  @props [:name, :type, :group, :system_id, :parent_id, :external_id, :updated_at]
+  @props [:name, :type, :group, :system_id, :parent_id, :external_id, :updated_at, :metadata]
 
   defp read_structure(id) do
     case Redix.read_map("data_structure:#{id}") do
       {:ok, nil} ->
         nil
 
-      {:ok, structure} ->
+      {:ok, %{metadata: metadata} = structure} ->
         {:ok, path} = Redix.read_list("data_structure:#{id}:path")
         {:ok, system} = SystemCache.get(Map.get(structure, :system_id))
 
         structure
         |> put_optional(:path, path)
         |> put_optional(:system, system)
+        |> put_optional(:metadata, decode_metadata(metadata))
         |> Map.put(:id, id)
     end
+  end
+
+  defp decode_metadata(nil) do
+    %{}
+  end
+
+  defp decode_metadata(metadata) do
+    JSON.decode!(metadata)
   end
 
   def put_optional(map, _key, nil), do: map
@@ -79,8 +89,15 @@ defmodule TdCache.StructureCache do
   end
 
   defp structure_commands(%{id: id} = structure) do
+    metadata = Map.get(structure, :metadata)
+
+    structure_props =
+      structure
+      |> Map.take(@props)
+      |> Map.put(:metadata, JSON.encode!(metadata))
+
     [
-      ["HMSET", "data_structure:#{id}", Map.take(structure, @props)],
+      ["HMSET", "data_structure:#{id}", structure_props],
       ["SADD", "data_structure:keys", "data_structure:#{id}"]
     ] ++ structure_path_commands(structure) ++ structure_system_commands(structure)
   end
