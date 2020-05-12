@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.22.1] 2020-05-12
+
+### Fixed
+
+- [TD-2490] Invalidate local cache when a domain is put or deleted
+
 ## [3.22.0] 2020-05-12
 
 ### Added

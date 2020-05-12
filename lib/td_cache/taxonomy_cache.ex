@@ -58,8 +58,7 @@ defmodule TdCache.TaxonomyCache do
           |> Map.get(:parent_ids)
           |> to_integer_list
 
-        domain
-        |> Map.put(:parent_ids, parent_ids)
+        Map.put(domain, :parent_ids, parent_ids)
     end
   end
 
@@ -89,9 +88,20 @@ defmodule TdCache.TaxonomyCache do
     name
   end
 
-  defdelegate put_domain(domain), to: DomainCache, as: :put
+  def put_domain(%{} = domain) do
+    delete_local_cache(Map.get(domain, :id))
+    DomainCache.put(domain)
+  end
 
-  defdelegate delete_domain(domain_id), to: DomainCache, as: :delete
+  def delete_domain(domain_id) do
+    delete_local_cache(domain_id)
+    DomainCache.delete(domain_id)
+  end
+
+  defp delete_local_cache(id) do
+    ConCache.delete(:taxonomy, {:parent, id})
+    ConCache.delete(:taxonomy, {:id, id})
+  end
 
   @doc """
   Obtain a map of domain names and the corresponding id.
