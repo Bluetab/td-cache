@@ -3,6 +3,7 @@ defmodule TdCache.StructureCache do
   Shared cache for data structures.
   """
 
+  alias Jason, as: JSON
   alias TdCache.Redix
   alias TdCache.SystemCache
 
@@ -43,9 +44,16 @@ defmodule TdCache.StructureCache do
         {:ok, path} = Redix.read_list("data_structure:#{id}:path")
         {:ok, system} = SystemCache.get(Map.get(structure, :system_id))
 
+        metadata =
+          case Map.get(structure, :metadata) do
+            nil -> %{}
+            metadata -> JSON.decode!(metadata)
+          end
+
         structure
         |> put_optional(:path, path)
         |> put_optional(:system, system)
+        |> Map.put(:metadata, metadata)
         |> Map.put(:id, id)
     end
   end
@@ -79,8 +87,19 @@ defmodule TdCache.StructureCache do
   end
 
   defp structure_commands(%{id: id} = structure) do
+    structure_props = Map.take(structure, @props)
+
+    structure_props =
+      case Map.get(structure, :metadata) do
+        %{} = metadata when map_size(metadata) > 0 ->
+          Map.put(structure_props, :metadata, JSON.encode!(metadata))
+
+        _ ->
+          structure_props
+      end
+
     [
-      ["HMSET", "data_structure:#{id}", Map.take(structure, @props)],
+      ["HMSET", "data_structure:#{id}", structure_props],
       ["SADD", "data_structure:keys", "data_structure:#{id}"]
     ] ++ structure_path_commands(structure) ++ structure_system_commands(structure)
   end

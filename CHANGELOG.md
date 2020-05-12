@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.22.0] 2020-05-12
+
+### Added
+
+- [TD-2495] Cached structures metadata in Structure Cache
+
 ## [3.20.2] 2020-04-14
 
 ### Added
