@@ -20,54 +20,64 @@ defmodule TdCache.TaxonomyCacheTest do
     {:ok, root: root, parent: parent, domain: domain}
   end
 
-  test "put_domain returns OK", context do
-    domain = context[:domain]
+  test "put_domain returns OK", %{domain: domain} do
     assert {:ok, ["OK", 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
     assert [%{event: "domain_created"}] = events
   end
 
-  test "get_parent_ids with self returns parent ids including domain_id", context do
-    domain = context[:domain]
+  test "put_domain invalidates local cache", %{domain: %{id: id} = domain} do
+    ConCache.put(:taxonomy, {:id, id}, :foo)
+    ConCache.put(:taxonomy, {:parent, id}, :foo)
+    assert ConCache.get(:taxonomy, {:id, id})
+    assert ConCache.get(:taxonomy, {:parent, id})
+    TaxonomyCache.put_domain(domain)
+    refute ConCache.get(:taxonomy, {:id, id})
+    refute ConCache.get(:taxonomy, {:parent, id})
+  end
+
+  test "get_parent_ids with self returns parent ids including domain_id", %{domain: domain} do
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_parent_ids(domain.id) == [domain.id | domain.parent_ids]
   end
 
-  test "get_parent_ids without self returns parent ids excluding domain_id", context do
-    domain = context[:domain]
+  test "get_parent_ids without self returns parent ids excluding domain_id", %{domain: domain} do
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_parent_ids(domain.id, false) == domain.parent_ids
   end
 
-  test "get_parent_ids when domain has no parents returns an empty list", context do
-    domain =
-      context[:domain]
-      |> Map.put(:parent_ids, [])
-
+  test "get_parent_ids when domain has no parents returns an empty list", %{domain: domain} do
+    domain = Map.put(domain, :parent_ids, [])
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_parent_ids(domain.id, false) == []
   end
 
-  test "get_name returns name", context do
-    domain = context[:domain]
+  test "get_name returns name", %{domain: domain} do
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_name(domain.id) == domain.name
   end
 
-  test "delete_domain deletes the domain from cache", context do
-    domain = context[:domain]
+  test "delete_domain deletes the domain from cache", %{domain: domain} do
     TaxonomyCache.put_domain(domain)
     TaxonomyCache.delete_domain(domain.id)
-    assert not Redix.exists?("domain:#{domain.id}")
+    refute Redix.exists?("domain:#{domain.id}")
   end
 
-  test "get_domain_name_to_id_map returns a map with names as keys and ids as values", context do
-    domains =
-      [:root, :parent, :domain]
-      |> Enum.map(&Map.get(context, &1))
+  test "delete_domain invalidates local cache" do
+    ConCache.put(:taxonomy, {:id, 123}, :foo)
+    ConCache.put(:taxonomy, {:parent, 123}, :foo)
+    assert ConCache.get(:taxonomy, {:id, 123})
+    assert ConCache.get(:taxonomy, {:parent, 123})
+    TaxonomyCache.delete_domain(123)
+    refute ConCache.get(:taxonomy, {:id, 123})
+    refute ConCache.get(:taxonomy, {:parent, 123})
+  end
 
-    domains
-    |> Enum.map(&TaxonomyCache.put_domain(&1))
+  test "get_domain_name_to_id_map returns a map with names as keys and ids as values",
+       %{root: root, parent: parent, domain: domain} do
+    domains = [root, parent, domain]
+
+    Enum.map(domains, &TaxonomyCache.put_domain(&1))
 
     map = TaxonomyCache.get_domain_name_to_id_map()
 
@@ -77,13 +87,10 @@ defmodule TdCache.TaxonomyCacheTest do
   end
 
   test "get_domain_external_id_to_id_map returns a map with names as keys and ids as values",
-       context do
-    domains =
-      [:root, :parent, :domain]
-      |> Enum.map(&Map.get(context, &1))
+       %{root: root, parent: parent, domain: domain} do
+    domains = [root, parent, domain]
 
-    domains
-    |> Enum.map(&TaxonomyCache.put_domain(&1))
+    Enum.map(domains, &TaxonomyCache.put_domain(&1))
 
     map = TaxonomyCache.get_domain_external_id_to_id_map()
 
