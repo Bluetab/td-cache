@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] 
+
+### Added
+
+- [TD-2261] `deleted_at` filed on structure cache
+
 ## [3.22.1] 2020-05-12
 
 ### Fixed
