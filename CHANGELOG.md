@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.24.0] 2020-06-02
+
+### Added
+
+- [TD-2637] Support for publishing audit events in a common format
+
 ## [3.22.1] 2020-05-12
 
 ### Fixed
