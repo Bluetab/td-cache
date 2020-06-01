@@ -48,6 +48,14 @@ defmodule TdCache.Redix.Stream do
     Logger.info("Destroyed consumer group #{group} for stream #{key}")
   end
 
+  def range(redix, stream, start_id, end_id, opts \\ []) do
+    count = Commands.option("COUNT", Keyword.get(opts, :count))
+    command = ["XRANGE", stream, start_id, end_id] ++ count
+    events = read_events(redix, command, opts)
+
+    {:ok, events}
+  end
+
   def read(redix, stream, opts)
 
   def read(redix, stream, opts) when is_binary(stream) do
@@ -77,6 +85,10 @@ defmodule TdCache.Redix.Stream do
     {:ok, events}
   end
 
+  def ack(redix, stream, group, ids) do
+    Redix.command(redix, ["XACK", stream, group | ids])
+  end
+
   defp read_events(redix, command, opts) do
     case Redix.command(redix, command) do
       {:ok, nil} ->
@@ -91,26 +103,34 @@ defmodule TdCache.Redix.Stream do
     Redix.command(["XTRIM", stream, "MAXLEN", count])
   end
 
-  defp parse_results(events_by_stream, opts) do
+  defp parse_results(events, opts) do
     case Keyword.get(opts, :transform) do
+      :range ->
+        Enum.map(events, &event_to_map/1)
+
       true ->
-        events_by_stream
+        events
         |> Enum.flat_map(&stream_events/1)
         |> Enum.sort_by(& &1.id)
 
       _ ->
-        events_by_stream
+        events
     end
   end
 
   defp stream_events([stream, events]) do
-    events |> Enum.map(&event_to_map(stream, &1))
+    Enum.map(events, &event_to_map(&1, stream))
   end
 
-  defp event_to_map(stream, [id, hash]) do
+  defp event_to_map([id, hash]) do
     hash
     |> Redix.hash_to_map()
     |> Map.put(:id, id)
+  end
+
+  defp event_to_map([id, hash], stream) do
+    [id, hash]
+    |> event_to_map()
     |> Map.put(:stream, stream)
   end
 end
