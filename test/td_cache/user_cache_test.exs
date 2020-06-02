@@ -42,6 +42,12 @@ defmodule TdCache.UserCacheTest do
     assert Enum.count(res) == Enum.count(users)
   end
 
+  test "map/0 returns a map of users", %{users: users} do
+    Enum.each(users, &UserCache.put/1)
+    res = %{} = UserCache.map()
+    assert Map.keys(res) |> Enum.sort() == Enum.map(users, & &1.id) |> Enum.sort()
+  end
+
   test "get_user returns a map with user_name, full_name and email", context do
     [user | _] = context[:users]
     UserCache.put(user)
