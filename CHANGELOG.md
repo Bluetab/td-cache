@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.24.1] 2020-06-02
+
+### Added
+
+- New function `TdCache.UserCache.map/0` returns a map of cached users
+
 ## [3.24.0] 2020-06-02
 
 ### Added

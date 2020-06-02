@@ -20,6 +20,15 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, :list)
   end
 
+  @doc """
+  Returns a map of cached users with user ids as keys and users as values.
+  """
+  def map do
+    with {:ok, users} <- list() do
+      Map.new(users, fn %{id: id} = user -> {id, user} end)
+    end
+  end
+
   def get(id) do
     GenServer.call(__MODULE__, {:get, id})
   end
