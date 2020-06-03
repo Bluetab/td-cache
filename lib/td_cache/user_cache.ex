@@ -16,8 +16,17 @@ defmodule TdCache.UserCache do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def list() do
+  def list do
     GenServer.call(__MODULE__, :list)
+  end
+
+  @doc """
+  Returns a map of cached users with user ids as keys and users as values.
+  """
+  def map do
+    with {:ok, users} <- list() do
+      Map.new(users, fn %{id: id} = user -> {id, user} end)
+    end
   end
 
   def get(id) do
@@ -88,8 +97,7 @@ defmodule TdCache.UserCache do
 
   defp list_users do
     case Redix.command(["SMEMBERS", @ids]) do
-      {:ok, ids} ->
-        Enum.map(ids, fn id -> get_cache(id, fn -> read_user(id) end) end)
+      {:ok, ids} -> Enum.map(ids, &get_cache(&1, fn -> read_user(&1) end))
     end
   end
 

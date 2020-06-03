@@ -29,6 +29,10 @@ config :td_cache, :cache_cleaner,
     "TD_CACHE_TEST:REMOVE:*"
   ]
 
+config :td_cache, :audit,
+  service: "td-cache",
+  stream: "audit:events:test"
+
 # It is also possible to import configuration files, relative to this
 # directory. For example, you can emulate configuration per environment
 # by uncommenting the line below and defining dev.exs, test.exs and such.

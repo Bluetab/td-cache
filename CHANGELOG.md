@@ -6,6 +6,18 @@
 
 - [TD-2261] `deleted_at` filed on structure cache
 
+## [3.24.1] 2020-06-02
+
+### Added
+
+- New function `TdCache.UserCache.map/0` returns a map of cached users
+
+## [3.24.0] 2020-06-02
+
+### Added
+
+- [TD-2637] Support for publishing audit events in a common format
+
 ## [3.22.1] 2020-05-12
 
 ### Fixed
