@@ -16,7 +16,8 @@ defmodule TdCache.StructureCacheTest do
       path: ["foo", "bar"],
       updated_at: DateTime.utc_now(),
       metadata: %{"alias" => "source_alias"},
-      system_id: system.id
+      system_id: system.id,
+      deleted_at: DateTime.utc_now()
     }
 
     {:ok, _} = SystemCache.put(system)
@@ -41,6 +42,7 @@ defmodule TdCache.StructureCacheTest do
       assert s.path == structure.path
       assert s.type == structure.type
       assert s.metadata == structure.metadata
+      assert not is_nil(s.deleted_at)
     end
 
     test "writes a structure entry with system in redis and reads it back", %{

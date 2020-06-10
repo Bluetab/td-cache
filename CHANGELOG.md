@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.24.2] 2020-06-03 
+
+### Added
+
+- [TD-2261] `deleted_at` filed on structure cache
+
 ## [3.24.1] 2020-06-02
 
 ### Added
