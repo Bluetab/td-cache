@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.24.3] 2020-06-10
+
+### Fixed
+
+- [TD-2637] Timestamp on audit events should always be current time when
+  publishing
+
 ## [3.24.2] 2020-06-03 
 
 ### Added

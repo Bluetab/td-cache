@@ -2,11 +2,11 @@ defmodule TdCache.Audit do
   alias TdCache.Audit.Event
   alias TdCache.EventStream.Publisher
 
-  def publish(%Event{payload: payload, ts: ts} = event) do
+  def publish(%Event{payload: payload} = event) do
     event
     |> Map.from_struct()
     |> Map.put(:payload, Jason.encode!(payload))
-    |> Map.put(:ts, timestamp(ts))
+    |> Map.put(:ts, timestamp())
     |> Map.put_new(:service, service())
     |> Publisher.publish(stream())
   end
@@ -17,9 +17,8 @@ defmodule TdCache.Audit do
     |> publish()
   end
 
-  defp timestamp(ts) do
-    ts
-    |> DateTime.truncate(:millisecond)
+  defp timestamp() do
+    DateTime.utc_now()
     |> DateTime.to_iso8601()
   end
 
