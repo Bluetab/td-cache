@@ -12,8 +12,7 @@ defmodule TdCache.Audit.Event do
     :resource_id,
     :resource_type,
     :user_id,
-    payload: %{},
-    ts: DateTime.utc_now()
+    payload: %{}
   ]
 
   @type t :: %__MODULE__{
@@ -21,7 +20,6 @@ defmodule TdCache.Audit.Event do
           payload: Map.t(),
           resource_id: integer(),
           resource_type: String.t(),
-          ts: DateTime.t(),
           user_id: integer()
         }
 end
