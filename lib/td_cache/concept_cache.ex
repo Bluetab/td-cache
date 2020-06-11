@@ -15,7 +15,6 @@ defmodule TdCache.ConceptCache do
   require Logger
 
   @active_ids "business_concept:ids:active"
-  @confidential "Si"
   @confidential_ids "business_concept:ids:confidential"
   @inactive_ids "business_concept:ids:inactive"
   @keys "business_concept:keys"
@@ -335,8 +334,8 @@ defmodule TdCache.ConceptCache do
     {:ok, results}
   end
 
-  defp confidential_ids_command(%{id: id, content: content}) do
-    verb = if Map.get(content, "_confidential") == @confidential, do: "SADD", else: "SREM"
+  defp confidential_ids_command(%{id: id, confidential: confidential}) do
+    verb = if confidential, do: "SADD", else: "SREM"
     [verb, @confidential_ids, id]
   end
 
