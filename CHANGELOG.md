@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.25.0] 2020-06-17
+
+### Changed
+
+- [TD-2672] Read confidential value from concept instead of content
+
 ## [3.24.3] 2020-06-10
 
 ### Fixed

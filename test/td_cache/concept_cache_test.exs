@@ -234,5 +234,19 @@ defmodule TdCache.ConceptCacheTest do
     assert {:ok, %{name: "updated"}} = ConceptCache.get(id)
   end
 
+  test "put confidential/public concept updates confidential ids list", context do
+    # confidential concept
+    %{id: id} = concept = context[:concept] |> Map.put(:confidential, true)
+
+    {:ok, ["OK", "OK", 1, 0, 1, 1]} = ConceptCache.put(concept)
+    {:ok, 1} = ConceptCache.member_confidential_ids(id)
+
+    # public concept
+    concept = Map.put(concept, :confidential, false)
+
+    {:ok, ["OK", "OK", 0, 0, 0, 1]} = ConceptCache.put(concept)
+    {:ok, 0} = ConceptCache.member_confidential_ids(id)
+  end
+
   defp random_id, do: :rand.uniform(100_000_000)
 end
