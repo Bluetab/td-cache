@@ -48,8 +48,7 @@ defmodule TdCache.CacheCleaner do
   ## Private functions
 
   defp clean_deprecated_entries(patterns) do
-    patterns
-    |> Enum.each(&clean_entries/1)
+    Enum.each(patterns, &clean_entries/1)
   end
 
   defp clean_entries(pattern) do
