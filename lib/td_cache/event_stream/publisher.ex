@@ -7,6 +7,12 @@ defmodule TdCache.EventStream.Publisher do
 
   require Logger
 
+  def publish(events, stream) when is_list(events) do
+    events
+    |> Enum.map(&Map.put(&1, :stream, stream))
+    |> publish()
+  end
+
   def publish(%{event: _} = map, stream) do
     map
     |> command(stream)

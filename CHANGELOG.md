@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- [TD-2779] Support for publishing batched audit events
+
 ### Removed
 
 - [TD-2779] Removed deprecated module `RuleResultCache`
@@ -19,7 +23,7 @@
 - [TD-2637] Timestamp on audit events should always be current time when
   publishing
 
-## [3.24.2] 2020-06-03 
+## [3.24.2] 2020-06-03
 
 ### Added
 

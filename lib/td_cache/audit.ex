@@ -2,12 +2,15 @@ defmodule TdCache.Audit do
   alias TdCache.Audit.Event
   alias TdCache.EventStream.Publisher
 
-  def publish(%Event{payload: payload} = event) do
+  def publish_all(events) when is_list(events) do
+    events
+    |> Enum.map(&create_event/1)
+    |> Publisher.publish(stream())
+  end
+
+  def publish(%Event{} = event) do
     event
-    |> Map.from_struct()
-    |> Map.put(:payload, Jason.encode!(payload))
-    |> Map.put(:ts, timestamp())
-    |> Map.put_new(:service, service())
+    |> create_event()
     |> Publisher.publish(stream())
   end
 
@@ -15,6 +18,20 @@ defmodule TdCache.Audit do
     Event
     |> struct(fields)
     |> publish()
+  end
+
+  defp create_event(%Event{payload: payload} = event) do
+    event
+    |> Map.from_struct()
+    |> Map.put(:payload, Jason.encode!(payload))
+    |> Map.put(:ts, timestamp())
+    |> Map.put_new(:service, service())
+  end
+
+  defp create_event(fields) do
+    Event
+    |> struct(fields)
+    |> create_event()
   end
 
   defp timestamp() do
