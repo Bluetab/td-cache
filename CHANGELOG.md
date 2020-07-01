@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.25.2] 2020-07-01
+
+### Added
+
+- [TD-2585] `IngestCache.get_domain_ids/1` returns domain and parent domain ids
+  of a cached ingest
+
 ## [3.25.1] 2020-06-26
 
 ### Added

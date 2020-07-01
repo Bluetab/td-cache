@@ -2,9 +2,12 @@ defmodule TdCache.IngestCacheTest do
   @moduledoc """
   Unit tests for ingest cache
   """
+
   use ExUnit.Case
+
   alias TdCache.IngestCache
   alias TdCache.Redix
+
   doctest TdCache.IngestCache
 
   setup do
@@ -21,10 +24,17 @@ defmodule TdCache.IngestCacheTest do
     assert {:ok, ["OK", 1]} = IngestCache.put(ingest)
   end
 
-  test "get_parent_id from an ingest", %{ingest: ingest} do
+  test "get_domain_id from an ingest", %{ingest: ingest} do
     {:ok, _} = IngestCache.put(ingest)
 
     assert IngestCache.get_domain_id(ingest.id) == "#{ingest.domain_id}"
+  end
+
+  test "get_domain_ids from an ingest", %{ingest: ingest} do
+    %{domain_id: domain_id, id: id} = ingest
+    {:ok, _} = IngestCache.put(ingest)
+
+    assert IngestCache.get_domain_ids(id) == [domain_id]
   end
 
   test "get_name from a ingest", %{ingest: ingest} do

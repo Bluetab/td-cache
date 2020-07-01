@@ -4,6 +4,7 @@ defmodule TdCache.IngestCache do
   """
 
   alias TdCache.Redix
+  alias TdCache.TaxonomyCache
 
   @keys "ingest:keys"
   @props [:name, :ingest_version_id, :domain_id]
@@ -16,6 +17,13 @@ defmodule TdCache.IngestCache do
   def get_domain_id(id) do
     {:ok, domain_id} = Redix.command(["HGET", "ingest:#{id}", "domain_id"])
     domain_id
+  end
+
+  def get_domain_ids(id) do
+    with domain_id <- get_domain_id(id),
+         domain_id <- String.to_integer(domain_id) do
+      TaxonomyCache.get_parent_ids(domain_id)
+    end
   end
 
   def get_ingest_version_id(id) do
