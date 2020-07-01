@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.0.0] 2020-07-01
+
+### Changed
+
+- Update `redix` to version 0.11.1
+
 ## [3.25.2] 2020-07-01
 
 ### Added
