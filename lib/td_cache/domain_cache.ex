@@ -46,6 +46,14 @@ defmodule TdCache.DomainCache do
   end
 
   @doc """
+  Reads all domains from cache.
+  """
+  def domains do
+    domain_ids = get_domains()
+    {:ok, domain_ids}
+  end
+
+  @doc """
   Reads domain external id to id map from cache.
   """
   def external_id_to_id_map do
@@ -76,6 +84,7 @@ defmodule TdCache.DomainCache do
   @roots_key "domains:root"
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
+  @domain_keys "domain:keys"
 
   defp read_domain(id) when is_binary(id) do
     id = String.to_integer(id)
@@ -100,6 +109,22 @@ defmodule TdCache.DomainCache do
     end
   end
 
+  defp get_domains do
+    case Redix.command(["SMEMBERS", @domain_keys]) do
+      {:ok, ids} ->
+        ids
+        |> Enum.map(&read_domain_id/1)
+        |> Enum.map(&String.to_integer/1)
+
+      _ ->
+        []
+    end
+  end
+
+  defp read_domain_id("domain:" <> domain_id), do: domain_id
+
+  defp read_domain_id(id), do: id
+
   defp get_domain_name_to_id_map do
     read_map(@ids_to_names_key)
   end
@@ -115,7 +140,7 @@ defmodule TdCache.DomainCache do
       ["DEL", key],
       ["HDEL", @ids_to_names_key, id],
       ["HDEL", @ids_to_external_ids_key, id],
-      ["SREM", "domain:keys", key],
+      ["SREM", @domain_keys, key],
       ["SREM", @roots_key, id]
     ]
 
@@ -147,7 +172,7 @@ defmodule TdCache.DomainCache do
     commands = [
       ["HMSET", "domain:#{id}", Map.take(domain, @props)],
       ["HSET", @ids_to_names_key, id, name],
-      ["SADD", "domain:keys", "domain:#{id}"],
+      ["SADD", @domain_keys, "domain:#{id}"],
       add_or_remove_external_id,
       [add_or_remove_root, @roots_key, id]
     ]

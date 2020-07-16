@@ -99,6 +99,20 @@ defmodule TdCache.TaxonomyCacheTest do
     |> assert
   end
 
+  test "get_domain_ids returns a list with all domain ids",
+       %{root: root, parent: parent, domain: domain} do
+    domains = [root, parent, domain]
+
+    ids =
+      domains
+      |> Enum.map(& &1.id)
+      |> Enum.sort()
+
+    Enum.each(domains, &TaxonomyCache.put_domain(&1))
+
+    assert Enum.sort(TaxonomyCache.get_domain_ids()) == ids
+  end
+
   defp random_domain do
     id = random_id()
 
