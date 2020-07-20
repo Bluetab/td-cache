@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.2.0] 2020-07-20
+
+### Changed
+
+- [TD-2280] get domain ids in cache 
+
 ## [4.1.0] 2020-07-15
 
 ### Added

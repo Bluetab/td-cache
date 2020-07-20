@@ -155,4 +155,23 @@ defmodule TdCache.TaxonomyCache do
     {:ok, roots} = DomainCache.roots()
     roots
   end
+
+  @doc """
+  Obtain the set of domain ids.
+
+    ## Examples
+
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, name: "D1", updated_at: DateTime.utc_now()})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 43, name: "D2", updated_at: DateTime.utc_now()})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 44, parent_ids: [1], name: "D3", updated_at: DateTime.utc_now()})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 45, name: "D3", updated_at: DateTime.utc_now()})
+      iex> domain_ids = TaxonomyCache.get_domain_ids() |> MapSet.new()
+      iex> [42,43,44,45] |> Enum.map(&(MapSet.member?(domain_ids, &1)))
+      [true, true, true, true]
+
+  """
+  def get_domain_ids do
+    {:ok, domains} = DomainCache.domains()
+    domains
+  end
 end
