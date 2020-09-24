@@ -106,6 +106,12 @@ defmodule TdCache.StructureCache do
     |> put_structure(last_updated, last_deleted, opts[:force])
   end
 
+  defp put_structure(%{} = structure, opts) do
+    structure
+    |> Map.put_new(:deleted_at, nil)
+    |> put_structure(opts)
+  end
+
   defp put_structure(%{updated_at: ts, deleted_at: ds}, ts, ds, false), do: {:ok, []}
 
   defp put_structure(%{updated_at: ts, deleted_at: ds}, ts, ds, nil), do: {:ok, []}
