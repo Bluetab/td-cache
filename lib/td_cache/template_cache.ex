@@ -42,7 +42,7 @@ defmodule TdCache.TemplateCache do
     GenServer.call(__MODULE__, :list)
   end
 
-  def list!() do
+  def list! do
     case list() do
       {:ok, templates} -> templates
       error -> error

@@ -4,7 +4,9 @@ defmodule TdCache.StructureCache do
   """
 
   alias Jason, as: JSON
+  alias TdCache.LinkCache
   alias TdCache.Redix
+  alias TdCache.Redix.Stream
   alias TdCache.SystemCache
 
   ## Client API
@@ -29,6 +31,32 @@ defmodule TdCache.StructureCache do
   """
   def delete(id) do
     delete_structure(id)
+  end
+
+  @doc """
+  Returns a list of structure ids referenced by links or rules
+  """
+  def referenced_ids do
+    {:ok, events} = Stream.read(:redix, "data_structure:events", transform: true)
+
+    rule_structure_ids =
+      events
+      |> Enum.flat_map(fn
+        %{event: "add_rule_implementation_link", structure_id: id} -> [id]
+        _ -> []
+      end)
+      |> Enum.uniq()
+      |> Enum.map(&String.to_integer/1)
+
+    linked_structure_ids =
+      LinkCache.list_links()
+      |> Enum.flat_map(fn %{source: source, target: target} -> [source, target] end)
+      |> Enum.filter(&String.starts_with?(&1, "data_structure:"))
+      |> Enum.map(fn "data_structure:" <> id -> id end)
+      |> Enum.map(&String.to_integer/1)
+      |> Enum.uniq()
+
+    Enum.uniq(rule_structure_ids ++ linked_structure_ids)
   end
 
   ## Private functions
@@ -68,40 +96,36 @@ defmodule TdCache.StructureCache do
     ])
   end
 
-  defp put_structure(%{id: id, updated_at: updated_at} = structure, opts) do
-    last_updated = Redix.command!(["HGET", "data_structure:#{id}", :updated_at])
+  defp put_structure(%{id: id, updated_at: updated_at, deleted_at: deleted_at} = structure, opts) do
+    [last_updated, last_deleted] =
+      Redix.command!(["HMGET", "data_structure:#{id}", :updated_at, :deleted_at])
 
     structure
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_structure(last_updated, opts[:force])
+    |> Map.put(:deleted_at, "#{deleted_at}")
+    |> put_structure(last_updated, last_deleted, opts[:force])
   end
 
-  defp put_structure(%{updated_at: ts}, ts, false), do: {:ok, []}
+  defp put_structure(%{updated_at: ts, deleted_at: ds}, ts, ds, false), do: {:ok, []}
 
-  defp put_structure(%{updated_at: ts}, ts, nil), do: {:ok, []}
+  defp put_structure(%{updated_at: ts, deleted_at: ds}, ts, ds, nil), do: {:ok, []}
 
-  defp put_structure(structure, _last_updated, _force) do
+  defp put_structure(structure, _last_updated, _last_deleted, _force) do
     structure
     |> structure_commands()
     |> Redix.transaction_pipeline()
   end
 
   defp structure_commands(%{id: id} = structure) do
-    structure_props = Map.take(structure, @props)
-
     structure_props =
-      case Map.get(structure, :metadata) do
-        %{} = metadata when map_size(metadata) > 0 ->
-          Map.put(structure_props, :metadata, JSON.encode!(metadata))
-
-        _ ->
-          structure_props
-      end
+      structure
+      |> Map.take(@props)
+      |> add_metadata(structure)
 
     [
       ["HMSET", "data_structure:#{id}", structure_props],
       ["SADD", "data_structure:keys", "data_structure:#{id}"]
-    ] ++ structure_path_commands(structure) ++ structure_system_commands(structure)
+    ] ++ structure_path_commands(structure)
   end
 
   defp structure_path_commands(%{id: id, path: []}) do
@@ -119,11 +143,10 @@ defmodule TdCache.StructureCache do
 
   defp structure_path_commands(_), do: []
 
-  defp structure_system_commands(%{id: id, system: %{id: system_id}}) do
-    [
-      ["HMSET", "data_structure:#{id}", "system_id", "#{system_id}"]
-    ]
+  defp add_metadata(%{} = structure_props, %{metadata: %{} = metadata})
+       when map_size(metadata) > 0 do
+    Map.put(structure_props, :metadata, JSON.encode!(metadata))
   end
 
-  defp structure_system_commands(_), do: []
+  defp add_metadata(%{} = structure_props, _), do: structure_props
 end

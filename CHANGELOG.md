@@ -1,5 +1,20 @@
 # Changelog
 
+## [4.5.0] 2020-09-24
+
+### Added
+
+- [TD-2988] New function `StructureCache.referenced_ids/0` to return a list of
+  structure ids referenced in rule or link cache entries
+
+### Fixed
+
+- [TD-2988] Structure cache was not updating if `deleted_at` changed
+
+### Removed
+
+- Deleted deprecated module `TdCache.FieldCache`
+
 ## [4.2.0] 2020-07-20
 
 ### Changed

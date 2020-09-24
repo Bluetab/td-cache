@@ -1,7 +1,12 @@
 defmodule TdCache.StructureCacheTest do
   use ExUnit.Case
+
+  alias TdCache.EventStream.Publisher
+  alias TdCache.LinkCache
+  alias TdCache.Redix.Stream
   alias TdCache.StructureCache
   alias TdCache.SystemCache
+
   doctest TdCache.StructureCache
 
   setup do
@@ -99,10 +104,65 @@ defmodule TdCache.StructureCacheTest do
       assert s.external_id == "ext_id"
     end
 
+    test "updates a structure already cached in redis when deleted_at has changed", %{
+      structure: structure
+    } do
+      assert {:ok, _} = StructureCache.put(structure)
+      assert {:ok, s} = StructureCache.get(structure.id)
+      assert Map.get(s, :deleted_at) == "#{structure.deleted_at}"
+
+      structure = Map.put(structure, :deleted_at, nil)
+      assert {:ok, _} = StructureCache.put(structure)
+      assert {:ok, s} = StructureCache.get(structure.id)
+      assert Map.get(s, :deleted_at) == ""
+    end
+
     test "deletes an entry in redis", %{structure: structure} do
       assert {:ok, ["OK", 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
     end
+
+    test "lists structure ids referenced in rule events", %{structure: %{id: id}} do
+      publish_event(%{
+        stream: "data_structure:events",
+        event: "add_rule_implementation_link",
+        structure_id: id
+      })
+
+      assert StructureCache.referenced_ids() == [id]
+    end
+
+    test "lists structure ids referenced in linkss", %{structure: %{id: id}} do
+      create_link(id)
+      assert StructureCache.referenced_ids() == [id]
+    end
+  end
+
+  defp publish_event(event) do
+    {:ok, event_id} = Publisher.publish(event)
+
+    on_exit(fn ->
+      Stream.delete_events("data_structure:events", [event_id])
+      Stream.delete_if_empty("data_structure:events")
+    end)
+  end
+
+  defp create_link(structure_id) do
+    id = :rand.uniform(100_000_000)
+
+    on_exit(fn -> LinkCache.delete(id, publish: false) end)
+
+    LinkCache.put(
+      %{
+        id: id,
+        source_id: structure_id,
+        target_id: structure_id,
+        updated_at: DateTime.utc_now(),
+        source_type: "data_structure",
+        target_type: "data_structure"
+      },
+      publish: false
+    )
   end
 end
