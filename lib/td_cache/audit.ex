@@ -1,4 +1,8 @@
 defmodule TdCache.Audit do
+  @moduledoc """
+  Support for publishing audit events
+  """
+
   alias TdCache.Audit.Event
   alias TdCache.EventStream.Publisher
 
@@ -34,7 +38,7 @@ defmodule TdCache.Audit do
     |> create_event()
   end
 
-  defp timestamp() do
+  defp timestamp do
     DateTime.utc_now()
     |> DateTime.to_iso8601()
   end

@@ -5,7 +5,6 @@ defmodule TdCache.LinkCache do
 
   alias TdCache.ConceptCache
   alias TdCache.EventStream.Publisher
-  alias TdCache.FieldCache
   alias TdCache.IngestCache
   alias TdCache.Link
   alias TdCache.Redix
@@ -15,9 +14,11 @@ defmodule TdCache.LinkCache do
 
   @doc """
   Creates cache entries relating to a given link.
+
+  The option `[publish: false]` may be used to prevent events from being published.
   """
-  def put(link) do
-    put_link(link)
+  def put(link, opts \\ []) do
+    put_link(link, opts)
   end
 
   @doc """
@@ -53,9 +54,11 @@ defmodule TdCache.LinkCache do
 
   @doc """
   Deletes cache entries relating to a given link id.
+
+  The option `[publish: false]` may be used to prevent events from being published.
   """
-  def delete(id) do
-    delete_link(id)
+  def delete(id, opts \\ []) do
+    delete_link(id, opts)
   end
 
   @doc """
@@ -65,11 +68,20 @@ defmodule TdCache.LinkCache do
     do_delete_resource_links(resource_type, resource_id)
   end
 
+  @doc """
+  Returns a list of all cached link entries.
+  """
+  def list_links do
+    ["SMEMBERS", "link:keys"]
+    |> Redix.command!()
+    |> Enum.map(&get_link/1)
+  end
+
   ## Private functions
 
-  defp get_link(id) do
-    {:ok, tags} = Redix.command(["SMEMBERS", "link:#{id}:tags"])
-    {:ok, map} = Redix.read_map("link:#{id}")
+  defp get_link("link:" <> id = key) do
+    {:ok, tags} = Redix.command(["SMEMBERS", "#{key}:tags"])
+    {:ok, map} = Redix.read_map(key)
 
     case map do
       nil ->
@@ -85,15 +97,19 @@ defmodule TdCache.LinkCache do
     end
   end
 
-  defp put_link(%{id: id, updated_at: updated_at} = link) do
+  defp get_link(id) do
+    get_link("link:#{id}")
+  end
+
+  defp put_link(%{id: id, updated_at: updated_at} = link, opts) do
     last_updated = Redix.command!(["HGET", "link:#{id}", :updated_at])
 
     link
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_link(last_updated)
+    |> put_link(last_updated, opts)
   end
 
-  defp put_link(%{updated_at: ts}, ts), do: {:ok, []}
+  defp put_link(%{updated_at: ts}, ts, _opts), do: {:ok, []}
 
   defp put_link(
          %{
@@ -103,7 +119,8 @@ defmodule TdCache.LinkCache do
            target_type: target_type,
            target_id: target_id
          } = link,
-         _last_updated
+         _last_updated,
+         opts
        ) do
     commands = put_link_commands(link)
 
@@ -111,23 +128,25 @@ defmodule TdCache.LinkCache do
     source_add_count = Enum.at(results, 2)
     target_add_count = Enum.at(results, 3)
 
-    # Publish events if link count has incremented
-    [source_add_count, target_add_count]
-    |> Enum.zip(["#{source_type}:events", "#{target_type}:events"])
-    |> Enum.flat_map(fn {n, stream} ->
-      conditional_events(
-        n > 0,
-        %{
-          stream: stream,
-          event: "add_link",
-          link: "link:#{id}",
-          source: "#{source_type}:#{source_id}",
-          target: "#{target_type}:#{target_id}"
-        }
-      )
-    end)
-    |> Enum.uniq()
-    |> Publisher.publish()
+    unless opts[:publish] == false do
+      # Publish events if link count has incremented
+      [source_add_count, target_add_count]
+      |> Enum.zip(["#{source_type}:events", "#{target_type}:events"])
+      |> Enum.flat_map(fn {n, stream} ->
+        conditional_events(
+          n > 0,
+          %{
+            stream: stream,
+            event: "add_link",
+            link: "link:#{id}",
+            source: "#{source_type}:#{source_id}",
+            target: "#{target_type}:#{target_id}"
+          }
+        )
+      end)
+      |> Enum.uniq()
+      |> Publisher.publish()
+    end
 
     {:ok, results}
   end
@@ -172,16 +191,18 @@ defmodule TdCache.LinkCache do
 
   defp put_link_tags_commands(_), do: []
 
-  def delete_link(id) do
+  defp delete_link(id, opts) do
     {:ok, keys} = Redix.command(["HMGET", "link:#{id}", "source", "target"])
-    result = delete_link(id, keys)
+    result = do_delete_link(id, keys, opts)
 
-    if did_delete?(result) do
-      Publisher.publish(%{
-        stream: "link:commands",
-        event: "delete_link",
-        link_id: id
-      })
+    unless opts[:publish] == false do
+      if did_delete?(result) do
+        Publisher.publish(%{
+          stream: "link:commands",
+          event: "delete_link",
+          link_id: id
+        })
+      end
     end
 
     result
@@ -191,14 +212,14 @@ defmodule TdCache.LinkCache do
   def did_delete?({:ok, [_, _, _, _, count, _]}), do: count > 0
   def did_delete?(_), do: false
 
-  defp delete_link(id, [nil, nil]) do
+  defp do_delete_link(id, [nil, nil], _opts) do
     Redix.transaction_pipeline([
       ["DEL", "link:#{id}", "link:#{id}:tags"],
       ["SREM", "link:keys", "link:#{id}"]
     ])
   end
 
-  defp delete_link(id, [source, target]) do
+  defp do_delete_link(id, [source, target], opts) do
     [source_type, _source_id] = String.split(source, ":")
     [target_type, _target_id] = String.split(target, ":")
 
@@ -214,20 +235,22 @@ defmodule TdCache.LinkCache do
     {:ok, results} = Redix.transaction_pipeline(commands)
     [source_del_count, target_del_count, _, _, _, _] = results
 
-    # Publish events if link count has decremented
-    [source_del_count, target_del_count]
-    |> Enum.zip(["#{source_type}:events", "#{target_type}:events"])
-    |> Enum.flat_map(fn {n, stream} ->
-      conditional_events(n > 0, %{
-        stream: stream,
-        event: "remove_link",
-        link: "link:#{id}",
-        source: source,
-        target: target
-      })
-    end)
-    |> Enum.uniq()
-    |> Publisher.publish()
+    unless opts[:publish] == false do
+      # Publish events if link count has decremented
+      [source_del_count, target_del_count]
+      |> Enum.zip(["#{source_type}:events", "#{target_type}:events"])
+      |> Enum.flat_map(fn {n, stream} ->
+        conditional_events(n > 0, %{
+          stream: stream,
+          event: "remove_link",
+          link: "link:#{id}",
+          source: source,
+          target: target
+        })
+      end)
+      |> Enum.uniq()
+      |> Publisher.publish()
+    end
 
     {:ok, results}
   end
@@ -350,16 +373,6 @@ defmodule TdCache.LinkCache do
 
       {:ok, concept} ->
         resource_with_tags(concept, :concept, tags, id)
-    end
-  end
-
-  defp read_source({["data_field", data_field_id], tags, id}) do
-    case FieldCache.get(data_field_id) do
-      {:ok, nil} ->
-        nil
-
-      {:ok, field} ->
-        resource_with_tags(field, :data_field, tags, id)
     end
   end
 

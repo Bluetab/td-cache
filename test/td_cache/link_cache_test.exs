@@ -133,6 +133,14 @@ defmodule TdCache.LinkCacheTest do
       assert Enum.any?(events, &(&1.target == target_key1))
       assert Enum.any?(events, &(&1.target == target_key2))
     end
+
+    test "lists all links", %{link: %{id: id1} = link, tagged_link: %{id: id2} = tagged_link} do
+      {:ok, _} = LinkCache.put(link)
+      {:ok, _} = LinkCache.put(tagged_link)
+      assert [_, _] = links = LinkCache.list_links()
+      assert Enum.any?(links, &(&1.id == "#{id1}"))
+      assert Enum.any?(links, &(&1.id == "#{id2}"))
+    end
   end
 
   defp make_link(source_type \\ "foo", target_type \\ "bar") do
