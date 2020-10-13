@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-2485] New function `SystemCache.external_id_to_id_map/0` to return a map of systems which key is the `external_id` 
+
 ## [4.5.0] 2020-09-24
 
 ### Added
