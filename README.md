@@ -19,8 +19,8 @@ children = [
 
 The `TdCache.CacheCleaner` config expect a keyword list with the options:
 
-   * `clean_on_startup` - if `true`, cleanup will be performed on application startup
-   * `patterns` - a list of [KEYS patterns](https://redis.io/commands/keys) to be deleted from Redis
+- `clean_on_startup` - if `true`, cleanup will be performed on application startup
+- `patterns` - a list of [KEYS patterns](https://redis.io/commands/keys) to be deleted from Redis
 
 After startup, cleanup can be perfomed programatically by using `TdCache.CacheCleaner.clean`.
 
@@ -29,4 +29,4 @@ After startup, cleanup can be perfomed programatically by using `TdCache.CacheCl
 The test environment expect a clean Redis server to be listening on port 6380.
 To start redis as a docker container, run `docker-compose up -d redis`.
 
-Run all aplication tests with `mix test`. 
+Run all aplication tests with `mix test`.
