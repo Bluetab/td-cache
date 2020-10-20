@@ -50,7 +50,7 @@ defmodule TdCache.PermissionsConfig do
     :view_data_structures_profile,
     :view_quality_rule,
     :manage_quality_rule_implementations,
-    :execute_quality_rule,
+    :execute_quality_rule_implementations,
     :link_data_structure,
     :manage_structures_metadata,
     :view_dashboard,
