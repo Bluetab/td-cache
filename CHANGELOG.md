@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-2952] As a user with permission to execute rules I want to run implementations manually
+  from the implementations screen for Kubernetes Cluster. Cached sources
+
 ## [4.7.0] 2020-10-20
 
 ### Changed
@@ -31,13 +38,13 @@
 
 ### Changed
 
-- [TD-2280] get domain ids in cache 
+- [TD-2280] get domain ids in cache
 
 ## [4.1.0] 2020-07-15
 
 ### Added
 
-- [TD-2774] Structure types cache 
+- [TD-2774] Structure types cache
 
 ## [4.0.0] 2020-07-01
 
