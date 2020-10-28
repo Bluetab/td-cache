@@ -38,7 +38,7 @@ defmodule TdCache.SourceCache do
     delete_source(id)
   end
 
-  @props [:external_id]
+  @props [:external_id, :type]
   @keys "source:keys"
   @ids_to_external_ids_key "sources:ids_external_ids"
 
