@@ -3,7 +3,6 @@ version: "3.4"
 
 services:
   redis:
-    container_name: redis
     image: library/redis:5.0-alpine
     command: redis-server --port 6380 --appendonly yes
     ports:
