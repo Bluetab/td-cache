@@ -55,7 +55,9 @@ defmodule TdCache.PermissionsConfig do
     :manage_structures_metadata,
     :view_dashboard,
     :view_lineage,
-    :manage_raw_quality_rule_implementations
+    :manage_raw_quality_rule_implementations,
+    :manage_data_sources,
+    :manage_configurations
   ]
 
   def permissions, do: @permissions
