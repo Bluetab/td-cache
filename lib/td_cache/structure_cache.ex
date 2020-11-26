@@ -128,11 +128,18 @@ defmodule TdCache.StructureCache do
       structure
       |> Map.take(@props)
       |> add_metadata(structure)
+    
+    add_deleted_at_command =
+      case Map.get(structure, :deleted_at) do
+        nil -> ["SREM", "data_structure:keys:deleted", "data_structure:#{id}"]
+        "" -> ["SREM", "data_structure:keys:deleted", "data_structure:#{id}"]
+        _ -> ["SADD", "data_structure:keys:deleted", "data_structure:#{id}"]
+      end
 
     [
       ["HMSET", "data_structure:#{id}", structure_props],
       ["SADD", "data_structure:keys", "data_structure:#{id}"]
-    ] ++ structure_path_commands(structure) ++ add_deleted_at_commands(structure)
+    ] ++ structure_path_commands(structure) ++ [add_deleted_at_command]
   end
 
   defp structure_path_commands(%{id: id, path: []}) do
@@ -149,20 +156,6 @@ defmodule TdCache.StructureCache do
   end
 
   defp structure_path_commands(_), do: []
-
-  defp add_deleted_at_commands(%{id: id, deleted_at: nil}) do
-    [
-      ["SREM", "data_structure:keys:deleted", "data_structure:#{id}"]
-    ]
-  end
-
-  defp add_deleted_at_commands(%{id: id}) do
-    [
-      ["SADD", "data_structure:keys:deleted", "data_structure:#{id}"]
-    ]
-  end
-
-  defp add_deleted_at_commands(_), do: []
 
   defp add_metadata(%{} = structure_props, %{metadata: %{} = metadata})
        when map_size(metadata) > 0 do
