@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3066] Collection to store deleted structures
+
 ## [4.7.1] 2020-11-03
 
 ### Added
