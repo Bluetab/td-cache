@@ -128,7 +128,7 @@ defmodule TdCache.StructureCache do
       structure
       |> Map.take(@props)
       |> add_metadata(structure)
-    
+
     add_deleted_at_command =
       case Map.get(structure, :deleted_at) do
         nil -> ["SREM", "data_structure:keys:deleted", "data_structure:#{id}"]
