@@ -93,7 +93,7 @@ defmodule TdCache.StructureCache do
     Redix.transaction_pipeline([
       ["DEL", "data_structure:#{id}", "data_structure:#{id}:path"],
       ["SREM", "data_structure:keys", "data_structure:#{id}"],
-      ["SADD", "data_structure:deleted", "data_structure:#{id}"]
+      ["SADD", "data_structure:keys:deleted", "data_structure:#{id}"]
     ])
   end
 
@@ -152,13 +152,13 @@ defmodule TdCache.StructureCache do
 
   defp add_deleted_at_commands(%{id: id, deleted_at: nil}) do
     [
-      ["SREM", "data_structure:deleted", "data_structure:#{id}"]
+      ["SREM", "data_structure:keys:deleted", "data_structure:#{id}"]
     ]
   end
 
   defp add_deleted_at_commands(%{id: id}) do
     [
-      ["SADD", "data_structure:deleted", "data_structure:#{id}"]
+      ["SADD", "data_structure:keys:deleted", "data_structure:#{id}"]
     ]
   end
 
