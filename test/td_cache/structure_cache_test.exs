@@ -31,7 +31,7 @@ defmodule TdCache.StructureCacheTest do
     on_exit(fn ->
       StructureCache.delete(structure.id)
       SystemCache.delete(system.id)
-      Redix.command(["SREM", "data_structure:deleted", "data_structure:#{structure.id}"])
+      Redix.command(["SREM", "data_structure:deleted_ids", structure.id])
     end)
 
     {:ok, structure: structure, system: system}
@@ -120,7 +120,7 @@ defmodule TdCache.StructureCacheTest do
     end
 
     test "deletes an entry in redis", %{structure: structure} do
-      assert {:ok, ["OK", 1, 0, 2, 1]} = StructureCache.put(structure)
+      assert {:ok, ["OK", 1, 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1, 0]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
     end

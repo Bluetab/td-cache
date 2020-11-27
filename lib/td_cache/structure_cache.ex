@@ -34,8 +34,19 @@ defmodule TdCache.StructureCache do
   end
 
   @doc """
+  Returns the ids of referenced structures that have been deleted.
+  """
+  @spec deleted_ids :: [integer()]
+  def deleted_ids do
+    ["SMEMBERS", "data_structure:deleted_ids"]
+    |> Redix.command!()
+    |> Enum.map(&String.to_integer/1)
+  end
+
+  @doc """
   Returns a list of structure ids referenced by links or rules
   """
+  @spec referenced_ids :: [integer()]
   def referenced_ids do
     {:ok, events} = Stream.read(:redix, "data_structure:events", transform: true)
 
@@ -53,8 +64,8 @@ defmodule TdCache.StructureCache do
       |> Enum.flat_map(fn %{source: source, target: target} -> [source, target] end)
       |> Enum.filter(&String.starts_with?(&1, "data_structure:"))
       |> Enum.map(fn "data_structure:" <> id -> id end)
-      |> Enum.map(&String.to_integer/1)
       |> Enum.uniq()
+      |> Enum.map(&String.to_integer/1)
 
     Enum.uniq(rule_structure_ids ++ linked_structure_ids)
   end
@@ -93,7 +104,7 @@ defmodule TdCache.StructureCache do
     Redix.transaction_pipeline([
       ["DEL", "data_structure:#{id}", "data_structure:#{id}:path"],
       ["SREM", "data_structure:keys", "data_structure:#{id}"],
-      ["SADD", "data_structure:keys:deleted", "data_structure:#{id}"]
+      ["SADD", "data_structure:deleted_ids", "#{id}"]
     ])
   end
 
@@ -129,17 +140,19 @@ defmodule TdCache.StructureCache do
       |> Map.take(@props)
       |> add_metadata(structure)
 
-    add_deleted_at_command =
-      case Map.get(structure, :deleted_at) do
-        nil -> ["SREM", "data_structure:keys:deleted", "data_structure:#{id}"]
-        "" -> ["SREM", "data_structure:keys:deleted", "data_structure:#{id}"]
-        _ -> ["SADD", "data_structure:keys:deleted", "data_structure:#{id}"]
-      end
-
     [
       ["HMSET", "data_structure:#{id}", structure_props],
-      ["SADD", "data_structure:keys", "data_structure:#{id}"]
-    ] ++ structure_path_commands(structure) ++ [add_deleted_at_command]
+      ["SADD", "data_structure:keys", "data_structure:#{id}"],
+      refresh_deleted_ids_command(structure)
+    ] ++ structure_path_commands(structure)
+  end
+
+  defp refresh_deleted_ids_command(%{id: id} = structure) do
+    case Map.get(structure, :deleted_at) do
+      nil -> ["SREM", "data_structure:deleted_ids", id]
+      "" -> ["SREM", "data_structure:deleted_ids", id]
+      _ -> ["SADD", "data_structure:deleted_ids", id]
+    end
   end
 
   defp structure_path_commands(%{id: id, path: []}) do
