@@ -91,4 +91,12 @@ defmodule TdCache.Redix do
   def read_list(key) do
     command(["LRANGE", key, "0", "-1"])
   end
+
+  def acquire_lock?(key) do
+    command!(["SET", key, node(), "NX"]) == "OK"
+  end
+
+  def acquire_lock?(key, expiry_seconds) do
+    command!(["SET", key, node(), "NX", "EX", expiry_seconds]) == "OK"
+  end
 end
