@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.9.1] 2020-11-27
+
+### Added
+
+- [TD-2486] Permissions `manage_data_sources` and `manage_configurations`
+
 ## [4.9.0] 2020-11-27
 
 ### Added
