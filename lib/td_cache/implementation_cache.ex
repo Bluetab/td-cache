@@ -3,6 +3,7 @@ defmodule TdCache.ImplementationCache do
   Shared cache for quality rule implementations.
   """
 
+  alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
   ## Client API
@@ -85,12 +86,26 @@ defmodule TdCache.ImplementationCache do
   defp put_implementation(%{updated_at: ts}, ts), do: {:ok, []}
 
   defp put_implementation(%{id: id} = implementation, _last_updated) do
-    Redix.transaction_pipeline([
-      ["SADD", "implementation:keys", "implementation:#{id}"],
-      ["HMSET", "implementation:#{id}", Map.take(implementation, @props)]
-      | structure_id_commands(implementation)
-    ])
+    Redix.transaction_pipeline(
+      [
+        ["SADD", "implementation:keys", "implementation:#{id}"],
+        ["HMSET", "implementation:#{id}", Map.take(implementation, @props)]
+      ] ++ structure_id_commands(implementation)
+    )
+    |> publish_event()
   end
+
+  defp publish_event({:ok, [_, "OK", _, _, [_ | _] = new_structure_ids, _, _]} = res) do
+    Publisher.publish(%{
+      event: "add_rule_implementation_link",
+      stream: "data_structure:events",
+      structure_ids: Enum.join(new_structure_ids, ",")
+    })
+
+    res
+  end
+
+  defp publish_event(res), do: res
 
   defp delete_implementation(id) do
     Redix.transaction_pipeline([

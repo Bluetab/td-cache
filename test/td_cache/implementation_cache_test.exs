@@ -3,9 +3,15 @@ defmodule TdCache.ImplementationCacheTest do
 
   import TdCache.TestOperators
 
-  alias TdCache.{ImplementationCache, Redix, StructureCache, SystemCache}
+  alias TdCache.ImplementationCache
+  alias TdCache.Redix
+  alias TdCache.Redix.Stream
+  alias TdCache.StructureCache
+  alias TdCache.SystemCache
 
   doctest TdCache.ImplementationCache
+
+  @stream "data_structure:events"
 
   setup_all do
     system = %{id: :rand.uniform(100_000_000), external_id: "foo", name: "bar"}
@@ -44,6 +50,7 @@ defmodule TdCache.ImplementationCacheTest do
     }
 
     on_exit(fn ->
+      Redix.command(["DEL", @stream])
       ImplementationCache.delete(implementation.id)
     end)
 
@@ -83,6 +90,25 @@ defmodule TdCache.ImplementationCacheTest do
       assert new_ids == ["123", "789"]
       assert {:ok, s} = ImplementationCache.get(implementation.id)
       assert s <~> implementation
+    end
+
+    test "publishes an event when a structure_id is added", %{implementation: implementation} do
+      assert {:ok, _} =
+               implementation
+               |> Map.put(:structure_ids, [123, 456, 789])
+               |> ImplementationCache.put()
+
+      assert {:ok, [e]} = Stream.read(:redix, [@stream], transform: true)
+      assert %{event: "add_rule_implementation_link", structure_ids: "123,456,789"} = e
+
+      assert {:ok, _} =
+               implementation
+               |> Map.put(:structure_ids, [123, 222, 789, 333])
+               |> Map.put(:updated_at, DateTime.utc_now())
+               |> ImplementationCache.put()
+
+      assert {:ok, [_, e]} = Stream.read(:redix, [@stream], transform: true)
+      assert %{event: "add_rule_implementation_link", structure_ids: "222,333"} = e
     end
 
     test "deletes an entry in redis", %{implementation: implementation} do
