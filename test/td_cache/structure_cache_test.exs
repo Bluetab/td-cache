@@ -1,10 +1,9 @@
 defmodule TdCache.StructureCacheTest do
   use ExUnit.Case
 
-  alias TdCache.EventStream.Publisher
+  alias TdCache.ImplementationCache
   alias TdCache.LinkCache
   alias TdCache.Redix
-  alias TdCache.Redix.Stream
   alias TdCache.StructureCache
   alias TdCache.SystemCache
 
@@ -26,9 +25,17 @@ defmodule TdCache.StructureCacheTest do
       deleted_at: DateTime.utc_now()
     }
 
+    implementation = %{
+      id: :rand.uniform(100_000_000),
+      updated_at: DateTime.utc_now(),
+      structure_ids: [structure.id]
+    }
+
+    {:ok, _} = ImplementationCache.put(implementation)
     {:ok, _} = SystemCache.put(system)
 
     on_exit(fn ->
+      ImplementationCache.delete(implementation.id)
       StructureCache.delete(structure.id)
       SystemCache.delete(system.id)
       Redix.command(["SREM", "data_structure:deleted_ids", structure.id])
@@ -125,13 +132,7 @@ defmodule TdCache.StructureCacheTest do
       assert {:ok, nil} = StructureCache.get(structure.id)
     end
 
-    test "lists structure ids referenced in rule events", %{structure: %{id: id}} do
-      publish_event(%{
-        stream: "data_structure:events",
-        event: "add_rule_implementation_link",
-        structure_id: id
-      })
-
+    test "lists structure ids referenced in rule implementations", %{structure: %{id: id}} do
       assert StructureCache.referenced_ids() == [id]
     end
 
@@ -139,15 +140,6 @@ defmodule TdCache.StructureCacheTest do
       create_link(id)
       assert StructureCache.referenced_ids() == [id]
     end
-  end
-
-  defp publish_event(event) do
-    {:ok, event_id} = Publisher.publish(event)
-
-    on_exit(fn ->
-      Stream.delete_events("data_structure:events", [event_id])
-      Stream.delete_if_empty("data_structure:events")
-    end)
   end
 
   defp create_link(structure_id) do

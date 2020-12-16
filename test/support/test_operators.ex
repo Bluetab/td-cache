@@ -13,7 +13,10 @@ defmodule TdCache.TestOperators do
 
   defp string_values(%{} = map) do
     map
-    |> Enum.map(fn {k, v} -> {k, to_string(v)} end)
+    |> Enum.map(fn
+      {k, v} when is_list(v) -> {k, Enum.map(v, &to_string/1)}
+      {k, v} -> {k, to_string(v)}
+    end)
     |> Map.new()
   end
 end

@@ -4,9 +4,9 @@ defmodule TdCache.StructureCache do
   """
 
   alias Jason, as: JSON
+  alias TdCache.ImplementationCache
   alias TdCache.LinkCache
   alias TdCache.Redix
-  alias TdCache.Redix.Stream
   alias TdCache.SystemCache
 
   ## Client API
@@ -48,24 +48,8 @@ defmodule TdCache.StructureCache do
   """
   @spec referenced_ids :: [integer()]
   def referenced_ids do
-    {:ok, events} = Stream.read(:redix, "data_structure:events", transform: true)
-
-    rule_structure_ids =
-      events
-      |> Enum.flat_map(fn
-        %{event: "add_rule_implementation_link", structure_id: id} -> [id]
-        _ -> []
-      end)
-      |> Enum.uniq()
-      |> Enum.map(&String.to_integer/1)
-
-    linked_structure_ids =
-      LinkCache.list_links()
-      |> Enum.flat_map(fn %{source: source, target: target} -> [source, target] end)
-      |> Enum.filter(&String.starts_with?(&1, "data_structure:"))
-      |> Enum.map(fn "data_structure:" <> id -> id end)
-      |> Enum.uniq()
-      |> Enum.map(&String.to_integer/1)
+    rule_structure_ids = ImplementationCache.referenced_structure_ids()
+    linked_structure_ids = LinkCache.referenced_ids("data_structure:")
 
     Enum.uniq(rule_structure_ids ++ linked_structure_ids)
   end
