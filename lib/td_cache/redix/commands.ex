@@ -4,31 +4,25 @@ defmodule TdCache.Redix.Commands do
   """
 
   @doc """
-  Transform multiple commands
+  Convenience function for preparing Redis commands passing non-string arguments.
   """
+  def transform(commands)
+
+  # Convenience function transforming multiple commands.
   def transform([h | _t] = commands) when is_list(h) do
     Enum.map(commands, &transform/1)
   end
 
-  @doc """
-  Convenience function for passing a map to HMSET. HMSET of an empty map deletes the key.
-  """
+  # Convenience function for passing a map to HMSET. HMSET of an empty map deletes the key.
   def transform(["HMSET", key, %{} = map]) when map == %{} do
     ["DEL", key]
   end
 
-  @doc """
-  Convenience function for passing a map to HMSET
-  """
+  # Convenience function for passing a map to HMSET
   def transform(["HMSET", key, %{} = map]) when map != %{} do
     entries = Enum.flat_map(map, fn {k, v} -> [to_string(k), to_string(v)] end)
     ["HMSET", key | entries]
   end
-
-  @doc """
-  Convenience function for passing a list to RPUSH
-  """
-  def transform(["RPUSH", _, []]), do: :ok
 
   def transform(["RPUSH", key, [_h | _t] = entries]) do
     ["RPUSH", key | entries]

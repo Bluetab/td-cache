@@ -86,12 +86,12 @@ defmodule TdCache.ImplementationCache do
   defp put_implementation(%{updated_at: ts}, ts), do: {:ok, []}
 
   defp put_implementation(%{id: id} = implementation, _last_updated) do
-    Redix.transaction_pipeline(
-      [
-        ["SADD", "implementation:keys", "implementation:#{id}"],
-        ["HMSET", "implementation:#{id}", Map.take(implementation, @props)]
-      ] ++ structure_id_commands(implementation)
-    )
+    [
+      ["SADD", "implementation:keys", "implementation:#{id}"],
+      ["HMSET", "implementation:#{id}", Map.take(implementation, @props)]
+      | structure_id_commands(implementation)
+    ]
+    |> Redix.transaction_pipeline()
     |> publish_event()
   end
 
