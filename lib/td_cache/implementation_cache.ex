@@ -40,7 +40,9 @@ defmodule TdCache.ImplementationCache do
 
   def referenced_structure_ids do
     case keys() do
-      {:ok, []} -> []
+      {:ok, []} ->
+        []
+
       {:ok, ks} ->
         ["SINTER" | Enum.map(ks, fn k -> k <> ":structure_ids" end)]
         |> Redix.command()
@@ -66,7 +68,7 @@ defmodule TdCache.ImplementationCache do
          {:ok, structure_ids} <- Redix.command(["SMEMBERS", "implementation:#{id}:structure_ids"]) do
       map
       |> Map.put(:id, id)
-      |> Map.put(:structure_ids, structure_ids)
+      |> Map.put(:structure_ids, Enum.map(structure_ids, &String.to_integer/1))
     else
       {:ok, nil} -> nil
     end
@@ -82,23 +84,11 @@ defmodule TdCache.ImplementationCache do
 
   defp put_implementation(%{updated_at: ts}, ts), do: {:ok, []}
 
-  defp put_implementation(
-         %{id: id, structure_ids: [_ | _] = structure_ids} = implementation,
-         _last_updated
-       ) do
-    Redix.transaction_pipeline([
-      ["HMSET", "implementation:#{id}", Map.take(implementation, @props)],
-      ["DEL", "implementation:#{id}:structure_ids"],
-      ["SADD", "implementation:#{id}:structure_ids" | structure_ids],
-      ["SADD", "implementation:keys", "implementation:#{id}"]
-    ])
-  end
-
   defp put_implementation(%{id: id} = implementation, _last_updated) do
     Redix.transaction_pipeline([
-      ["HMSET", "implementation:#{id}", Map.take(implementation, @props)],
-      ["DEL", "implementation:#{id}:structure_ids"],
-      ["SADD", "implementation:keys", "implementation:#{id}"]
+      ["SADD", "implementation:keys", "implementation:#{id}"],
+      ["HMSET", "implementation:#{id}", Map.take(implementation, @props)]
+      | structure_id_commands(implementation)
     ])
   end
 
@@ -109,4 +99,22 @@ defmodule TdCache.ImplementationCache do
       ["SREM", "implementation:keys", "implementation:#{id}"]
     ])
   end
+
+  defp structure_id_commands(%{id: id, structure_ids: []}) do
+    [
+      ["DEL", "implementation:#{id}:structure_ids"]
+    ]
+  end
+
+  defp structure_id_commands(%{id: id, structure_ids: [_ | _] = structure_ids}) do
+    [
+      ["DEL", "_new_structure_ids"],
+      ["SADD", "_new_structure_ids" | structure_ids],
+      ["SDIFF", "_new_structure_ids", "implementation:#{id}:structure_ids"],
+      ["SINTERSTORE", "implementation:#{id}:structure_ids", "_new_structure_ids"],
+      ["DEL", "_new_structure_ids"]
+    ]
+  end
+
+  defp structure_id_commands(_), do: []
 end

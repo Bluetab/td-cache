@@ -54,7 +54,7 @@ defmodule TdCache.ImplementationCacheTest do
     test "writes an implementation entry in redis and reads it back", %{
       implementation: implementation
     } do
-      assert {:ok, ["OK", 0, 1, 1]} = ImplementationCache.put(implementation)
+      assert {:ok, [1, "OK", 0, 1, [_], 1, 1]} = ImplementationCache.put(implementation)
       assert {:ok, s} = ImplementationCache.get(implementation.id)
       assert s <~> implementation
     end
@@ -63,7 +63,24 @@ defmodule TdCache.ImplementationCacheTest do
       implementation: implementation
     } do
       implementation = Map.put(implementation, :structure_ids, [])
-      assert {:ok, ["OK", 0, 1]} = ImplementationCache.put(implementation)
+      assert {:ok, [1, "OK", 0]} = ImplementationCache.put(implementation)
+      assert {:ok, s} = ImplementationCache.get(implementation.id)
+      assert s <~> implementation
+    end
+
+    test "refreshes structure ids", %{implementation: implementation} do
+      implementation = %{implementation | structure_ids: [456, 999]}
+
+      assert {:ok, _} = ImplementationCache.put(implementation)
+
+      implementation = %{
+        implementation
+        | structure_ids: [123, 456, 789],
+          updated_at: DateTime.utc_now()
+      }
+
+      assert {:ok, [0, "OK", 0, 3, new_ids, 3, 1]} = ImplementationCache.put(implementation)
+      assert new_ids == ["123", "789"]
       assert {:ok, s} = ImplementationCache.get(implementation.id)
       assert s <~> implementation
     end
