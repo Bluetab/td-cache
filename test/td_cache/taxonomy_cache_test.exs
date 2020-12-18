@@ -41,6 +41,11 @@ defmodule TdCache.TaxonomyCacheTest do
     assert TaxonomyCache.get_parent_ids(domain.id) == [domain.id | domain.parent_ids]
   end
 
+  test "get_parent_ids with refresh opt forces to update in-memory info", %{domain: domain} do
+    TaxonomyCache.put_domain(domain)
+    assert TaxonomyCache.get_parent_ids(domain.id, false, refresh: true) == domain.parent_ids
+  end
+
   test "get_parent_ids without self returns parent ids excluding domain_id", %{domain: domain} do
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_parent_ids(domain.id, false) == domain.parent_ids
