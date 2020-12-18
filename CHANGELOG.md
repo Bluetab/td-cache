@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] 
+
+### Change
+
+- [TD-3155] Allow to get parent ids of a domain directly from cache
+
 ## [4.9.1] 2020-11-27
 
 ### Added
