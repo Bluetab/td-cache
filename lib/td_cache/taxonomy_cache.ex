@@ -16,10 +16,10 @@ defmodule TdCache.TaxonomyCache do
     GenServer.call(__MODULE__, {:get, id})
   end
 
-  def get_parent_ids(domain_id, with_self \\ true)
+  def get_parent_ids(domain_id, with_self \\ true, opts \\ [])
 
-  def get_parent_ids(id, with_self) do
-    GenServer.call(__MODULE__, {:parent_ids, id, with_self})
+  def get_parent_ids(id, with_self, opts) do
+    GenServer.call(__MODULE__, {:parent_ids, id, with_self, opts})
   end
 
   ## Callbacks
@@ -36,14 +36,22 @@ defmodule TdCache.TaxonomyCache do
   end
 
   @impl true
-  def handle_call({:parent_ids, id, with_self}, _from, state) do
-    reply = get_cache({:parent, id}, fn -> do_get_parent_ids(id, with_self) end)
+  def handle_call({:parent_ids, id, with_self, opts}, _from, state) do
+    reply = get_cache({:parent, id}, fn -> do_get_parent_ids(id, with_self) end, opts[:refresh])
     {:reply, reply, state}
   end
 
   ## Private functions
 
-  defp get_cache(key, fun) do
+  defp get_cache(key, fun, refresh \\ false)
+
+  defp get_cache(key, fun, true) do
+    cached = fun.()
+    ConCache.put(:taxonomy, key, cached)
+    cached
+  end
+
+  defp get_cache(key, fun, _refresh) do
     ConCache.get_or_store(:taxonomy, key, fn -> fun.() end)
   end
 
