@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.11.1] 2020-12-23
+
+### Added
+
+- [TD-3103] `ImplementationCache` for caching rule implementations
+
+### Changed
+
+- Improvements to `StructureCache.referenced_ids/0`
+
 ## [4.11.0] 2020-12-21
 
 ### Change

@@ -77,6 +77,18 @@ defmodule TdCache.LinkCache do
     |> Enum.map(&get_link/1)
   end
 
+  @doc """
+  Returns a list of all linked ids with a given prefix.
+  """
+  def referenced_ids(prefix) do
+    list_links()
+    |> Enum.flat_map(fn %{source: source, target: target} -> [source, target] end)
+    |> Enum.filter(&String.starts_with?(&1, prefix))
+    |> Enum.map(&String.replace_leading(&1, prefix, ""))
+    |> Enum.uniq()
+    |> Enum.map(&String.to_integer/1)
+  end
+
   ## Private functions
 
   defp get_link("link:" <> id = key) do

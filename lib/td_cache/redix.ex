@@ -69,6 +69,7 @@ defmodule TdCache.Redix do
     |> Map.new(&fun.(&1))
   end
 
+  @spec read_map!(any) :: nil | map | {:error, term}
   def read_map!(key) do
     case read_map(key) do
       {:ok, map} -> map
@@ -76,15 +77,17 @@ defmodule TdCache.Redix do
     end
   end
 
+  @spec read_map(any) :: {:error, term()} | {:ok, nil | map}
   def read_map(key) do
     read_map(key, fn [key, value] -> {String.to_atom(key), value} end)
   end
 
+  @spec read_map(any, (any -> any)) :: {:error, term()} | {:ok, nil | map}
   def read_map(key, transform) when is_function(transform, 1) do
     case command(["HGETALL", key]) do
       {:ok, []} -> {:ok, nil}
       {:ok, hash} -> {:ok, hash_to_map(hash, transform)}
-      x -> x
+      {:error, error} -> {:error, error}
     end
   end
 
