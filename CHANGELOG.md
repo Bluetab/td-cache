@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.11.0] 2020-12-16
+## [4.11.1] 2020-12-23
 
 ### Added
 
@@ -9,6 +9,12 @@
 ### Changed
 
 - Improvements to `StructureCache.referenced_ids/0`
+
+## [4.11.0] 2020-12-21
+
+### Change
+
+- [TD-3155] Allow to get parent ids of a domain directly from cache
 
 ## [4.9.1] 2020-11-27
 
