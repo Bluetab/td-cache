@@ -8,11 +8,12 @@ defmodule TdCache.Redix.Pool do
   def child_spec(config) do
     redis_host = Keyword.get(config, :redis_host, "redis")
     port = Keyword.get(config, :port, 6379)
+    password = Application.get_env(:td_cache, :password)
 
     # Specs for the Redix connections.
     children =
       for i <- 0..(@pool_size - 1) do
-        Supervisor.child_spec({Redix, host: redis_host, port: port, name: :"redix_#{i}"},
+        Supervisor.child_spec({Redix, host: redis_host, port: port, password: password, name: :"redix_#{i}"},
           id: {Redix, i}
         )
       end

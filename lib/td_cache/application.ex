@@ -8,10 +8,11 @@ defmodule TdCache.Application do
   def start(_type, _args) do
     redis_host = Application.get_env(:td_cache, :redis_host, "redis")
     port = Application.get_env(:td_cache, :port, 6379)
+    password = Application.get_env(:td_cache, :password)
 
     children =
       [
-        {Redix, host: redis_host, port: port, name: :redix},
+        {Redix, host: redis_host, port: port, password: password, name: :redix},
         {TdCache.Redix.Pool, redis_host: redis_host, port: port},
         TdCache.ConceptCache,
         TdCache.TemplateCache,
