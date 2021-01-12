@@ -62,6 +62,7 @@ defmodule TdCache.ConceptCacheTest do
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
       assert c.link_count == 0
       assert c.rule_count == 0
+      assert c.concept_count == 0
     end
 
     test "get/1 caches a concept entry locally and put/1 evicts it", context do
@@ -91,6 +92,7 @@ defmodule TdCache.ConceptCacheTest do
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
       assert c.link_count == 0
       assert c.rule_count == 0
+      assert c.concept_count == 0
       assert c.domain_id == "#{domain.id}"
       assert not is_nil(c.domain)
       assert c.domain.id == domain.id
@@ -212,6 +214,7 @@ defmodule TdCache.ConceptCacheTest do
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
       assert c.link_count == 0
       assert c.rule_count == 0
+      assert c.concept_count == 0
       assert c.content == %{"data_owner" => "pepito diaz"}
     end
   end
