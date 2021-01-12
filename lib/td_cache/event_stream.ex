@@ -4,7 +4,7 @@ defmodule TdCache.EventStream do
   """
 
   def child_spec(config) do
-    consumer_config = Keyword.take(config, [:redis_host, :port, :consumer_id, :consumer_group])
+    consumer_config = Keyword.take(config, [:redis_host, :port, :password, :consumer_id, :consumer_group])
 
     children =
       config[:streams]
@@ -27,6 +27,7 @@ defmodule TdCache.EventStream do
         {TdCache.EventStream.Consumer,
          redis_host: Keyword.get(consumer_config, :redis_host, "redis"),
          port: Keyword.get(consumer_config, :port, 6379),
+         password: Keyword.get(consumer_config, :password),
          stream: stream_config[:key],
          consumer_group: consumer_config[:consumer_group],
          consumer_id: consumer_config[:consumer_id],
