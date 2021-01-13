@@ -6,6 +6,12 @@
 
 - [TD-3182] Allow to use redis with password
 
+## [4.12.0] 2021-01-13
+
+### Added
+
+- [TD-2591] Include the number of related concepts
+
 ## [4.11.1] 2020-12-23
 
 ### Added
