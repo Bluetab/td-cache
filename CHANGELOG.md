@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.12.1] 2021-01-13
+
+### Changed
+
+- [TD-3182] Allow to use redis with password
+
 ## [4.12.0] 2021-01-13
 
 ### Added
