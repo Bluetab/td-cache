@@ -222,11 +222,13 @@ defmodule TdCache.ConceptCache do
         {:ok, content} = read_content(id)
         {:ok, rule_count} = RuleCache.count(concept_key)
         {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
+        {:ok, concept_count} = LinkCache.count(concept_key, "business_concept")
 
         m
         |> Map.put(:id, id)
         |> Map.put(:rule_count, rule_count)
         |> Map.put(:link_count, link_count)
+        |> Map.put(:concept_count, concept_count)
         |> Map.put(:content, content || %{})
     end
   end
