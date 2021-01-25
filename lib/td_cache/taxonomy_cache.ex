@@ -182,4 +182,23 @@ defmodule TdCache.TaxonomyCache do
     {:ok, domains} = DomainCache.domains()
     domains
   end
+
+  @doc """
+  Obtain the set of deleted domain ids.
+
+    ## Examples
+
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, name: "D1", updated_at: DateTime.utc_now()})
+      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 43, name: "D2", updated_at: DateTime.utc_now()})
+      iex> {:ok, _} = TaxonomyCache.delete_domain(42)
+      iex> {:ok, _} = TaxonomyCache.delete_domain(43)
+      iex> domain_ids = TaxonomyCache.get_deleted_domain_ids() |> MapSet.new()
+      iex> [42, 43] |> Enum.map(&(MapSet.member?(domain_ids, &1)))
+      [true, true]
+
+  """
+  def get_deleted_domain_ids do
+    {:ok, domains} = DomainCache.deleted_domains()
+    domains
+  end
 end

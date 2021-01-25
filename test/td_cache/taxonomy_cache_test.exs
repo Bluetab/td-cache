@@ -118,6 +118,22 @@ defmodule TdCache.TaxonomyCacheTest do
     assert Enum.sort(TaxonomyCache.get_domain_ids()) == ids
   end
 
+  test "get_deleted_domain_ids returns a list with all deleted domain ids",
+       %{root: root, parent: parent, domain: domain} do
+    domains = [root, parent]
+    deleted = [domain]
+
+    ids =
+      deleted
+      |> Enum.map(& &1.id)
+      |> Enum.sort()
+
+    Enum.each(domains ++ deleted, &TaxonomyCache.put_domain(&1))
+    Enum.each(deleted, fn %{id: id} -> TaxonomyCache.delete_domain(id) end)
+
+    assert Enum.sort(TaxonomyCache.get_deleted_domain_ids()) == ids
+  end
+
   defp random_domain do
     id = random_id()
 
