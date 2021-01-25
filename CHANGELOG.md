@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3146] Collection of deleted domain ids
+
 ## [4.12.1] 2021-01-13
 
 ### Changed
