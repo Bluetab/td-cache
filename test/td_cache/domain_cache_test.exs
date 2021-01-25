@@ -21,6 +21,7 @@ defmodule TdCache.DomainCacheTest do
       DomainCache.delete(domain.id)
       DomainCache.delete(parent.id)
       Redix.del!("domain:events")
+      Redix.del!("domain:deleted_ids")
     end)
 
     {:ok, domain: domain, parent: parent}
@@ -59,6 +60,14 @@ defmodule TdCache.DomainCacheTest do
       {:ok, _} = DomainCache.put(domain)
       {:ok, [1, 1, 0, 1, 0, 1]} = DomainCache.delete(domain.id)
       assert {:ok, nil} == DomainCache.get(domain.id)
+    end
+
+    test "get deleted domain ids", context do
+      %{id: id} = domain = context[:domain]
+      {:ok, _} = DomainCache.put(domain)
+      assert {:ok, []} = DomainCache.deleted_domains()
+      {:ok, [1, 1, 0, 1, 0, 1]} = DomainCache.delete(domain.id)
+      assert {:ok, [^id]} = DomainCache.deleted_domains()
     end
   end
 end

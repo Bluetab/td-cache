@@ -78,6 +78,14 @@ defmodule TdCache.DomainCache do
     delete_domain(id)
   end
 
+  @doc """
+  Reads all deleted domains from cache.
+  """
+  def deleted_domains do
+    domain_ids = get_deleted_domains()
+    {:ok, domain_ids}
+  end
+
   ## Private functions
 
   @props [:name, :parent_ids, :external_id, :updated_at]
@@ -122,6 +130,13 @@ defmodule TdCache.DomainCache do
     end
   end
 
+  defp get_deleted_domains do
+    case Redix.command(["SMEMBERS", @deleted_ids]) do
+      {:ok, ids} -> Enum.map(ids, &String.to_integer/1)
+      _ -> []
+    end
+  end
+
   defp read_domain_id("domain:" <> domain_id), do: domain_id
 
   defp read_domain_id(id), do: id
@@ -143,7 +158,7 @@ defmodule TdCache.DomainCache do
       ["HDEL", @ids_to_external_ids_key, id],
       ["SREM", @domain_keys, key],
       ["SREM", @roots_key, id],
-      ["SADD", @deleted_ids, key]
+      ["SADD", @deleted_ids, id]
     ]
 
     Redix.transaction_pipeline(commands)
@@ -177,7 +192,7 @@ defmodule TdCache.DomainCache do
       ["SADD", @domain_keys, "domain:#{id}"],
       add_or_remove_external_id,
       [add_or_remove_root, @roots_key, id],
-      ["SREM", @deleted_ids, "domain:#{id}"]
+      ["SREM", @deleted_ids, id]
     ]
 
     {:ok, [_, _, added, _, _, _] = results} = Redix.transaction_pipeline(commands)
