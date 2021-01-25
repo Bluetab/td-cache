@@ -29,7 +29,7 @@ defmodule TdCache.DomainCacheTest do
   describe "DomainCache" do
     test "writes a domain entry in redis and reads it back", context do
       domain = context[:domain]
-      {:ok, ["OK", 1, 1, 0, 0]} = DomainCache.put(domain)
+      {:ok, ["OK", 1, 1, 0, 0, 0]} = DomainCache.put(domain)
       {:ok, d} = DomainCache.get(domain.id)
       assert not is_nil(d)
       assert d.id == domain.id
@@ -42,12 +42,12 @@ defmodule TdCache.DomainCacheTest do
     test "updates a domain entry only if changed", context do
       domain = context[:domain]
 
-      assert {:ok, ["OK", 1, 1, 0, 0]} = DomainCache.put(domain)
+      assert {:ok, ["OK", 1, 1, 0, 0, 0]} = DomainCache.put(domain)
       assert {:ok, []} = DomainCache.put(domain)
 
       updated = %{domain | name: "updated name", updated_at: DateTime.utc_now()}
 
-      assert {:ok, ["OK", 0, 0, 0, 0]} = DomainCache.put(updated)
+      assert {:ok, ["OK", 0, 0, 0, 0, 0]} = DomainCache.put(updated)
       assert {:ok, %{name: "updated name"}} = DomainCache.get(domain.id)
 
       assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
@@ -57,7 +57,7 @@ defmodule TdCache.DomainCacheTest do
     test "deletes an entry in redis", context do
       domain = context[:domain]
       {:ok, _} = DomainCache.put(domain)
-      {:ok, [1, 1, 0, 1, 0]} = DomainCache.delete(domain.id)
+      {:ok, [1, 1, 0, 1, 0, 1]} = DomainCache.delete(domain.id)
       assert {:ok, nil} == DomainCache.get(domain.id)
     end
   end

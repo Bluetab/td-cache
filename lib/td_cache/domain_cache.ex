@@ -85,6 +85,7 @@ defmodule TdCache.DomainCache do
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
   @domain_keys "domain:keys"
+  @deleted_ids "domain:deleted_ids"
 
   defp read_domain(id) when is_binary(id) do
     id = String.to_integer(id)
@@ -141,7 +142,8 @@ defmodule TdCache.DomainCache do
       ["HDEL", @ids_to_names_key, id],
       ["HDEL", @ids_to_external_ids_key, id],
       ["SREM", @domain_keys, key],
-      ["SREM", @roots_key, id]
+      ["SREM", @roots_key, id],
+      ["SADD", @deleted_ids, key]
     ]
 
     Redix.transaction_pipeline(commands)
@@ -174,10 +176,11 @@ defmodule TdCache.DomainCache do
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", @domain_keys, "domain:#{id}"],
       add_or_remove_external_id,
-      [add_or_remove_root, @roots_key, id]
+      [add_or_remove_root, @roots_key, id],
+      ["SREM", @deleted_ids, "domain:#{id}"]
     ]
 
-    {:ok, [_, _, added, _, _] = results} = Redix.transaction_pipeline(commands)
+    {:ok, [_, _, added, _, _, _] = results} = Redix.transaction_pipeline(commands)
 
     event = %{
       event: if(added == 0, do: "domain_updated", else: "domain_created"),
