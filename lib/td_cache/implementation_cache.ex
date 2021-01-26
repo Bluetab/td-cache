@@ -45,7 +45,7 @@ defmodule TdCache.ImplementationCache do
         []
 
       {:ok, ks} ->
-        ["SINTER" | Enum.map(ks, fn k -> k <> ":structure_ids" end)]
+        ["SUNION" | Enum.map(ks, fn k -> k <> ":structure_ids" end)]
         |> Redix.command()
         |> case do
           {:ok, ids} -> Enum.map(ids, &String.to_integer/1)
