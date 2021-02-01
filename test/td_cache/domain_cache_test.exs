@@ -20,8 +20,7 @@ defmodule TdCache.DomainCacheTest do
     on_exit(fn ->
       DomainCache.delete(domain.id)
       DomainCache.delete(parent.id)
-      Redix.del!("domain:events")
-      Redix.del!("domain:deleted_ids")
+      Redix.del!("domain:*")
     end)
 
     {:ok, domain: domain, parent: parent}

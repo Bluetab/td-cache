@@ -30,8 +30,6 @@ defmodule TdCache.PermissionsTest do
     acl_entries = acl_entries(domain, user, [["create_business_concept"], ["create_ingest"]])
 
     on_exit(fn ->
-      TaxonomyCache.delete_domain(domain.id)
-      TaxonomyCache.delete_domain(parent.id)
       ConceptCache.delete(concept.id)
       IngestCache.delete(ingest.id)
 
@@ -39,7 +37,8 @@ defmodule TdCache.PermissionsTest do
         "session:*",
         "business_concept:ids:inactive",
         "business_concept:events",
-        "domain:events"
+        "domain:*",
+        "domains:*"
       ])
     end)
 

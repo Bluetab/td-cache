@@ -58,10 +58,6 @@ defmodule TdCache.AclCache do
     end
   end
 
-  def set_acl_role_users(resource_type, resource_id, role, %MapSet{} = users) do
-    set_acl_role_users(resource_type, resource_id, role, MapSet.to_list(users))
-  end
-
   def delete_acl_role_users(resource_type, resource_id, role) do
     key = create_acl_role_users_key(resource_type, resource_id, role)
     Redix.command(["DEL", key])
@@ -73,7 +69,7 @@ defmodule TdCache.AclCache do
 
     case Enum.member?(users, to_string(user)) do
       true -> Redix.command(["SREM", key, "#{user}"])
-      _ -> {:ok}
+      _ -> :ok
     end
   end
 end

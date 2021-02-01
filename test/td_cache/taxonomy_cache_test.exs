@@ -11,11 +11,7 @@ defmodule TdCache.TaxonomyCacheTest do
     parent = random_domain() |> Map.put(:parent_ids, [root.id])
     domain = random_domain() |> Map.put(:parent_ids, [parent.id, root.id])
 
-    on_exit(fn ->
-      Redix.del!("domain:*")
-      Redix.del!("domains:*")
-      Redix.command(["DEL", "domain:events"])
-    end)
+    on_exit(fn -> Redix.del!(["domain:*", "domains:*"]) end)
 
     {:ok, root: root, parent: parent, domain: domain}
   end
