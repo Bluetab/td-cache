@@ -6,6 +6,13 @@
 
 - [TD-3146] Collection of deleted domain ids
 
+## [4.12.2] 2021-01-26
+
+### Fixed
+
+- [TD-3248] `ImplementationCache.referenced_structure_ids` was not returning
+  referenced structure ids
+
 ## [4.12.1] 2021-01-13
 
 ### Changed

@@ -3,7 +3,6 @@ defmodule TdCache.StructureCache do
   Shared cache for data structures.
   """
 
-  alias Jason, as: JSON
   alias TdCache.ImplementationCache
   alias TdCache.LinkCache
   alias TdCache.Redix
@@ -70,7 +69,7 @@ defmodule TdCache.StructureCache do
         metadata =
           case Map.get(structure, :metadata) do
             nil -> %{}
-            metadata -> JSON.decode!(metadata)
+            metadata -> Jason.decode!(metadata)
           end
 
         structure
@@ -156,7 +155,7 @@ defmodule TdCache.StructureCache do
 
   defp add_metadata(%{} = structure_props, %{metadata: %{} = metadata})
        when map_size(metadata) > 0 do
-    Map.put(structure_props, :metadata, JSON.encode!(metadata))
+    Map.put(structure_props, :metadata, Jason.encode!(metadata))
   end
 
   defp add_metadata(%{} = structure_props, _), do: structure_props

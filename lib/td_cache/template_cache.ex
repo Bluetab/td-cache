@@ -4,7 +4,6 @@ defmodule TdCache.TemplateCache do
   """
   use GenServer
 
-  alias Jason, as: JSON
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
@@ -172,7 +171,7 @@ defmodule TdCache.TemplateCache do
       {:ok, %{content: content} = template} ->
         template
         |> Map.put(:id, id)
-        |> Map.put(:content, JSON.decode!(content))
+        |> Map.put(:content, Jason.decode!(content))
 
       {:ok, template} ->
         Map.put(template, :id, id)
@@ -208,7 +207,7 @@ defmodule TdCache.TemplateCache do
     template =
       template
       |> Map.take(@props)
-      |> Map.put(:content, JSON.encode!(content))
+      |> Map.put(:content, Jason.encode!(content))
 
     commands = [
       ["HMSET", "template:#{id}", template],
