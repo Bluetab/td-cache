@@ -11,17 +11,13 @@ defmodule TdCache.TaxonomyCacheTest do
     parent = random_domain() |> Map.put(:parent_ids, [root.id])
     domain = random_domain() |> Map.put(:parent_ids, [parent.id, root.id])
 
-    on_exit(fn ->
-      Redix.del!("domain:*")
-      Redix.del!("domains:*")
-      Redix.command(["DEL", "domain:events"])
-    end)
+    on_exit(fn -> Redix.del!(["domain:*", "domains:*"]) end)
 
     {:ok, root: root, parent: parent, domain: domain}
   end
 
   test "put_domain returns OK", %{domain: domain} do
-    assert {:ok, ["OK", 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, ["OK", 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
     assert [%{event: "domain_created"}] = events
   end
@@ -116,6 +112,22 @@ defmodule TdCache.TaxonomyCacheTest do
     Enum.each(domains, &TaxonomyCache.put_domain(&1))
 
     assert Enum.sort(TaxonomyCache.get_domain_ids()) == ids
+  end
+
+  test "get_deleted_domain_ids returns a list with all deleted domain ids",
+       %{root: root, parent: parent, domain: domain} do
+    domains = [root, parent]
+    deleted = [domain]
+
+    ids =
+      deleted
+      |> Enum.map(& &1.id)
+      |> Enum.sort()
+
+    Enum.each(domains ++ deleted, &TaxonomyCache.put_domain(&1))
+    Enum.each(deleted, fn %{id: id} -> TaxonomyCache.delete_domain(id) end)
+
+    assert Enum.sort(TaxonomyCache.get_deleted_domain_ids()) == ids
   end
 
   defp random_domain do

@@ -58,10 +58,10 @@ defmodule TdCache.AclCacheTest do
     resource_id = 1
     resource_type = "test_type"
     role = "role1"
-    users = MapSet.new(["user1", "user2", "user3"])
+    users = ["user1", "user2", "user3"]
     AclCache.set_acl_role_users(resource_id, resource_type, role, users)
     users_result = AclCache.get_acl_role_users(resource_id, resource_type, role)
-    assert MapSet.new(users_result) == users
+    assert MapSet.new(users_result) == MapSet.new(users)
   end
 
   test "delete_acl_role_users deletes from cache" do

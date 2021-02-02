@@ -40,7 +40,8 @@ defmodule TdCache.ConceptCacheTest do
         "business_concept:ids:active",
         "business_concept:ids:inactive",
         "business_concept:ids:confidential",
-        "domain:events"
+        "domain:events",
+        "domain:deleted_ids"
       ])
     end)
 
