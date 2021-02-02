@@ -1,4 +1,4 @@
-name: td-cache-test
+name: test
 on: [push]
 
 jobs:
