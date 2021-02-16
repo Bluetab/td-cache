@@ -36,7 +36,13 @@ defmodule TdCache.SourceCacheTest do
       source = context[:source]
       {:ok, _} = SourceCache.put(source)
       assert {:ok, keys} = SourceCache.sources()
-      assert keys == [source.id]
+      assert source.id in keys
+    end
+
+    test "get external ids to id map", context do
+      %{id: id, external_id: external_id} = source = context[:source]
+      {:ok, _} = SourceCache.put(source)
+      assert %{^external_id => ^id} = SourceCache.get_source_external_id_to_id_map()
     end
   end
 end

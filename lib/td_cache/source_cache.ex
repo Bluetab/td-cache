@@ -38,6 +38,13 @@ defmodule TdCache.SourceCache do
     delete_source(id)
   end
 
+  @doc """
+  Gets map of source external ids to ids.
+  """
+  def get_source_external_id_to_id_map do
+    source_external_id_to_id_map()
+  end
+
   @props [:external_id, :type]
   @keys "source:keys"
   @ids_to_external_ids_key "sources:ids_external_ids"
@@ -110,4 +117,15 @@ defmodule TdCache.SourceCache do
   end
 
   defp put_source(_), do: {:error, :empty}
+
+  def source_external_id_to_id_map do
+    read_map(@ids_to_external_ids_key)
+  end
+
+  defp read_map(collection) do
+    case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do
+      {:ok, nil} -> %{}
+      {:ok, map} -> map
+    end
+  end
 end
