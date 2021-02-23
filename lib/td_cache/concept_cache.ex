@@ -229,7 +229,7 @@ defmodule TdCache.ConceptCache do
   end
 
   defp read_content(%{content: content}) do
-    {:ok, Jason.decode!(content)} 
+    {:ok, Jason.decode!(content)}
   end
 
   defp concept_entry_to_map(nil), do: nil
@@ -268,7 +268,12 @@ defmodule TdCache.ConceptCache do
   defp put_concept(%{id: id} = concept) do
     commands = [
       ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
-      ["HMSET", "business_concept:#{id}", "content", Jason.encode!(Map.get(concept, :content, %{}))],
+      [
+        "HMSET",
+        "business_concept:#{id}",
+        "content",
+        Jason.encode!(Map.get(concept, :content, %{}))
+      ],
       ["SADD", @keys, "business_concept:#{id}"],
       ["SREM", @inactive_ids, id],
       ["SADD", @active_ids, id],
