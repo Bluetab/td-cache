@@ -18,7 +18,7 @@ defmodule TdCache.ConceptCache do
   @confidential_ids "business_concept:ids:confidential"
   @inactive_ids "business_concept:ids:inactive"
   @keys "business_concept:keys"
-  @props [:name, :domain_id, :business_concept_version_id, :current_version]
+  @props [:name, :domain_id, :business_concept_version_id, :current_version, :type]
 
   ## Client API
 
