@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3063] Business concept type
+
 ## [4.14.0] 2021-01-19
 
 ### Added
