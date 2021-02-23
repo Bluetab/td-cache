@@ -5,6 +5,7 @@ defmodule TdCache.ConceptCache do
 
   use GenServer
 
+  alias Jason
   alias TdCache.DomainCache
   alias TdCache.EventStream.Publisher
   alias TdCache.LinkCache
@@ -146,12 +147,6 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call({:get, id, :content, _opts}, _from, state) do
-    reply = read_content(id)
-    {:reply, reply, state}
-  end
-
-  @impl true
   def handle_call({:get, id, property, opts}, _from, state) do
     prop =
       case get_cache(id, fn -> read_concept(id) end, opts) do
@@ -219,7 +214,7 @@ defmodule TdCache.ConceptCache do
         nil
 
       m ->
-        {:ok, content} = read_content(id)
+        {:ok, content} = read_content(concept)
         {:ok, rule_count} = RuleCache.count(concept_key)
         {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
         {:ok, concept_count} = LinkCache.count(concept_key, "business_concept")
@@ -233,8 +228,8 @@ defmodule TdCache.ConceptCache do
     end
   end
 
-  defp read_content(id) do
-    Redix.read_map("business_concept:#{id}:content", fn [k, v] -> {k, v} end)
+  defp read_content(%{content: content}) do
+    {:ok, Jason.decode!(content)} 
   end
 
   defp concept_entry_to_map(nil), do: nil
@@ -249,7 +244,7 @@ defmodule TdCache.ConceptCache do
 
   defp delete_concept(id) do
     commands = [
-      ["DEL", "business_concept:#{id}", "business_concept:#{id}:content"],
+      ["DEL", "business_concept:#{id}"],
       ["SREM", @keys, "business_concept:#{id}"],
       ["SADD", @inactive_ids, id],
       ["SREM", @active_ids, id],
@@ -273,7 +268,7 @@ defmodule TdCache.ConceptCache do
   defp put_concept(%{id: id} = concept) do
     commands = [
       ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
-      ["HMSET", "business_concept:#{id}:content", Map.get(concept, :content, %{})],
+      ["HMSET", "business_concept:#{id}", "content", Jason.encode!(Map.get(concept, :content, %{}))],
       ["SADD", @keys, "business_concept:#{id}"],
       ["SREM", @inactive_ids, id],
       ["SADD", @active_ids, id],

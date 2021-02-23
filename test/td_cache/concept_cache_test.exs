@@ -23,7 +23,7 @@ defmodule TdCache.ConceptCacheTest do
       type: "mytemp",
       business_concept_version_id: random_id(),
       name: "foo",
-      content: %{"data_owner" => "pepito diaz"}
+      content: %{"data_owner" => "pepito diaz", "foo" => ["bar", "baz"]}
     }
 
     {:ok, _} = DomainCache.put(domain)
@@ -122,7 +122,7 @@ defmodule TdCache.ConceptCacheTest do
     test "deletes an entry in redis", context do
       concept = context[:concept]
       {:ok, _} = ConceptCache.put(concept)
-      {:ok, [2, 1, 1, 1, 0]} = ConceptCache.delete(concept.id)
+      {:ok, [1, 1, 1, 1, 0]} = ConceptCache.delete(concept.id)
       assert {:ok, nil} == ConceptCache.get(concept.id)
     end
 
@@ -217,7 +217,7 @@ defmodule TdCache.ConceptCacheTest do
       assert c.link_count == 0
       assert c.rule_count == 0
       assert c.concept_count == 0
-      assert c.content == %{"data_owner" => "pepito diaz"}
+      assert %{"data_owner" => "pepito diaz"} = c.content
     end
   end
 
