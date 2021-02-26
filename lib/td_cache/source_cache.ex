@@ -3,7 +3,6 @@ defmodule TdCache.SourceCache do
   Shared cache for CX Sources.
   """
 
-  alias Jason
   alias TdCache.Redix
 
   ## Client API
