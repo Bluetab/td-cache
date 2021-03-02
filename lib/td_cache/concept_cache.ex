@@ -232,6 +232,10 @@ defmodule TdCache.ConceptCache do
     {:ok, Jason.decode!(content)}
   end
 
+  defp read_content(_) do
+    {:ok, %{}}
+  end
+
   defp concept_entry_to_map(nil), do: nil
 
   defp concept_entry_to_map(%{domain_id: domain_id} = concept) when not is_nil(domain_id) do
