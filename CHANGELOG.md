@@ -1,5 +1,9 @@
 # Changelog
 
+## [4.16.0] 2021-03-10
+
+- [TD-2951] Permission `profile_structure`
+
 ## [4.15.0] 2021-03-05
 
 ### Added
