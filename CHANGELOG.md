@@ -1,8 +1,18 @@
 # Changelog
 
-## [Unreleased]
+## [4.16.0] 2021-03-10
 
 - [TD-2951] Permission `profile_structure`
+
+## [4.15.0] 2021-03-05
+
+### Added
+
+- [TD-3063] ConceptCache: added type field for business concept
+
+### Changed
+
+- ConceptCache: moved `content` property inside HashMap `business_concept:#{id}` instead of having its own key `business_concept:#{id}:content`
 
 ## [4.14.0] 2021-01-19
 
