@@ -4,7 +4,7 @@ defmodule TdCache.MixProject do
   def project do
     [
       app: :td_cache,
-      version: "4.16.0",
+      version: "4.17.0",
       elixir: "~> 1.10",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -26,7 +26,7 @@ defmodule TdCache.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:con_cache, "~> 0.13"},
+      {:con_cache, "~> 1.0"},
       {:redix, "~> 1.0"},
       {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
       {:jason, "~> 1.1"}
