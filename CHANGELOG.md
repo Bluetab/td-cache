@@ -1,6 +1,14 @@
 # Changelog
 
+## [4.17.0] 2021-04-07
+
+### Removed
+
+- [TD-3498] `SourceCache` is no longer used
+
 ## [4.16.0] 2021-03-10
+
+### Added
 
 - [TD-2951] Permission `profile_structure`
 
