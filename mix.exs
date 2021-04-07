@@ -26,7 +26,7 @@ defmodule TdCache.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:con_cache, "~> 0.13"},
+      {:con_cache, "~> 1.0"},
       {:redix, "~> 1.0"},
       {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
       {:jason, "~> 1.1"}
