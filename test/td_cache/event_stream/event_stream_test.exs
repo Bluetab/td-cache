@@ -44,6 +44,13 @@ defmodule TdCache.EventStream.Test do
       end)
     end
 
+    test "child_spec/1 uses default config given consumer group", context do
+      config = context[:config]
+      %{start: {Supervisor, :start_link, [[foo_spec, _, _], _]}} = EventStream.child_spec(config)
+      assert %{start: {_, _, [opts]}} = foo_spec
+      assert opts[:consumer_group] == "test_group"
+    end
+
     test "child_spec/1 uses consumer-specific consumer group", context do
       config = context[:config]
       %{start: {Supervisor, :start_link, [[_, _, baz_spec], _]}} = EventStream.child_spec(config)
