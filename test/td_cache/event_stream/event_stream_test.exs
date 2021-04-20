@@ -9,7 +9,8 @@ defmodule TdCache.EventStream.Test do
       consumer_id: "test_consumer",
       streams: [
         [key: "foo:events", consumer: FooConsumer],
-        [key: "bar:events", consumer: BarConsumer]
+        [key: "bar:events", consumer: BarConsumer],
+        [key: "baz:events", consumer: BarConsumer, group: "baz"]
       ]
     ]
 
@@ -20,6 +21,7 @@ defmodule TdCache.EventStream.Test do
     test "child_spec/1 uses defaults for redis_host and port", context do
       config = context[:config]
       %{start: {Supervisor, :start_link, [child_specs | _]}} = EventStream.child_spec(config)
+
       child_specs
       |> Enum.each(fn %{start: {TdCache.EventStream.Consumer, :start_link, [opts]}} ->
         assert Keyword.get(opts, :redis_host) == "redis"
@@ -28,15 +30,25 @@ defmodule TdCache.EventStream.Test do
     end
 
     test "child_spec/1 uses specified values for redis_host and port", context do
-      config = context[:config]
-      |> Keyword.put(:redis_host, "foo")
-      |> Keyword.put(:port, 1234)
+      config =
+        context[:config]
+        |> Keyword.put(:redis_host, "foo")
+        |> Keyword.put(:port, 1234)
+
       %{start: {Supervisor, :start_link, [child_specs | _]}} = EventStream.child_spec(config)
+
       child_specs
       |> Enum.each(fn %{start: {TdCache.EventStream.Consumer, :start_link, [opts]}} ->
         assert Keyword.get(opts, :redis_host) == "foo"
         assert Keyword.get(opts, :port) == 1234
       end)
+    end
+
+    test "child_spec/1 uses consumer-specific consumer group", context do
+      config = context[:config]
+      %{start: {Supervisor, :start_link, [[_, _, baz_spec], _]}} = EventStream.child_spec(config)
+      assert %{start: {_, _, [opts]}} = baz_spec
+      assert opts[:consumer_group] == "baz"
     end
   end
 end
