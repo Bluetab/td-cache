@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.19.0] 2021-04-20
+
+### Changed
+
+- [TD-3526] Allow each event stream consumer to specify its own `group`
+
 ## [4.17.0] 2021-04-07
 
 ### Removed
