@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.19.1] 2021-04-22
+
+### Removed
+
+- [TD-3526] `ImplementationCache` is no longer needed
+
 ## [4.19.0] 2021-04-20
 
 ### Changed

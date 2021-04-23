@@ -1,7 +1,6 @@
 defmodule TdCache.StructureCacheTest do
   use ExUnit.Case
 
-  alias TdCache.ImplementationCache
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.StructureCache
@@ -25,17 +24,9 @@ defmodule TdCache.StructureCacheTest do
       deleted_at: DateTime.utc_now()
     }
 
-    implementation = %{
-      id: :rand.uniform(100_000_000),
-      updated_at: DateTime.utc_now(),
-      structure_ids: [structure.id]
-    }
-
-    {:ok, _} = ImplementationCache.put(implementation)
     {:ok, _} = SystemCache.put(system)
 
     on_exit(fn ->
-      ImplementationCache.delete(implementation.id)
       StructureCache.delete(structure.id)
       SystemCache.delete(system.id)
       Redix.command(["SREM", "data_structure:deleted_ids", structure.id])
@@ -130,10 +121,6 @@ defmodule TdCache.StructureCacheTest do
       assert {:ok, ["OK", 1, 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1, 0]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
-    end
-
-    test "lists structure ids referenced in rule implementations", %{structure: %{id: id}} do
-      assert StructureCache.referenced_ids() == [id]
     end
 
     test "lists structure ids referenced in linkss", %{structure: %{id: id}} do

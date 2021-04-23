@@ -3,7 +3,6 @@ defmodule TdCache.StructureCache do
   Shared cache for data structures.
   """
 
-  alias TdCache.ImplementationCache
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.SystemCache
@@ -47,10 +46,7 @@ defmodule TdCache.StructureCache do
   """
   @spec referenced_ids :: [integer()]
   def referenced_ids do
-    rule_structure_ids = ImplementationCache.referenced_structure_ids()
-    linked_structure_ids = LinkCache.referenced_ids("data_structure:")
-
-    Enum.uniq(rule_structure_ids ++ linked_structure_ids)
+    LinkCache.referenced_ids("data_structure:")
   end
 
   ## Private functions
