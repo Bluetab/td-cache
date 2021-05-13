@@ -16,6 +16,10 @@ defmodule TdCache.TaxonomyCache do
     GenServer.call(__MODULE__, {:get, id})
   end
 
+  def domain_map do
+    GenServer.call(__MODULE__, :domain_map)
+  end
+
   def get_parent_ids(domain_id, with_self \\ true, opts \\ [])
 
   def get_parent_ids(id, with_self, opts) do
@@ -33,6 +37,20 @@ defmodule TdCache.TaxonomyCache do
   def handle_call({:get, id}, _from, state) do
     domain = get_cache({:id, id}, fn -> do_get_domain(id) end)
     {:reply, domain, state}
+  end
+
+  @impl true
+  def handle_call(:domain_map, _from, state) do
+    reply = get_cache(:domain_map, fn ->
+      {:ok, domain_ids} = DomainCache.domains()
+      domain_ids
+      |> Enum.map(&do_get_domain/1)
+      |> Enum.map(fn %{id: id, parent_ids: parent_ids} = domain ->
+        {id, %{domain | parent_ids: [id | parent_ids]}}
+      end)
+      |> Map.new()
+    end)
+    {:reply, reply, state}
   end
 
   @impl true
