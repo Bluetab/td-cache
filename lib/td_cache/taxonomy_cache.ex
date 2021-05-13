@@ -41,15 +41,16 @@ defmodule TdCache.TaxonomyCache do
 
   @impl true
   def handle_call(:domain_map, _from, state) do
-    reply = get_cache(:domain_map, fn ->
-      {:ok, domain_ids} = DomainCache.domains()
+    {:ok, domain_ids} = DomainCache.domains()
+
+    reply =
       domain_ids
       |> Enum.map(&do_get_domain/1)
       |> Enum.map(fn %{id: id, parent_ids: parent_ids} = domain ->
         {id, %{domain | parent_ids: [id | parent_ids]}}
       end)
       |> Map.new()
-    end)
+
     {:reply, reply, state}
   end
 
