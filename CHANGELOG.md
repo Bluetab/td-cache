@@ -1,9 +1,10 @@
 # Changelog
 
-## [4.20.0] 2021-05-13
+## [4.20.1] 2021-05-13
 
 ### Added
 
+- [TD-3526] `link_data_structure_tag` permission to link a structure to a tag
 - [TD-3611] `LinkCache.link_count_map/2` and `TaxonomyCache.domain_map/0`
 
 ## [4.19.1] 2021-04-22
