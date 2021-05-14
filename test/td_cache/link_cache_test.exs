@@ -141,18 +141,48 @@ defmodule TdCache.LinkCacheTest do
       assert Enum.any?(links, &(&1.id == "#{id1}"))
       assert Enum.any?(links, &(&1.id == "#{id2}"))
     end
+
+    test "link_count_map returns a map with linked entry count by source id" do
+      for target_id <- 42..45 do
+        put_link(%{source_id: 123, target_id: target_id, source_type: "bar", target_type: "foo"})
+      end
+
+      put_link(%{source_type: "foo", source_id: 42, target_type: "bar", target_id: 99})
+      put_link(%{source_type: "foo", source_id: 42, target_type: "baz", target_id: 99})
+
+      assert LinkCache.link_count_map("xxx", "yyy") == %{}
+      assert LinkCache.link_count_map("foo", "baz") == %{42 => 1}
+
+      assert LinkCache.link_count_map("foo", "bar") == %{
+               42 => 2,
+               43 => 1,
+               44 => 1,
+               45 => 1
+             }
+
+      assert LinkCache.link_count_map("bar", "foo") == %{
+               99 => 1,
+               123 => 4
+             }
+    end
   end
 
-  defp make_link(source_type \\ "foo", target_type \\ "bar") do
+  defp make_link(params \\ %{}) do
     %{
-      id: random_id(),
-      source_id: random_id(),
-      target_id: random_id(),
+      id: System.unique_integer([:positive]),
+      source_id: System.unique_integer([:positive]),
+      target_id: System.unique_integer([:positive]),
       updated_at: DateTime.utc_now(),
-      source_type: source_type,
-      target_type: target_type
+      source_type: Map.get(params, :source_type, "foo"),
+      target_type: Map.get(params, :source_type, "bar")
     }
+    |> Map.merge(params)
   end
 
-  defp random_id, do: :rand.uniform(100_000_000)
+  defp put_link(params) do
+    link = make_link(params)
+    on_exit(fn -> LinkCache.delete(link.id) end)
+    LinkCache.put(link)
+    link
+  end
 end

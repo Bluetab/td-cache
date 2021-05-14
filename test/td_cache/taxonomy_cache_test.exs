@@ -130,8 +130,21 @@ defmodule TdCache.TaxonomyCacheTest do
     assert Enum.sort(TaxonomyCache.get_deleted_domain_ids()) == ids
   end
 
-  defp random_domain do
-    id = random_id()
+  test "domain_map/0 returns a map of domains", %{
+    root: %{id: id1} = root,
+    parent: %{id: id2} = parent,
+    domain: %{id: id3} = domain
+  } do
+    Enum.map([root, parent, domain], &TaxonomyCache.put_domain/1)
+
+    assert %{} = map = TaxonomyCache.domain_map()
+    assert %{id: ^id1, parent_ids: [^id1], external_id: _, name: _} = map[id1]
+    assert %{id: ^id2, parent_ids: [^id2, ^id1], external_id: _, name: _} = map[id2]
+    assert %{id: ^id3, parent_ids: [^id3, ^id2, ^id1], external_id: _, name: _} = map[id3]
+  end
+
+  defp random_domain(params \\ %{}) do
+    id = Map.get(params, :id, System.unique_integer([:positive]))
 
     %{
       id: id,
@@ -139,7 +152,6 @@ defmodule TdCache.TaxonomyCacheTest do
       external_id: "external id #{id}",
       updated_at: DateTime.utc_now()
     }
+    |> Map.merge(params)
   end
-
-  defp random_id, do: :rand.uniform(100_000_000)
 end
