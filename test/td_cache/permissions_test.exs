@@ -42,13 +42,14 @@ defmodule TdCache.PermissionsTest do
       ])
     end)
 
-    {:ok, concept: concept, domain: domain, ingest: ingest, acl_entries: acl_entries}
+    {:ok, concept: concept, domain: domain, ingest: ingest, parent: parent, acl_entries: acl_entries}
   end
 
   test "resolves cached session permissions", %{
     concept: concept,
     domain: domain,
     ingest: ingest,
+    parent: parent,
     acl_entries: acl_entries
   } do
     import Permissions, only: :functions
@@ -56,6 +57,7 @@ defmodule TdCache.PermissionsTest do
     expire_at = DateTime.utc_now() |> DateTime.add(100) |> DateTime.to_unix()
     cache_session_permissions!(session_id, expire_at, acl_entries)
     assert has_permission?(session_id, :create_business_concept, "domain", domain.id)
+    assert has_permission?(session_id, :create_business_concept, "domain", [domain.id, parent.id])
     assert has_permission?(session_id, :create_business_concept, "business_concept", concept.id)
     assert has_permission?(session_id, :create_ingest, "ingest", ingest.id)
     assert has_any_permission?(session_id, [:create_business_concept], "domain", domain.id)
