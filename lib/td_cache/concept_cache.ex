@@ -276,6 +276,9 @@ defmodule TdCache.ConceptCache do
       "" ->
         []
 
+      nil ->
+        []
+
       _ ->
         shared_to_ids
         |> String.split(",")
