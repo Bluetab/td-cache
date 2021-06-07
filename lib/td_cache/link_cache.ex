@@ -38,23 +38,21 @@ defmodule TdCache.LinkCache do
   end
 
   @doc """
-  Returns a map whose keys are the ids of the specified resource type and
-  whose values contain the count of the linked resource type.
+  Returns a `MapSet` containing the ids of the specified resource type
+  which have links to the target resource type.
   """
-  def link_count_map(source_type, target_type) do
+  def link_source_ids(source_type, target_type) do
     "#{source_type}:*:links:#{target_type}"
     |> Redix.keys!()
-    |> Map.new(&link_count_entry/1)
+    |> Enum.map(&source_id/1)
+    |> Enum.sort()
   end
 
-  defp link_count_entry(key) do
-    id =
-      key
-      |> String.split(":")
-      |> Enum.at(1)
-      |> String.to_integer()
-
-    {id, Redix.command!(["SCARD", key])}
+  defp source_id(key) do
+    key
+    |> String.split(":")
+    |> Enum.at(1)
+    |> String.to_integer()
   end
 
   @doc """

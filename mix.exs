@@ -28,7 +28,7 @@ defmodule TdCache.MixProject do
     [
       {:con_cache, "~> 1.0"},
       {:redix, "~> 1.0"},
-      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:jason, "~> 1.1"}
     ]
   end
