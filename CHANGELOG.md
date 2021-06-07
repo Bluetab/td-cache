@@ -4,7 +4,7 @@
 
 ### Changed
 
-- [TD-3837] `LinkCache.link_source_ids/2` replaces `LinkCache.link_count_map/2`
+- [TD-3837] `LinkCache.linked_source_ids/2` replaces `LinkCache.link_count_map/2`
 
 ## [4.20.1] 2021-05-13
 

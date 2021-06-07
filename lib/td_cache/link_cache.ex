@@ -41,7 +41,7 @@ defmodule TdCache.LinkCache do
   Returns a `MapSet` containing the ids of the specified resource type
   which have links to the target resource type.
   """
-  def link_source_ids(source_type, target_type) do
+  def linked_source_ids(source_type, target_type) do
     "#{source_type}:*:links:#{target_type}"
     |> Redix.keys!()
     |> Enum.map(&source_id/1)
