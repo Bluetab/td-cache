@@ -142,7 +142,7 @@ defmodule TdCache.LinkCacheTest do
       assert Enum.any?(links, &(&1.id == "#{id2}"))
     end
 
-    test "linked_source_ids returns a map with linked entry count by source id" do
+    test "linked_source_ids returns a MapSet containing the ids of the specified resource type" do
       for target_id <- 42..45 do
         put_link(%{source_id: 123, target_id: target_id, source_type: "bar", target_type: "foo"})
       end
