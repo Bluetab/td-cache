@@ -26,6 +26,14 @@ defmodule TdCache.Permissions do
     has_permission?(session_id, String.to_atom(permission), resource_type, resource_id)
   end
 
+  def has_permission?(session_id, permission, "domain", domain_ids) when is_list(domain_ids) do
+    domain_ids
+    |> Enum.map(&TaxonomyCache.get_parent_ids(&1, true))
+    |> List.flatten()
+    |> Enum.uniq()
+    |> Enum.any?(&has_resource_permission?(session_id, permission, "domain", &1))
+  end
+
   def has_permission?(session_id, permission, "domain", domain_id) do
     domain_id
     |> TaxonomyCache.get_parent_ids(true)

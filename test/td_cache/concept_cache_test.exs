@@ -18,6 +18,13 @@ defmodule TdCache.ConceptCacheTest do
       updated_at: DateTime.utc_now()
     }
 
+    shared_to = %{
+      id: random_id(),
+      name: "bar",
+      parent_ids: [random_id(), random_id()],
+      updated_at: DateTime.utc_now()
+    }
+
     concept = %{
       id: random_id(),
       type: "mytemp",
@@ -27,12 +34,14 @@ defmodule TdCache.ConceptCacheTest do
     }
 
     {:ok, _} = DomainCache.put(domain)
+    {:ok, _} = DomainCache.put(shared_to)
 
     Redix.command(["DEL", @stream, "business_concept:ids:active", "business_concept:ids:inactive"])
 
     on_exit(fn ->
       ConceptCache.delete(concept.id)
       DomainCache.delete(domain.id)
+      DomainCache.delete(shared_to.id)
 
       Redix.command([
         "DEL",
@@ -45,7 +54,7 @@ defmodule TdCache.ConceptCacheTest do
       ])
     end)
 
-    {:ok, concept: concept, domain: domain}
+    {:ok, concept: concept, domain: domain, shared_to: shared_to}
   end
 
   describe "ConceptCache" do
@@ -65,6 +74,7 @@ defmodule TdCache.ConceptCacheTest do
       assert c.link_count == 0
       assert c.rule_count == 0
       assert c.concept_count == 0
+      assert c.shared_to_ids == []
     end
 
     test "get/1 caches a concept entry locally and put/1 evicts it", context do
@@ -251,6 +261,14 @@ defmodule TdCache.ConceptCacheTest do
 
     {:ok, ["OK", "OK", 0, 0, 0, 1]} = ConceptCache.put(concept)
     {:ok, 0} = ConceptCache.member_confidential_ids(id)
+  end
+
+  test "puts concept with shared domain ids", context do
+    %{id: shared_id, name: name} = shared_to = context[:shared_to]
+    %{id: id} = concept = Map.put(context[:concept], :shared_to_ids, [shared_to.id])
+
+    {:ok, ["OK", "OK", 1, 0, 1, 0]} = ConceptCache.put(concept)
+    {:ok, %{shared_to: [%{id: ^shared_id, name: ^name}]}} = ConceptCache.get(id)
   end
 
   defp random_id, do: :rand.uniform(100_000_000)
