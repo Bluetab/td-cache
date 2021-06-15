@@ -48,7 +48,7 @@ defmodule TdCache.LinkCache do
     |> Enum.sort()
   end
 
-  defp source_id(key) do
+  defp source_id(key) when is_binary(key) do
     key
     |> String.split(":")
     |> Enum.at(1)
@@ -250,8 +250,8 @@ defmodule TdCache.LinkCache do
   end
 
   defp do_delete_link(id, [source, target], opts) do
-    [source_type, _source_id] = String.split(source, ":")
-    [target_type, _target_id] = String.split(target, ":")
+    source_type = extract_type(source)
+    target_type = extract_type(target)
 
     commands = [
       ["SREM", "#{source}:links", "link:#{id}"],
@@ -351,10 +351,10 @@ defmodule TdCache.LinkCache do
     String.replace_suffix(key, sufix, "")
   end
 
-  defp extract_type(key) do
+  defp extract_type(key) when is_binary(key) do
     key
-    |> String.split(":")
-    |> hd
+    |> String.split(":", parts: 2)
+    |> hd()
   end
 
   defp create_event({target_type, target_key, link_key}, event, source_key) do
@@ -391,7 +391,7 @@ defmodule TdCache.LinkCache do
       [{source, tags, id}, {target, tags, id}]
     end)
     |> Enum.reject(fn {resource_key, _tags, _id} -> resource_key == key end)
-    |> Enum.map(fn {resource_key, tags, id} -> {String.split(resource_key, ":"), tags, id} end)
+    |> Enum.map(fn {resource_key, tags, id} -> {extract_type(resource_key), tags, id} end)
     |> Enum.map(&read_source/1)
     |> Enum.filter(& &1)
   end
