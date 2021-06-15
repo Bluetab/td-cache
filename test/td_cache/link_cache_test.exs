@@ -142,7 +142,7 @@ defmodule TdCache.LinkCacheTest do
       assert Enum.any?(links, &(&1.id == "#{id2}"))
     end
 
-    test "link_count_map returns a map with linked entry count by source id" do
+    test "linked_source_ids returns a MapSet containing the ids of the specified resource type" do
       for target_id <- 42..45 do
         put_link(%{source_id: 123, target_id: target_id, source_type: "bar", target_type: "foo"})
       end
@@ -150,20 +150,10 @@ defmodule TdCache.LinkCacheTest do
       put_link(%{source_type: "foo", source_id: 42, target_type: "bar", target_id: 99})
       put_link(%{source_type: "foo", source_id: 42, target_type: "baz", target_id: 99})
 
-      assert LinkCache.link_count_map("xxx", "yyy") == %{}
-      assert LinkCache.link_count_map("foo", "baz") == %{42 => 1}
-
-      assert LinkCache.link_count_map("foo", "bar") == %{
-               42 => 2,
-               43 => 1,
-               44 => 1,
-               45 => 1
-             }
-
-      assert LinkCache.link_count_map("bar", "foo") == %{
-               99 => 1,
-               123 => 4
-             }
+      assert LinkCache.linked_source_ids("xxx", "yyy") == []
+      assert LinkCache.linked_source_ids("foo", "baz") == [42]
+      assert LinkCache.linked_source_ids("foo", "bar") == [42, 43, 44, 45]
+      assert LinkCache.linked_source_ids("bar", "foo") == [99, 123]
     end
   end
 

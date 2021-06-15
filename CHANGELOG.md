@@ -6,6 +6,12 @@
 
 - [TD-3447] Check permission over a list of domains
 
+## [4.22.0] 2021-06-07
+
+### Changed
+
+- [TD-3837] `LinkCache.linked_source_ids/2` replaces `LinkCache.link_count_map/2`
+
 ## [4.20.1] 2021-05-13
 
 ### Added

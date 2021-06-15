@@ -105,7 +105,7 @@ defmodule TdCache.Permissions do
       |> Enum.filter(fn {bit, _} -> bit == 1 end)
       |> Enum.map(fn {_, perm} -> perm end)
 
-    [_, _, resource_type, resource_id] = key |> String.split(":")
+    [_, _, resource_type, resource_id] = key |> String.split(":", parts: 4)
 
     %{
       resource_type: resource_type,
