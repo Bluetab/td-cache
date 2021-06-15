@@ -90,13 +90,6 @@ defmodule TdCache.ConceptCache do
   end
 
   @doc """
-  Reads confidential concept ids (as a list of strings) from cache.
-  """
-  def confidential_ids do
-    GenServer.call(__MODULE__, :confidential_ids)
-  end
-
-  @doc """
   Deletes cache entries relating to a given concept id.
   """
   def delete(id) do
@@ -104,10 +97,19 @@ defmodule TdCache.ConceptCache do
   end
 
   @doc """
+  Returns true if the specified id is confidential, false otherwise.
+  """
+  def is_confidential?(id) do
+    case member_confidential_ids(id) do
+      {:ok, n} -> n > 0
+    end
+  end
+
+  @doc """
   Verifies if id is member of confidential ids set.
   """
   def member_confidential_ids(id) do
-    GenServer.call(__MODULE__, {:member, :confidential_ids, id})
+    GenServer.call(__MODULE__, {:member_confidential_ids, id})
   end
 
   ## Callbacks
@@ -171,19 +173,13 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call(:confidential_ids, _from, state) do
-    ids = read_confidential_ids()
-    {:reply, {:ok, ids}, state}
-  end
-
-  @impl true
   def handle_call({:delete, id}, _from, state) do
     reply = delete_concept(id)
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:member, :confidential_ids, id}, _from, state) do
+  def handle_call({:member_confidential_ids, id}, _from, state) do
     reply = is_member_confidential_ids?(id)
     {:reply, {:ok, reply}, state}
   end
@@ -346,11 +342,7 @@ defmodule TdCache.ConceptCache do
   defp read_active_ids do
     ["SMEMBERS", @active_ids]
     |> Redix.command!()
-  end
-
-  def read_confidential_ids do
-    ["SMEMBERS", @confidential_ids]
-    |> Redix.command!()
+    |> Enum.map(&String.to_integer/1)
   end
 
   defp update_active_ids(ids) do

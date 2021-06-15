@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.23.0] 2021-06-15
+
+### Added
+
+- [TD-3842] `ConceptCache.is_confidential?/1` checks whether a specified id is confidential
+
+### Removed
+
+- [TD-3842] `ConceptCache.confidential_ids/0` is no longer used
+
 ## [4.22.1] 2021-06-15
 
 ### Added
