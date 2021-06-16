@@ -4,7 +4,7 @@
 
 ### Added
 
-- [TD-3720] New permission `manage_structure_domain`
+- [TD-3720] New permission `manage_structures_domain`
 
 ## [4.22.1] 2021-06-15
 

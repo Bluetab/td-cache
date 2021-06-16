@@ -60,7 +60,7 @@ defmodule TdCache.PermissionsConfig do
     :manage_configurations,
     :profile_structures,
     :link_data_structure_tag,
-    :manage_structure_domain
+    :manage_structures_domain
   ]
 
   def permissions, do: @permissions
