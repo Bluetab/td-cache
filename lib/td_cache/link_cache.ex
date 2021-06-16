@@ -391,7 +391,9 @@ defmodule TdCache.LinkCache do
       [{source, tags, id}, {target, tags, id}]
     end)
     |> Enum.reject(fn {resource_key, _tags, _id} -> resource_key == key end)
-    |> Enum.map(fn {resource_key, tags, id} -> {extract_type(resource_key), tags, id} end)
+    |> Enum.map(fn {resource_key, tags, id} ->
+      {String.split(resource_key, parts: 2), tags, id}
+    end)
     |> Enum.map(&read_source/1)
     |> Enum.filter(& &1)
   end
