@@ -19,7 +19,14 @@ defmodule TdCache.ConceptCache do
   @confidential_ids "business_concept:ids:confidential"
   @inactive_ids "business_concept:ids:inactive"
   @keys "business_concept:keys"
-  @props [:name, :domain_id, :business_concept_version_id, :current_version, :type]
+  @props [
+    :name,
+    :domain_id,
+    :business_concept_version_id,
+    :current_version,
+    :type,
+    :shared_to_ids
+  ]
 
   ## Client API
 
@@ -218,6 +225,7 @@ defmodule TdCache.ConceptCache do
         {:ok, rule_count} = RuleCache.count(concept_key)
         {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
         {:ok, concept_count} = LinkCache.count(concept_key, "business_concept")
+        {:ok, shared_to} = read_shared_to(m)
 
         m
         |> Map.put(:id, id)
@@ -225,6 +233,7 @@ defmodule TdCache.ConceptCache do
         |> Map.put(:link_count, link_count)
         |> Map.put(:concept_count, concept_count)
         |> Map.put(:content, content || %{})
+        |> Map.put(:shared_to, shared_to)
     end
   end
 
@@ -236,14 +245,45 @@ defmodule TdCache.ConceptCache do
     {:ok, %{}}
   end
 
-  defp concept_entry_to_map(nil), do: nil
-
-  defp concept_entry_to_map(%{domain_id: domain_id} = concept) when not is_nil(domain_id) do
-    Map.put(concept, :domain, DomainCache.get!(domain_id))
+  defp read_shared_to(%{shared_to_ids: shared_to_ids}) do
+    {:ok, Enum.map(shared_to_ids, &DomainCache.get!(&1))}
   end
 
+  defp read_shared_to(_) do
+    {:ok, []}
+  end
+
+  defp concept_entry_to_map(nil), do: nil
+
   defp concept_entry_to_map(%{} = concept) do
-    Map.put(concept, :domain, nil)
+    domain = get_domain(Map.get(concept, :domain_id))
+    shared_to_ids = get_shared_to_ids(Map.get(concept, :shared_to_ids))
+
+    concept
+    |> Map.put(:domain, domain)
+    |> Map.put(:shared_to_ids, shared_to_ids)
+  end
+
+  defp get_domain(domain_id) do
+    case domain_id do
+      nil -> nil
+      _ -> DomainCache.get!(domain_id)
+    end
+  end
+
+  defp get_shared_to_ids(shared_to_ids) do
+    case shared_to_ids do
+      "" ->
+        []
+
+      nil ->
+        []
+
+      _ ->
+        shared_to_ids
+        |> String.split(",")
+        |> Enum.map(&String.to_integer/1)
+    end
   end
 
   defp delete_concept(id) do
@@ -270,6 +310,13 @@ defmodule TdCache.ConceptCache do
   end
 
   defp put_concept(%{id: id} = concept) do
+    shared_to_ids =
+      concept
+      |> Map.get(:shared_to_ids, [])
+      |> Enum.join(",")
+
+    concept = Map.put(concept, :shared_to_ids, shared_to_ids)
+
     commands = [
       ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
       [

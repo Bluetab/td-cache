@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.22.1] 2021-06-15
+
+### Added
+
+- [TD-3447] Check permission over a list of domains
+
 ## [4.22.0] 2021-06-07
 
 ### Changed
