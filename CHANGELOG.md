@@ -6,6 +6,12 @@
 
 - [TD-3720] New permission `manage_structures_domain`
 
+## [4.23.0] 2021-06-17
+
+### Added
+
+- [TD-3522] Add permissions for Structure Notes management
+
 ## [4.22.1] 2021-06-15
 
 ### Added

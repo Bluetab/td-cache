@@ -60,6 +60,17 @@ defmodule TdCache.PermissionsConfig do
     :manage_configurations,
     :profile_structures,
     :link_data_structure_tag,
+    :create_structure_note,
+    :edit_structure_note,
+    :send_structure_note_to_approval,
+    :reject_structure_note,
+    :unreject_structure_note,
+    :deprecate_structure_note,
+    :publish_structure_note,
+    :delete_structure_note,
+    :view_structure_note,
+    :view_structure_note_history,
+    :publish_structure_note_from_draft
     :manage_structures_domain
   ]
 
