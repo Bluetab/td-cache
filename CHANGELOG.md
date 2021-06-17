@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3720] New permission `manage_structures_domain`
+
 ## [4.23.0] 2021-06-17
 
 ### Added
