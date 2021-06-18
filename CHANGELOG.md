@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.23.0] 2021-06-15
+## [4.23.2] 2021-06-18
 
 ### Added
 
@@ -9,6 +9,18 @@
 ### Removed
 
 - [TD-3842] `ConceptCache.confidential_ids/0` is no longer used
+
+## [4.23.1]
+
+### Added
+
+- [TD-3720] New permission `manage_structures_domain`
+
+## [4.23.0] 2021-06-17
+
+### Added
+
+- [TD-3522] Add permissions for Structure Notes management
 
 ## [4.22.1] 2021-06-15
 
