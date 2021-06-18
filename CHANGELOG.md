@@ -10,7 +10,7 @@
 
 - [TD-3842] `ConceptCache.confidential_ids/0` is no longer used
 
-## [4.23.1]
+## [4.23.1] 2021-06-17
 
 ### Added
 
