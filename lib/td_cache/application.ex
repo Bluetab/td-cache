@@ -36,7 +36,10 @@ defmodule TdCache.Application do
         []
 
       config ->
-        [{TdCache.EventStream, Keyword.merge([redis_host: redis_host, port: port, password: password], config)}]
+        [
+          {TdCache.EventStream,
+           Keyword.merge([redis_host: redis_host, port: port, password: password], config)}
+        ]
     end
   end
 

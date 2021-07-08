@@ -1,10 +1,18 @@
 # Changelog
 
+## [4.24.0] 2021-07-08
+
+### Added
+
+- [TD-3894] `UserCache.id_to_email_map/0` returns a map of user ids with email
+  addresses
+
 ## [4.23.2] 2021-06-18
 
 ### Added
 
-- [TD-3842] `ConceptCache.is_confidential?/1` checks whether a specified id is confidential
+- [TD-3842] `ConceptCache.is_confidential?/1` checks whether a specified id is
+  confidential
 
 ### Removed
 

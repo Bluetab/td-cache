@@ -6,15 +6,7 @@ defmodule TdCache.UserCacheTest do
   doctest TdCache.UserCache
 
   setup do
-    users =
-      0..10
-      |> Enum.map(fn _ -> random_user() end)
-
-    on_exit(fn ->
-      users
-      |> Enum.map(& &1.id)
-      |> Enum.each(&UserCache.delete/1)
-    end)
+    users = Enum.map(0..10, fn _ -> random_user() end)
 
     {:ok, users: users}
   end
@@ -73,10 +65,28 @@ defmodule TdCache.UserCacheTest do
     assert not Redix.exists?("user:#{user.id}")
   end
 
-  defp random_user do
-    id = random_id()
-    %{id: id, full_name: "user #{id}", email: "user#{id}@foo.bar"}
+  describe "id_to_email_map/0" do
+    test "returns a map with ids as keys and emails as values", %{users: users} do
+      for user <- users do
+        UserCache.put(user)
+      end
+
+      assert %{} = map = UserCache.id_to_email_map()
+      assert Enum.count(map) == Enum.count(users)
+    end
+
+    test "ignores users without email" do
+      random_user()
+      |> Map.delete(:email)
+      |> UserCache.put()
+
+      assert UserCache.id_to_email_map() == %{}
+    end
   end
 
-  defp random_id, do: :rand.uniform(100_000_000)
+  defp random_user do
+    id = System.unique_integer([:positive])
+    on_exit(fn -> UserCache.delete(id) end)
+    %{id: id, full_name: "user #{id}", email: "user#{id}@foo.bar"}
+  end
 end

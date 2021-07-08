@@ -29,6 +29,17 @@ defmodule TdCache.UserCache do
     end
   end
 
+  def id_to_email_map do
+    with {:ok, users} <- list() do
+      users
+      |> Enum.flat_map(fn
+        %{id: id, email: email} -> [{id, email}]
+        _ -> []
+      end)
+      |> Map.new()
+    end
+  end
+
   def get(id) do
     GenServer.call(__MODULE__, {:get, id})
   end
@@ -109,12 +120,8 @@ defmodule TdCache.UserCache do
 
   defp read_user(id) do
     case Redix.read_map("user:#{id}") do
-      {:ok, nil} ->
-        nil
-
-      {:ok, user} ->
-        user
-        |> Map.put(:id, id)
+      {:ok, nil} -> nil
+      {:ok, user} -> Map.put(user, :id, id)
     end
   end
 
