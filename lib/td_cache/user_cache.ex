@@ -33,7 +33,7 @@ defmodule TdCache.UserCache do
     with {:ok, users} <- list() do
       users
       |> Enum.flat_map(fn
-        %{id: id, email: email} -> [{id, email}]
+        %{id: id, email: email} when is_binary(email) -> [{id, email}]
         _ -> []
       end)
       |> Map.new()
@@ -134,7 +134,8 @@ defmodule TdCache.UserCache do
 
   defp put_user(%{id: id, full_name: full_name} = user) do
     Redix.transaction_pipeline([
-      ["HMSET", "user:#{id}", Map.take(user, @props)],
+      ["DEL", "user:#{id}"],
+      ["HMSET", "user:#{id}", get_props(user)],
       ["SADD", @ids, "#{id}"],
       ["HSET", @name_to_id_key, full_name, id]
     ])
@@ -142,9 +143,21 @@ defmodule TdCache.UserCache do
 
   defp put_user(%{id: id} = user) do
     Redix.transaction_pipeline([
-      ["HMSET", "user:#{id}", Map.take(user, @props)],
+      ["DEL", "user:#{id}"],
+      ["HMSET", "user:#{id}", get_props(user)],
       ["SADD", @ids, "#{id}"]
     ])
+  end
+
+  defp get_props(%{} = user) do
+    user
+    |> Map.take(@props)
+    |> Enum.reject(fn
+      {:email, nil} -> true
+      {:email, ""} -> true
+      _ -> false
+    end)
+    |> Map.new()
   end
 
   defp delete_user(id) do
