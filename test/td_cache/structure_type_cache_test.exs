@@ -4,7 +4,12 @@ defmodule TdCache.StructureTypeCacheTest do
   doctest TdCache.StructureTypeCache
 
   setup do
-    structure_type = %{id: :rand.uniform(100_000_000), structure_type: "doc", template_id: 1, translation: "docu"}
+    structure_type = %{
+      id: :rand.uniform(100_000_000),
+      structure_type: "doc",
+      template_id: 1,
+      translation: "docu"
+    }
 
     on_exit(fn ->
       StructureTypeCache.delete(structure_type.id)

@@ -106,6 +106,7 @@ defmodule TdCache.Redix.Stream do
   def delete_events(stream, event_ids) do
     Redix.command!(["XDEL", stream | event_ids])
   end
+
   def delete_if_empty(stream) do
     case Redix.command!(["XLEN", stream]) do
       0 -> Redix.command!(["DEL", stream])

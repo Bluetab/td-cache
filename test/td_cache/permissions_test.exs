@@ -42,7 +42,8 @@ defmodule TdCache.PermissionsTest do
       ])
     end)
 
-    {:ok, concept: concept, domain: domain, ingest: ingest, parent: parent, acl_entries: acl_entries}
+    {:ok,
+     concept: concept, domain: domain, ingest: ingest, parent: parent, acl_entries: acl_entries}
   end
 
   test "resolves cached session permissions", %{
