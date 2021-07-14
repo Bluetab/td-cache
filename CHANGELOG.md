@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased] 
+
+### Added
+
+- [TD-3878] domain id to structures cache
+
 ## [4.24.0] 2021-07-09
 
 ### Added
