@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3873] New permission `share_with_domain`
+
 ## [4.24.0] 2021-07-09
 
 ### Added
