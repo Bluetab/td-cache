@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3945] New permissions for view and manage grants
+
 ## [4.24.0] 2021-07-09
 
 ### Added
