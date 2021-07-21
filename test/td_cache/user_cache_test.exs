@@ -13,11 +13,24 @@ defmodule TdCache.UserCacheTest do
 
   test "put returns OK", context do
     [user | _] = context[:users]
-    assert {:ok, [_, "OK", 1, 1]} = UserCache.put(user)
+    assert {:ok, [_, "OK", 1, 1, 1]} = UserCache.put(user)
   end
 
   test "put without full name returns OK", context do
     [user | _] = context[:users]
+    user = user |> Map.delete(:full_name)
+    assert {:ok, [_, "OK", 1, 1]} = UserCache.put(user)
+  end
+
+  test "put without user name returns OK", context do
+    [user | _] = context[:users]
+    user = user |> Map.delete(:user_name)
+    assert {:ok, [_, "OK", 1, 1]} = UserCache.put(user)
+  end
+
+  test "put without user and full name returns OK", context do
+    [user | _] = context[:users]
+    user = user |> Map.delete(:user_name)
     user = user |> Map.delete(:full_name)
     assert {:ok, [_, "OK", 1]} = UserCache.put(user)
   end
@@ -25,7 +38,7 @@ defmodule TdCache.UserCacheTest do
   test "put without email returns OK", context do
     [user | _] = context[:users]
     user = user |> Map.delete(:email)
-    assert {:ok, [_, "OK", 1, 1]} = UserCache.put(user)
+    assert {:ok, [_, "OK", 1, 1, 1]} = UserCache.put(user)
   end
 
   test "list returns all users", %{users: users} do
@@ -51,6 +64,13 @@ defmodule TdCache.UserCacheTest do
     [user | _] = context[:users]
     UserCache.put(user)
     {:ok, u} = UserCache.get_by_name(user.full_name)
+    assert u == Map.take(user, [:user_name, :full_name, :email, :id])
+  end
+
+  test "get_by_user_name returns a map with user_name, full_name and email", context do
+    [user | _] = context[:users]
+    UserCache.put(user)
+    {:ok, u} = UserCache.get_by_user_name(user.user_name)
     assert u == Map.take(user, [:user_name, :full_name, :email, :id])
   end
 
@@ -87,6 +107,12 @@ defmodule TdCache.UserCacheTest do
   defp random_user do
     id = System.unique_integer([:positive])
     on_exit(fn -> UserCache.delete(id) end)
-    %{id: id, full_name: "user #{id}", email: "user#{id}@foo.bar"}
+
+    %{
+      id: id,
+      full_name: "user #{id}",
+      user_name: "user_name#{id}",
+      email: "user#{id}@foo.bar"
+    }
   end
 end
