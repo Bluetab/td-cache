@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.25.1] 2021-07-22
+
+### Added
+
+- [TD-3947] `UserCache.get_by_user_name` return a user by the user_name
+
 ## [4.25.0] 2021-07-20
 
 ### Added
