@@ -9,6 +9,7 @@ defmodule TdCache.UserCache do
   @ids "users:ids"
   @props [:user_name, :full_name, :email]
   @name_to_id_key "users:name_to_id"
+  @user_name_to_id_key "users:user_name_to_id"
 
   ## Client API
 
@@ -55,6 +56,17 @@ defmodule TdCache.UserCache do
     end
   end
 
+  def get_by_user_name(user_name) do
+    GenServer.call(__MODULE__, {:user_name, user_name})
+  end
+
+  def get_by_user_name!(user_name) do
+    case get_by_user_name(user_name) do
+      {:ok, user} -> user
+      error -> error
+    end
+  end
+
   def put(user) do
     GenServer.call(__MODULE__, {:put, user})
   end
@@ -85,6 +97,12 @@ defmodule TdCache.UserCache do
   @impl true
   def handle_call({:name, name}, _from, state) do
     user = read_by_name(name)
+    {:reply, {:ok, user}, state}
+  end
+
+  @impl true
+  def handle_call({:user_name, user_name}, _from, state) do
+    user = read_by_user_name(user_name)
     {:reply, {:ok, user}, state}
   end
 
@@ -132,22 +150,35 @@ defmodule TdCache.UserCache do
     end
   end
 
-  defp put_user(%{id: id, full_name: full_name} = user) do
-    Redix.transaction_pipeline([
-      ["DEL", "user:#{id}"],
-      ["HMSET", "user:#{id}", get_props(user)],
-      ["SADD", @ids, "#{id}"],
-      ["HSET", @name_to_id_key, full_name, id]
-    ])
+  defp read_by_user_name(user_name) do
+    case Redix.command!(["HGET", @user_name_to_id_key, user_name]) do
+      nil -> nil
+      id -> read_user(id)
+    end
   end
 
   defp put_user(%{id: id} = user) do
-    Redix.transaction_pipeline([
+    [
       ["DEL", "user:#{id}"],
       ["HMSET", "user:#{id}", get_props(user)],
       ["SADD", @ids, "#{id}"]
-    ])
+    ]
+    |> add_full_name(user)
+    |> add_user_name(user)
+    |> Redix.transaction_pipeline()
   end
+
+  defp add_full_name(pipeline, %{id: id, full_name: full_name}) do
+    pipeline ++ [["HSET", @name_to_id_key, full_name, id]]
+  end
+
+  defp add_full_name(pipeline, _), do: pipeline
+
+  defp add_user_name(pipeline, %{id: id, user_name: user_name}) do
+    pipeline ++ [["HSET", @user_name_to_id_key, user_name, id]]
+  end
+
+  defp add_user_name(pipeline, _), do: pipeline
 
   defp get_props(%{} = user) do
     user

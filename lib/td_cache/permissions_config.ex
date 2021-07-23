@@ -71,7 +71,10 @@ defmodule TdCache.PermissionsConfig do
     :view_structure_note,
     :view_structure_note_history,
     :publish_structure_note_from_draft,
-    :manage_structures_domain
+    :manage_structures_domain,
+    :view_grants,
+    :manage_grants,
+    :share_with_domain
   ]
 
   def permissions, do: @permissions

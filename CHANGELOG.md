@@ -1,10 +1,27 @@
 # Changelog
 
-## [Unreleased] 
+## [4.25.3] 2021-07-23
 
 ### Added
 
 - [TD-3878] domain id to structures cache
+## [4.25.2] 2021-07-22
+
+### Added
+
+- [TD-3873] New permission `share_with_domain`
+
+## [4.25.1] 2021-07-22
+
+### Added
+
+- [TD-3947] `UserCache.get_by_user_name` return a user by the user_name
+
+## [4.25.0] 2021-07-20
+
+### Added
+
+- [TD-3945] New permissions for view and manage grants
 
 ## [4.24.0] 2021-07-09
 
