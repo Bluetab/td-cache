@@ -8,10 +8,14 @@ defmodule TdCache.DomainCacheTest do
   doctest TdCache.DomainCache
 
   setup do
-    parent = %{id: :rand.uniform(100_000_000), name: "parent", updated_at: DateTime.utc_now()}
+    parent = %{
+      id: System.unique_integer([:positive]),
+      name: "parent",
+      updated_at: DateTime.utc_now()
+    }
 
     domain = %{
-      id: :rand.uniform(100_000_000),
+      id: System.unique_integer([:positive]),
       name: "child",
       parent_ids: [parent.id],
       updated_at: DateTime.utc_now()

@@ -5,7 +5,7 @@ defmodule TdCache.StructureTypeCacheTest do
 
   setup do
     structure_type = %{
-      id: :rand.uniform(100_000_000),
+      id: System.unique_integer([:positive]),
       structure_type: "doc",
       template_id: 1,
       translation: "docu"

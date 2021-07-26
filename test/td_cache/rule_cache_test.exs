@@ -6,10 +6,10 @@ defmodule TdCache.RuleCacheTest do
   doctest TdCache.RuleCache
 
   setup do
-    concept = %{id: :rand.uniform(100_000_000), name: "foo"}
+    concept = %{id: System.unique_integer([:positive]), name: "foo"}
 
     rule = %{
-      id: :rand.uniform(100_000_000),
+      id: System.unique_integer([:positive]),
       active: true,
       updated_at: DateTime.utc_now(),
       business_concept_id: concept.id,

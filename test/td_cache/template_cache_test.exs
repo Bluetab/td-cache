@@ -111,7 +111,7 @@ defmodule TdCache.TemplateCacheTest do
   end
 
   defp random_template do
-    id = random_id()
+    id = System.unique_integer([:positive])
 
     field_group = %{
       "name" => "group_name",
@@ -127,6 +127,4 @@ defmodule TdCache.TemplateCacheTest do
       updated_at: DateTime.utc_now()
     }
   end
-
-  defp random_id, do: :rand.uniform(100_000_000)
 end

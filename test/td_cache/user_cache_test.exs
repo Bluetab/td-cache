@@ -13,63 +13,63 @@ defmodule TdCache.UserCacheTest do
 
   test "put returns OK", context do
     [user | _] = context[:users]
-    assert {:ok, [_, "OK", 1, 1, 1]} = UserCache.put(user)
+    assert {:ok, [_, "OK", 1, 1, 1]} = put_user(user)
   end
 
   test "put without full name returns OK", context do
     [user | _] = context[:users]
     user = user |> Map.delete(:full_name)
-    assert {:ok, [_, "OK", 1, 1]} = UserCache.put(user)
+    assert {:ok, [_, "OK", 1, 1]} = put_user(user)
   end
 
   test "put without user name returns OK", context do
     [user | _] = context[:users]
     user = user |> Map.delete(:user_name)
-    assert {:ok, [_, "OK", 1, 1]} = UserCache.put(user)
+    assert {:ok, [_, "OK", 1, 1]} = put_user(user)
   end
 
   test "put without user and full name returns OK", context do
     [user | _] = context[:users]
     user = user |> Map.delete(:user_name)
     user = user |> Map.delete(:full_name)
-    assert {:ok, [_, "OK", 1]} = UserCache.put(user)
+    assert {:ok, [_, "OK", 1]} = put_user(user)
   end
 
   test "put without email returns OK", context do
     [user | _] = context[:users]
     user = user |> Map.delete(:email)
-    assert {:ok, [_, "OK", 1, 1, 1]} = UserCache.put(user)
+    assert {:ok, [_, "OK", 1, 1, 1]} = put_user(user)
   end
 
   test "list returns all users", %{users: users} do
-    Enum.each(users, &UserCache.put/1)
+    Enum.each(users, &put_user/1)
     {:ok, res} = UserCache.list()
     assert Enum.count(res) == Enum.count(users)
   end
 
   test "map/0 returns a map of users", %{users: users} do
-    Enum.each(users, &UserCache.put/1)
+    Enum.each(users, &put_user/1)
     res = %{} = UserCache.map()
     assert res |> Map.keys() |> Enum.sort() == users |> Enum.map(& &1.id) |> Enum.sort()
   end
 
   test "get_user returns a map with user_name, full_name and email", context do
     [user | _] = context[:users]
-    UserCache.put(user)
+    put_user(user)
     {:ok, u} = UserCache.get(user.id)
     assert u == Map.take(user, [:user_name, :full_name, :email, :id])
   end
 
   test "get_by_name returns a map with user_name, full_name and email", context do
     [user | _] = context[:users]
-    UserCache.put(user)
+    put_user(user)
     {:ok, u} = UserCache.get_by_name(user.full_name)
     assert u == Map.take(user, [:user_name, :full_name, :email, :id])
   end
 
   test "get_by_user_name returns a map with user_name, full_name and email", context do
     [user | _] = context[:users]
-    UserCache.put(user)
+    put_user(user)
     {:ok, u} = UserCache.get_by_user_name(user.user_name)
     assert u == Map.take(user, [:user_name, :full_name, :email, :id])
   end
@@ -80,7 +80,7 @@ defmodule TdCache.UserCacheTest do
 
   test "delete_user deletes the user from cache", context do
     [user | _] = context[:users]
-    UserCache.put(user)
+    put_user(user)
     UserCache.delete(user.id)
     assert not Redix.exists?("user:#{user.id}")
   end
@@ -88,7 +88,7 @@ defmodule TdCache.UserCacheTest do
   describe "id_to_email_map/0" do
     test "returns a map with ids as keys and emails as values", %{users: users} do
       for user <- users do
-        UserCache.put(user)
+        put_user(user)
       end
 
       assert %{} = map = UserCache.id_to_email_map()
@@ -98,7 +98,7 @@ defmodule TdCache.UserCacheTest do
     test "ignores users without email" do
       random_user()
       |> Map.delete(:email)
-      |> UserCache.put()
+      |> put_user()
 
       assert UserCache.id_to_email_map() == %{}
     end
@@ -106,7 +106,6 @@ defmodule TdCache.UserCacheTest do
 
   defp random_user do
     id = System.unique_integer([:positive])
-    on_exit(fn -> UserCache.delete(id) end)
 
     %{
       id: id,
@@ -114,5 +113,10 @@ defmodule TdCache.UserCacheTest do
       user_name: "user_name#{id}",
       email: "user#{id}@foo.bar"
     }
+  end
+
+  defp put_user(%{id: id} = user) do
+    on_exit(fn -> UserCache.delete(id) end)
+    UserCache.put(user)
   end
 end

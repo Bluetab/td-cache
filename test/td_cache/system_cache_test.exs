@@ -5,7 +5,7 @@ defmodule TdCache.SystemCacheTest do
   doctest TdCache.SystemCache
 
   setup do
-    system = %{id: :rand.uniform(100_000_000), external_id: "foo", name: "bar"}
+    system = %{id: System.unique_integer([:positive]), external_id: "foo", name: "bar"}
 
     on_exit(fn ->
       SystemCache.delete(system.id)
