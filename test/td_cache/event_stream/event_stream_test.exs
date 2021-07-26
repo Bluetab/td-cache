@@ -14,6 +14,10 @@ defmodule TdCache.EventStream.Test do
       ]
     ]
 
+    on_exit(fn ->
+      TdCache.Redix.del!(["foo:events", "bar:events", "baz:events"])
+    end)
+
     {:ok, config: config}
   end
 

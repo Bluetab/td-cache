@@ -1,10 +1,17 @@
 # Changelog
 
+## [4.25.4] 2021-07-26
+
+### Fixed
+
+- `UserCache.delete/1` was not removing entry from `users:user_name_to_id`
+
 ## [4.25.3] 2021-07-23
 
 ### Added
 
-- [TD-3878] domain id to structures cache
+- [TD-3878] Added `domain_id` to structures cache
+
 ## [4.25.2] 2021-07-22
 
 ### Added

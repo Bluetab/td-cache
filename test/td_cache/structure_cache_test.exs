@@ -9,10 +9,10 @@ defmodule TdCache.StructureCacheTest do
   doctest TdCache.StructureCache
 
   setup do
-    system = %{id: :rand.uniform(100_000_000), external_id: "foo", name: "bar"}
+    system = %{id: System.unique_integer([:positive]), external_id: "foo", name: "bar"}
 
     structure = %{
-      id: :rand.uniform(100_000_000),
+      id: System.unique_integer([:positive]),
       name: "name",
       external_id: "ext_id",
       group: "group",
@@ -130,7 +130,7 @@ defmodule TdCache.StructureCacheTest do
   end
 
   defp create_link(structure_id) do
-    id = :rand.uniform(100_000_000)
+    id = System.unique_integer([:positive])
 
     on_exit(fn -> LinkCache.delete(id, publish: false) end)
 

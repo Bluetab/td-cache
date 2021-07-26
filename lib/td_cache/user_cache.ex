@@ -192,17 +192,18 @@ defmodule TdCache.UserCache do
   end
 
   defp delete_user(id) do
-    case Redix.command!(["HGET", "user:#{id}", :full_name]) do
-      nil ->
+    case Redix.command!(["HMGET", "user:#{id}", "full_name", "user_name"]) do
+      [nil, nil] ->
         Redix.transaction_pipeline([
           ["DEL", "user:#{id}"],
           ["SREM", @ids, "#{id}"]
         ])
 
-      name ->
+      [full_name, user_name] ->
         Redix.transaction_pipeline([
           ["DEL", "user:#{id}"],
-          ["HDEL", @name_to_id_key, name],
+          ["HDEL", @name_to_id_key, full_name],
+          ["HDEL", @user_name_to_id_key, user_name],
           ["SREM", @ids, "#{id}"]
         ])
     end

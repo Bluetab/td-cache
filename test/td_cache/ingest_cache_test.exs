@@ -56,13 +56,13 @@ defmodule TdCache.IngestCacheTest do
   end
 
   defp ingest_fixture do
-    id = :rand.uniform(100_000_000)
+    id = System.unique_integer([:positive])
 
     %{
       id: id,
-      domain_id: :rand.uniform(100_000_000),
+      domain_id: System.unique_integer([:positive]),
       name: "ingest #{id}",
-      ingest_version_id: :rand.uniform(100_000_000)
+      ingest_version_id: System.unique_integer([:positive])
     }
   end
 end

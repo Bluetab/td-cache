@@ -273,5 +273,5 @@ defmodule TdCache.ConceptCacheTest do
     {:ok, %{shared_to: [%{id: ^shared_id, name: ^name}]}} = ConceptCache.get(id)
   end
 
-  defp random_id, do: :rand.uniform(100_000_000)
+  defp random_id, do: System.unique_integer([:positive])
 end

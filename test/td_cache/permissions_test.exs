@@ -99,5 +99,5 @@ defmodule TdCache.PermissionsTest do
     |> Enum.map(&acl_entry(domain, user, &1))
   end
 
-  defp random_id, do: :rand.uniform(100_000_000)
+  defp random_id, do: System.unique_integer([:positive])
 end
