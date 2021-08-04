@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.26.0] 2021-0804
+
+### Removed
+
+- [TD-3952] `StructureTypeCache` is no longer used
+
 ## [4.25.4] 2021-07-26
 
 ### Fixed
