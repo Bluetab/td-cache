@@ -1,6 +1,12 @@
 # Changelog
 
-## [4.26.0] 2021-0804
+## [Unreleased]
+
+### Added
+
+- [TD-3982] New permission `create_grant_request`
+
+## [4.26.0] 2021-08-04
 
 ### Removed
 
