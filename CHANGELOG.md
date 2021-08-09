@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.26.2] 2021-08-09
+
+### Added
+
+- `DomainCache.external_id_to_id/1` to obtain the id of a domain with a given
+  `external_id`
+
 ## [4.26.1] 2021-08-09
 
 ### Added

@@ -6,6 +6,13 @@ defmodule TdCache.DomainCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
+  @props [:name, :parent_ids, :external_id, :updated_at]
+  @roots_key "domains:root"
+  @ids_to_names_key "domains:ids_to_names"
+  @ids_to_external_ids_key "domains:ids_to_external_ids"
+  @domain_keys "domain:keys"
+  @deleted_ids "domain:deleted_ids"
+
   ## Client API
 
   @doc """
@@ -62,6 +69,13 @@ defmodule TdCache.DomainCache do
     {:ok, map}
   end
 
+  def external_id_to_id(external_id) do
+    case get_domain_external_id_to_id_map() do
+      %{^external_id => domain_id} -> {:ok, domain_id}
+      _ -> :error
+    end
+  end
+
   @doc """
   Reads domain name to id map from cache.
   """
@@ -88,13 +102,6 @@ defmodule TdCache.DomainCache do
 
   ## Private functions
 
-  @props [:name, :parent_ids, :external_id, :updated_at]
-  @roots_key "domains:root"
-  @ids_to_names_key "domains:ids_to_names"
-  @ids_to_external_ids_key "domains:ids_to_external_ids"
-  @domain_keys "domain:keys"
-  @deleted_ids "domain:deleted_ids"
-
   defp read_domain(id) when is_binary(id) do
     id = String.to_integer(id)
     read_domain(id)
@@ -102,12 +109,8 @@ defmodule TdCache.DomainCache do
 
   defp read_domain(id) do
     case Redix.read_map("domain:#{id}") do
-      {:ok, nil} ->
-        nil
-
-      {:ok, domain} ->
-        domain
-        |> Map.put(:id, id)
+      {:ok, nil} -> nil
+      {:ok, domain} -> Map.put(domain, :id, id)
     end
   end
 
