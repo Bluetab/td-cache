@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.26.3] 2021-08-11
+
+### Added
+
+- `UserCache.exists?/1` determines whether a given `user_id` exists in the cache
+
 ## [4.26.2] 2021-08-09
 
 ### Added

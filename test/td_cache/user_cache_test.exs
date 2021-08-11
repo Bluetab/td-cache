@@ -85,6 +85,14 @@ defmodule TdCache.UserCacheTest do
     assert not Redix.exists?("user:#{user.id}")
   end
 
+  describe "exists?/1" do
+    test "returns true if user exists", %{users: [%{id: id1} = user, %{id: id2} | _]} do
+      put_user(user)
+      assert UserCache.exists?(id1)
+      refute UserCache.exists?(id2)
+    end
+  end
+
   describe "id_to_email_map/0" do
     test "returns a map with ids as keys and emails as values", %{users: users} do
       for user <- users do
