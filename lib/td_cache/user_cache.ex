@@ -45,6 +45,13 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:get, id})
   end
 
+  def exists?(user_id) do
+    case get(user_id) do
+      {:ok, %{id: ^user_id}} -> true
+      _ -> false
+    end
+  end
+
   def get_by_name(name) do
     GenServer.call(__MODULE__, {:name, name})
   end
