@@ -43,6 +43,12 @@ defmodule TdCache.AclCache do
     role_users
   end
 
+  def has_role?(resource_type, resource_id, role, user_id) do
+    key = create_acl_role_users_key(resource_type, resource_id, role)
+    Redix.command!(["SMEMBERS", key])
+    Redix.command!(["SISMEMBER", key, user_id]) == 1
+  end
+
   def set_acl_role_users(resource_type, resource_id, role, users) when is_list(users) do
     key = create_acl_role_users_key(resource_type, resource_id, role)
 

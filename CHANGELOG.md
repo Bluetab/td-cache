@@ -4,7 +4,9 @@
 
 ### Added
 
-- Permission `approve_grant_request`
+- [TD-4076] New permission `approve_grant_request`
+- `AclCache.has_role?/4` determines whether a given `user_id` has a role for a
+  specified resource
 
 ## [4.26.3] 2021-08-11
 
