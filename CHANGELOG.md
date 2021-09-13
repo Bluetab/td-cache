@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Permission `approve_grant_request`
+
 ## [4.26.3] 2021-08-11
 
 ### Added

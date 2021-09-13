@@ -75,7 +75,8 @@ defmodule TdCache.PermissionsConfig do
     :view_grants,
     :manage_grants,
     :share_with_domain,
-    :create_grant_request
+    :create_grant_request,
+    :approve_grant_request
   ]
 
   def permissions, do: @permissions
