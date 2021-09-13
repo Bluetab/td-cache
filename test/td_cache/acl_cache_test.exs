@@ -43,7 +43,9 @@ defmodule TdCache.AclCacheTest do
 
   test "set_acl_role_users returns Ok" do
     role = "role1"
-    assert {:ok, [_, 3]} = AclCache.set_acl_role_users(@resource_type, @resource_id, role, @user_ids)
+
+    assert {:ok, [_, 3]} =
+             AclCache.set_acl_role_users(@resource_type, @resource_id, role, @user_ids)
   end
 
   test "get_acl_role_users returns same value that was put" do

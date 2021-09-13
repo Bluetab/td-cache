@@ -5,8 +5,10 @@
 ### Added
 
 - [TD-4076] New permission `approve_grant_request`
-- `AclCache.has_role?/4` determines whether a given `user_id` has a role for a
+- `AclCache.has_role?/4` determines whether a `user_id` has a `role` for a
   specified resource
+- `TaxonomyCache.has_role?/4` determines whether a `user_id` has a `role` in
+  a specified `domain_id` or a parent domain
 
 ## [4.26.3] 2021-08-11
 

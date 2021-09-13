@@ -4,6 +4,7 @@ defmodule TdCache.TaxonomyCache do
   """
   use GenServer
 
+  alias TdCache.AclCache
   alias TdCache.DomainCache
 
   ## Client API
@@ -24,6 +25,10 @@ defmodule TdCache.TaxonomyCache do
 
   def get_parent_ids(id, with_self, opts) do
     GenServer.call(__MODULE__, {:parent_ids, id, with_self, opts})
+  end
+
+  def has_role?(domain_id, role, user_id, opts \\ []) do
+    GenServer.call(__MODULE__, {:has_role, domain_id, role, user_id, opts})
   end
 
   ## Callbacks
@@ -57,6 +62,27 @@ defmodule TdCache.TaxonomyCache do
   @impl true
   def handle_call({:parent_ids, id, with_self, opts}, _from, state) do
     reply = get_cache({:parent, id}, fn -> do_get_parent_ids(id, with_self) end, opts[:refresh])
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:has_role, domain_id, role, user_id, opts}, _from, state) do
+    parent_ids =
+      get_cache(
+        {:parent, domain_id},
+        fn -> do_get_parent_ids(domain_id, true) end,
+        opts[:refresh]
+      )
+
+    reply =
+      get_cache(
+        {:has_role, parent_ids, role, user_id},
+        fn ->
+          Enum.any?(parent_ids, &AclCache.has_role?("domain", &1, role, user_id))
+        end,
+        opts[:refresh]
+      )
+
     {:reply, reply, state}
   end
 
