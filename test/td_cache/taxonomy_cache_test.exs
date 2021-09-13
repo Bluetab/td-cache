@@ -1,9 +1,9 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
 
+  alias TdCache.AclCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
-  alias TdCache.AclCache
   alias TdCache.TaxonomyCache
 
   @role "test_role"
