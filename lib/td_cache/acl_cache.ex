@@ -49,17 +49,17 @@ defmodule TdCache.AclCache do
     Redix.command!(["SISMEMBER", key, user_id]) == 1
   end
 
-  def set_acl_role_users(resource_type, resource_id, role, users) when is_list(users) do
+  def set_acl_role_users(resource_type, resource_id, role, user_ids) when is_list(user_ids) do
     key = create_acl_role_users_key(resource_type, resource_id, role)
 
-    case users do
+    case user_ids do
       [] ->
         Redix.command(["DEL", key])
 
       _ ->
         Redix.transaction_pipeline([
           ["DEL", key],
-          ["SADD", key] ++ users
+          ["SADD", key] ++ user_ids
         ])
     end
   end
