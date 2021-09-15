@@ -9,6 +9,10 @@
   specified resource
 - `TaxonomyCache.has_role?/4` determines whether a `user_id` has a `role` in
   a specified `domain_id` or a parent domain
+- `AclCache.put_role_permissions/1`, `AclCache.get_permission_roles/1` to
+  determine which roles have a given permission
+- `AclCache.put_user_roles/2`, `AclCache.get_user_roles/1` to determine the
+  domain_ids in which a user has roles
 
 ## [4.26.3] 2021-08-11
 

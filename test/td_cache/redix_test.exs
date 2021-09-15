@@ -29,7 +29,8 @@ defmodule TdCache.RedixTest do
       end
 
       assert_raise ArgumentError, fn ->
-        Redix.to_integer_list!("1, 2, 3") # no spaces, please
+        # no spaces, please
+        Redix.to_integer_list!("1, 2, 3")
       end
     end
   end

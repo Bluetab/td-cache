@@ -6,15 +6,20 @@ defmodule TdCache.AclCacheTest do
 
   @resource_type "test_type"
   @resource_id 987_654_321
+  @user_id 987_654_321
   @roles ["role1", "role2", "role3"]
   @user_ids [123, 456, 789]
 
   setup do
     on_exit(fn ->
-      Redix.del!(["acl_roles:test_type:*", "acl_role_users:test_type:*"])
+      Redix.del!([
+        "acl_roles:test_type:*",
+        "acl_role_users:test_type:*",
+        "permission:foo:roles",
+        "permission:xxx:roles",
+        "user:#{@user_id}:roles"
+      ])
     end)
-
-    :ok
   end
 
   test "set_acl_roles returns Ok" do
@@ -81,6 +86,38 @@ defmodule TdCache.AclCacheTest do
       end
 
       refute AclCache.has_role?(@resource_type, @resource_id, role, 49)
+    end
+  end
+
+  describe "put_role_permissions/1 and get_premission_roles/1" do
+    test "creates a set of roles for each permission" do
+      roles_by_permission = %{
+        "xxx" => ["role1", "role2"],
+        "foo" => ["bar", "baz"]
+      }
+
+      assert {:ok, [0, 2, 0, 2]} = AclCache.put_role_permissions(roles_by_permission)
+
+      for {permission, roles} <- roles_by_permission, role <- roles do
+        assert Redix.command!(["SISMEMBER", "permission:#{permission}:roles", role]) == 1
+      end
+
+      for {permission, expected} <- roles_by_permission do
+        assert {:ok, actual} = AclCache.get_permission_roles(permission)
+        assert Enum.sort(actual) == Enum.sort(expected)
+      end
+    end
+  end
+
+  describe "put_user_roles/2 and get_user_roles/1" do
+    test "puts a hash with comma-separated ids as values and reads it back" do
+      domain_ids_by_role = %{
+        "role1" => [1, 2, 3],
+        "role2" => [4, 5, 6]
+      }
+
+      assert {:ok, [0, 2]} = AclCache.put_user_roles(@user_id, domain_ids_by_role)
+      assert {:ok, ^domain_ids_by_role} = AclCache.get_user_roles(@user_id)
     end
   end
 end
