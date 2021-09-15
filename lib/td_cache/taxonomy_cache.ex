@@ -6,6 +6,7 @@ defmodule TdCache.TaxonomyCache do
 
   alias TdCache.AclCache
   alias TdCache.DomainCache
+  alias TdCache.Redix
 
   ## Client API
 
@@ -109,7 +110,7 @@ defmodule TdCache.TaxonomyCache do
         parent_ids =
           domain
           |> Map.get(:parent_ids)
-          |> to_integer_list
+          |> Redix.to_integer_list!()
 
         Map.put(domain, :parent_ids, parent_ids)
     end
@@ -118,23 +119,13 @@ defmodule TdCache.TaxonomyCache do
   defp do_get_parent_ids(domain_id, false) do
     case DomainCache.prop(domain_id, :parent_ids) do
       {:ok, ""} -> []
-      {:ok, ids} -> to_integer_list(ids)
+      {:ok, ids} -> Redix.to_integer_list!(ids)
     end
   end
 
   defp do_get_parent_ids(domain_id, true) do
     [domain_id | do_get_parent_ids(domain_id, false)]
   end
-
-  defp to_integer_list(""), do: []
-
-  defp to_integer_list(ids) when is_binary(ids) do
-    ids
-    |> String.split(",")
-    |> Enum.map(&String.to_integer/1)
-  end
-
-  defp to_integer_list(_), do: []
 
   def get_name(domain_id) do
     {:ok, name} = DomainCache.prop(domain_id, :name)

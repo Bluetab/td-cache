@@ -1,6 +1,7 @@
 defmodule TdCache.Redix do
   @moduledoc """
-  A facade for Redix using a pool of connections.
+  A facade for Redix using a pool of connections, with some common utility
+  functions.
   """
 
   alias Redix
@@ -101,5 +102,18 @@ defmodule TdCache.Redix do
 
   def acquire_lock?(key, expiry_seconds) do
     command!(["SET", key, node(), "NX", "EX", expiry_seconds]) == "OK"
+  end
+
+  @spec to_integer_list!(nil | binary, binary) :: [integer]
+  def to_integer_list!(value, sep \\ ",")
+
+  def to_integer_list!(nil, _), do: []
+
+  def to_integer_list!("", _), do: []
+
+  def to_integer_list!(value, sep) when is_binary(value) do
+    value
+    |> String.split(sep)
+    |> Enum.map(&String.to_integer/1)
   end
 end
