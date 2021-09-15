@@ -20,8 +20,11 @@ defmodule TdCache.DomainCacheTest do
       external_id: "domain",
       name: "child",
       parent_ids: [parent.id],
-      updated_at: DateTime.utc_now()
+      updated_at: DateTime.utc_now(),
+      descendent_ids: [1, 2]
     }
+
+    parent = Map.put(parent, :descendent_ids, [domain.id])
 
     on_exit(fn ->
       DomainCache.delete(domain.id)
@@ -33,13 +36,17 @@ defmodule TdCache.DomainCacheTest do
   end
 
   describe "DomainCache" do
-    test "writes a domain entry in redis and reads it back", %{domain: %{id: id} = domain} do
+    test "writes a domain entry in redis and reads it back", %{
+      domain: %{id: id} = domain,
+      parent: %{id: parent_id}
+    } do
       {:ok, ["OK", 1, 1, 1, 0, 0]} = DomainCache.put(domain)
       {:ok, d} = DomainCache.get(id)
       assert not is_nil(d)
       assert d.id == id
       assert d.name == domain.name
-      assert d.parent_ids == Enum.join(domain.parent_ids, ",")
+      assert d.parent_ids == "#{parent_id}"
+      assert d.descendent_ids == "1,2"
       assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
       assert [%{event: "domain_created"}] = events
     end
