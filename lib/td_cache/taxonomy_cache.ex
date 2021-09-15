@@ -156,9 +156,9 @@ defmodule TdCache.TaxonomyCache do
     name
   end
 
-  def put_domain(%{} = domain) do
+  def put_domain(%{} = domain, opts \\ []) do
     delete_local_cache(Map.get(domain, :id))
-    DomainCache.put(domain)
+    DomainCache.put(domain, opts)
   end
 
   def delete_domain(domain_id) do

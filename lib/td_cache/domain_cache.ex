@@ -18,8 +18,8 @@ defmodule TdCache.DomainCache do
   @doc """
   Creates cache entries relating to a given domain.
   """
-  def put(domain) do
-    put_domain(domain)
+  def put(domain, opts \\ []) do
+    put_domain(domain, opts)
   end
 
   @doc """
@@ -167,17 +167,21 @@ defmodule TdCache.DomainCache do
     Redix.transaction_pipeline(commands)
   end
 
-  defp put_domain(%{id: id, updated_at: updated_at} = domain) do
+  defp put_domain(%{id: id, updated_at: updated_at} = domain, opts) do
     last_updated = Redix.command!(["HGET", "domain:#{id}", :updated_at])
 
     domain
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_domain(last_updated)
+    |> put_domain(last_updated, opts[:force])
   end
 
-  defp put_domain(%{updated_at: ts}, ts), do: {:ok, []}
+  defp put_domain(_, _), do: {:error, :empty}
 
-  defp put_domain(%{id: id, name: name} = domain, _ts) do
+  defp put_domain(%{updated_at: ts}, ts, false), do: {:ok, []}
+
+  defp put_domain(%{updated_at: ts}, ts, nil), do: {:ok, []}
+
+  defp put_domain(%{id: id, name: name} = domain, _ts, _force) do
     parent_ids = domain |> Map.get(:parent_ids, []) |> Enum.join(",")
     descendent_ids = domain |> Map.get(:descendent_ids, []) |> Enum.join(",")
     external_id = Map.get(domain, :external_id)
@@ -216,7 +220,7 @@ defmodule TdCache.DomainCache do
     {:ok, results}
   end
 
-  defp put_domain(_, _), do: {:error, :empty}
+  defp put_domain(_, _, _), do: {:error, :empty}
 
   defp read_map(collection) do
     case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do

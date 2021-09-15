@@ -25,6 +25,12 @@ defmodule TdCache.TaxonomyCacheTest do
     assert [%{event: "domain_created"}] = events
   end
 
+  test "put_domain forces refresh if specified", %{domain: domain} do
+    assert {:ok, ["OK", 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, []} = TaxonomyCache.put_domain(domain)
+    assert {:ok, ["OK", 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
+  end
+
   test "put_domain invalidates local cache", %{domain: %{id: id} = domain} do
     ConCache.put(:taxonomy, {:id, id}, :foo)
     ConCache.put(:taxonomy, {:parent, id}, :foo)
