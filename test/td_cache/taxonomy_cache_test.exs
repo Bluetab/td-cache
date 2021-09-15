@@ -65,7 +65,7 @@ defmodule TdCache.TaxonomyCacheTest do
     assert TaxonomyCache.get_parent_ids(domain.id, false) == []
   end
 
-  test "get_descendent_ids with self returns parent ids including domain_id", %{root: domain} do
+  test "get_descendent_ids with self returns descendent ids including domain_id", %{root: domain} do
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_descendent_ids(domain.id) == [domain.id | domain.descendent_ids]
   end
@@ -77,12 +77,16 @@ defmodule TdCache.TaxonomyCacheTest do
              domain.descendent_ids
   end
 
-  test "get_descendent_ids without self returns parent ids excluding domain_id", %{parent: domain} do
+  test "get_descendent_ids without self returns descendent ids excluding domain_id", %{
+    parent: domain
+  } do
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_parent_ids(domain.id, false) == domain.parent_ids
   end
 
-  test "get_descendent_ids when domain has no parents returns an empty list", %{domain: domain} do
+  test "get_descendent_ids when domain has no descendents returns an empty list", %{
+    domain: domain
+  } do
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_descendent_ids(domain.id, false) == []
   end
