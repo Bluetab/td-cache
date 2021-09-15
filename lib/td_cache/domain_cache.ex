@@ -6,7 +6,7 @@ defmodule TdCache.DomainCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
-  @props [:name, :parent_ids, :external_id, :updated_at]
+  @props [:name, :parent_ids, :external_id, :descendent_ids, :updated_at]
   @roots_key "domains:root"
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
@@ -179,8 +179,14 @@ defmodule TdCache.DomainCache do
 
   defp put_domain(%{id: id, name: name} = domain, _ts) do
     parent_ids = domain |> Map.get(:parent_ids, []) |> Enum.join(",")
+    descendent_ids = domain |> Map.get(:descendent_ids, []) |> Enum.join(",")
     external_id = Map.get(domain, :external_id)
-    domain = Map.put(domain, :parent_ids, parent_ids)
+
+    domain =
+      domain
+      |> Map.put(:parent_ids, parent_ids)
+      |> Map.put(:descendent_ids, descendent_ids)
+
     add_or_remove_root = if parent_ids == "", do: "SADD", else: "SREM"
 
     add_or_remove_external_id =

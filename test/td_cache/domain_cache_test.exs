@@ -20,8 +20,11 @@ defmodule TdCache.DomainCacheTest do
       external_id: "domain",
       name: "child",
       parent_ids: [parent.id],
-      updated_at: DateTime.utc_now()
+      updated_at: DateTime.utc_now(),
+      descendent_ids: []
     }
+
+    parent = Map.put(parent, :descendent_ids, [domain.id])
 
     on_exit(fn ->
       DomainCache.delete(domain.id)
@@ -40,6 +43,7 @@ defmodule TdCache.DomainCacheTest do
       assert d.id == id
       assert d.name == domain.name
       assert d.parent_ids == Enum.join(domain.parent_ids, ",")
+      assert d.descendent_ids == Enum.join(domain.descendent_ids, ",")
       assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
       assert [%{event: "domain_created"}] = events
     end
