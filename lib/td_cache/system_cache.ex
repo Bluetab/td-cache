@@ -80,7 +80,7 @@ defmodule TdCache.SystemCache do
       end
 
     Redix.transaction_pipeline([
-      ["HMSET", key, Map.take(system, @props)],
+      ["HSET", key, Map.take(system, @props)],
       ["SADD", "system:keys", key],
       add_or_remove_external_id
     ])

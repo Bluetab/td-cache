@@ -13,15 +13,15 @@ defmodule TdCache.Redix.Commands do
     Enum.map(commands, &transform/1)
   end
 
-  # Convenience function for passing a map to HMSET. HMSET of an empty map deletes the key.
-  def transform(["HMSET", key, %{} = map]) when map == %{} do
+  # Convenience function for passing a map to HSET. HSET of an empty map deletes the key.
+  def transform(["HSET", key, %{} = map]) when map == %{} do
     ["DEL", key]
   end
 
-  # Convenience function for passing a map to HMSET
-  def transform(["HMSET", key, %{} = map]) when map != %{} do
+  # Convenience function for passing a map to HSET
+  def transform(["HSET", key, %{} = map]) when map != %{} do
     entries = Enum.flat_map(map, fn {k, v} -> [to_string(k), to_string(v)] end)
-    ["HMSET", key | entries]
+    ["HSET", key | entries]
   end
 
   def transform(["RPUSH", key, [_h | _t] = entries]) do

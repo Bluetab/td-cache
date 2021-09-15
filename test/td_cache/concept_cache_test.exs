@@ -239,7 +239,7 @@ defmodule TdCache.ConceptCacheTest do
     assert {:ok, %{id: ^id, name: name}} = ConceptCache.get(id)
 
     # update concept name in Redis
-    Redix.command!(["HMSET", "business_concept:#{id}", %{name: "updated"}])
+    Redix.command!(["HSET", "business_concept:#{id}", %{name: "updated"}])
 
     # get without refresh option returns name from local cache
     assert {:ok, %{name: ^name}} = ConceptCache.get(id)

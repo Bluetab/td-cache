@@ -314,9 +314,9 @@ defmodule TdCache.ConceptCache do
     concept = Map.put(concept, :shared_to_ids, shared_to_ids)
 
     commands = [
-      ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
+      ["HSET", "business_concept:#{id}", Map.take(concept, @props)],
       [
-        "HMSET",
+        "HSET",
         "business_concept:#{id}",
         "content",
         Jason.encode!(Map.get(concept, :content, %{}))

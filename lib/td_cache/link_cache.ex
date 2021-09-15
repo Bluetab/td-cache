@@ -194,7 +194,7 @@ defmodule TdCache.LinkCache do
     [
       ["DEL", "link:#{id}", "link:#{id}:tags"],
       [
-        "HMSET",
+        "HSET",
         "link:#{id}",
         "source",
         "#{source_type}:#{source_id}",

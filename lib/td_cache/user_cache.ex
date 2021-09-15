@@ -167,7 +167,7 @@ defmodule TdCache.UserCache do
   defp put_user(%{id: id} = user) do
     [
       ["DEL", "user:#{id}"],
-      ["HMSET", "user:#{id}", get_props(user)],
+      ["HSET", "user:#{id}", get_props(user)],
       ["SADD", @ids, "#{id}"]
     ]
     |> add_full_name(user)
