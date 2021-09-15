@@ -32,6 +32,12 @@ defmodule TdCache.TaxonomyCache do
     GenServer.call(__MODULE__, {:has_role, domain_id, role, user_id, opts})
   end
 
+  def get_descendent_ids(domain_id, with_self \\ true, opts \\ [])
+
+  def get_descendent_ids(id, with_self, opts) do
+    GenServer.call(__MODULE__, {:descendent_ids, id, with_self, opts})
+  end
+
   ## Callbacks
 
   @impl true
@@ -52,8 +58,13 @@ defmodule TdCache.TaxonomyCache do
     reply =
       domain_ids
       |> Enum.map(&do_get_domain/1)
-      |> Enum.map(fn %{id: id, parent_ids: parent_ids} = domain ->
-        {id, %{domain | parent_ids: [id | parent_ids]}}
+      |> Enum.map(fn %{id: id, parent_ids: parent_ids, descendent_ids: descendent_ids} = domain ->
+        domain =
+          domain
+          |> Map.put(:parent_ids, [id | parent_ids])
+          |> Map.put(:descendent_ids, [id | descendent_ids])
+
+        {id, domain}
       end)
       |> Map.new()
 
@@ -87,6 +98,18 @@ defmodule TdCache.TaxonomyCache do
     {:reply, reply, state}
   end
 
+  @impl true
+  def handle_call({:descendent_ids, id, with_self, opts}, _from, state) do
+    reply =
+      get_cache(
+        {:descendents, id},
+        fn -> do_get_descendent_ids(id, with_self) end,
+        opts[:refresh]
+      )
+
+    {:reply, reply, state}
+  end
+
   ## Private functions
 
   defp get_cache(key, fun, refresh \\ false)
@@ -112,7 +135,14 @@ defmodule TdCache.TaxonomyCache do
           |> Map.get(:parent_ids)
           |> Redix.to_integer_list!()
 
-        Map.put(domain, :parent_ids, parent_ids)
+        descendent_ids =
+          domain
+          |> Map.get(:descendent_ids)
+          |> Redix.to_integer_list!()
+
+        domain
+        |> Map.put(:parent_ids, parent_ids)
+        |> Map.put(:descendent_ids, descendent_ids)
     end
   end
 
@@ -127,14 +157,25 @@ defmodule TdCache.TaxonomyCache do
     [domain_id | do_get_parent_ids(domain_id, false)]
   end
 
+  defp do_get_descendent_ids(domain_id, false) do
+    case DomainCache.prop(domain_id, :descendent_ids) do
+      {:ok, ""} -> []
+      {:ok, ids} -> Redix.to_integer_list!(ids)
+    end
+  end
+
+  defp do_get_descendent_ids(domain_id, true) do
+    [domain_id | do_get_descendent_ids(domain_id, false)]
+  end
+
   def get_name(domain_id) do
     {:ok, name} = DomainCache.prop(domain_id, :name)
     name
   end
 
-  def put_domain(%{} = domain) do
+  def put_domain(%{} = domain, opts \\ []) do
     delete_local_cache(Map.get(domain, :id))
-    DomainCache.put(domain)
+    DomainCache.put(domain, opts)
   end
 
   def delete_domain(domain_id) do
@@ -143,6 +184,7 @@ defmodule TdCache.TaxonomyCache do
   end
 
   defp delete_local_cache(id) do
+    ConCache.delete(:taxonomy, {:descendents, id})
     ConCache.delete(:taxonomy, {:parent, id})
     ConCache.delete(:taxonomy, {:id, id})
   end

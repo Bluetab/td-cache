@@ -15,25 +15,37 @@ defmodule TdCache.TaxonomyCacheTest do
     parent = random_domain() |> Map.put(:parent_ids, [root.id])
     domain = random_domain() |> Map.put(:parent_ids, [parent.id, root.id])
 
+    root = Map.put(root, :descendent_ids, [parent.id, domain.id])
+    parent = Map.put(parent, :descendent_ids, [domain.id])
+
     on_exit(fn -> Redix.del!(["domain:*", "domains:*"]) end)
 
     {:ok, root: root, parent: parent, domain: domain}
   end
 
   test "put_domain returns OK", %{domain: domain} do
-    assert {:ok, [4, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [5, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
     assert [%{event: "domain_created"}] = events
+  end
+
+  test "put_domain forces refresh if specified", %{domain: domain} do
+    assert {:ok, [5, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, []} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
   end
 
   test "put_domain invalidates local cache", %{domain: %{id: id} = domain} do
     ConCache.put(:taxonomy, {:id, id}, :foo)
     ConCache.put(:taxonomy, {:parent, id}, :foo)
+    ConCache.put(:taxonomy, {:descendents, id}, :foo)
     assert ConCache.get(:taxonomy, {:id, id})
     assert ConCache.get(:taxonomy, {:parent, id})
+    assert ConCache.get(:taxonomy, {:descendents, id})
     TaxonomyCache.put_domain(domain)
     refute ConCache.get(:taxonomy, {:id, id})
     refute ConCache.get(:taxonomy, {:parent, id})
+    refute ConCache.get(:taxonomy, {:descendents, id})
   end
 
   test "get_parent_ids with self returns parent ids including domain_id", %{domain: domain} do
@@ -55,6 +67,32 @@ defmodule TdCache.TaxonomyCacheTest do
     domain = Map.put(domain, :parent_ids, [])
     TaxonomyCache.put_domain(domain)
     assert TaxonomyCache.get_parent_ids(domain.id, false) == []
+  end
+
+  test "get_descendent_ids with self returns descendent ids including domain_id", %{root: domain} do
+    TaxonomyCache.put_domain(domain)
+    assert TaxonomyCache.get_descendent_ids(domain.id) == [domain.id | domain.descendent_ids]
+  end
+
+  test "get_descendent_ids with refresh opt forces to update in-memory info", %{root: domain} do
+    TaxonomyCache.put_domain(domain)
+
+    assert TaxonomyCache.get_descendent_ids(domain.id, false, refresh: true) ==
+             domain.descendent_ids
+  end
+
+  test "get_descendent_ids without self returns descendent ids excluding domain_id", %{
+    parent: domain
+  } do
+    TaxonomyCache.put_domain(domain)
+    assert TaxonomyCache.get_parent_ids(domain.id, false) == domain.parent_ids
+  end
+
+  test "get_descendent_ids when domain has no descendents returns an empty list", %{
+    domain: domain
+  } do
+    TaxonomyCache.put_domain(domain)
+    assert TaxonomyCache.get_descendent_ids(domain.id, false) == []
   end
 
   test "get_name returns name", %{domain: domain} do
@@ -142,9 +180,30 @@ defmodule TdCache.TaxonomyCacheTest do
     Enum.map([root, parent, domain], &TaxonomyCache.put_domain/1)
 
     assert %{} = map = TaxonomyCache.domain_map()
-    assert %{id: ^id1, parent_ids: [^id1], external_id: _, name: _} = map[id1]
-    assert %{id: ^id2, parent_ids: [^id2, ^id1], external_id: _, name: _} = map[id2]
-    assert %{id: ^id3, parent_ids: [^id3, ^id2, ^id1], external_id: _, name: _} = map[id3]
+
+    assert %{
+             id: ^id1,
+             parent_ids: [^id1],
+             descendent_ids: [^id1, ^id2, ^id3],
+             external_id: _,
+             name: _
+           } = map[id1]
+
+    assert %{
+             id: ^id2,
+             parent_ids: [^id2, ^id1],
+             descendent_ids: [^id2, ^id3],
+             external_id: _,
+             name: _
+           } = map[id2]
+
+    assert %{
+             id: ^id3,
+             parent_ids: [^id3, ^id2, ^id1],
+             descendent_ids: [^id3],
+             external_id: _,
+             name: _
+           } = map[id3]
   end
 
   describe "has_role?/4" do

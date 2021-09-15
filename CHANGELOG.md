@@ -13,6 +13,8 @@
   determine which roles have a given permission
 - `AclCache.put_user_roles/2`, `AclCache.get_user_roles/1` to determine the
   domain_ids in which a user has roles
+- [TD-3780] `TaxonomyCache` persists `descendent_ids` and
+  `TaxonomyCache.put_domain/1` forces update if specified
 
 ## [4.26.3] 2021-08-11
 
