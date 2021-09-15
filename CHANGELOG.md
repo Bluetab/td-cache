@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3780] `TaxonomyCache` persists `descendent_ids` 
+
 ## [4.26.3] 2021-08-11
 
 ### Added
