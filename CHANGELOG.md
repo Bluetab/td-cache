@@ -5,6 +5,7 @@
 ### Added
 
 - [TD-3780] `TaxonomyCache` persists `descendent_ids` 
+- [TD-3780] `TaxonomyCache.put_domain/1` forces update if specified 
 
 ## [4.26.3] 2021-08-11
 
