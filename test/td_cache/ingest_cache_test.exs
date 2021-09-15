@@ -21,7 +21,7 @@ defmodule TdCache.IngestCacheTest do
   end
 
   test "put returns Ok", %{ingest: ingest} do
-    assert {:ok, ["OK", 1]} = IngestCache.put(ingest)
+    assert {:ok, [3, 1]} = IngestCache.put(ingest)
   end
 
   test "get_domain_id from an ingest", %{ingest: ingest} do

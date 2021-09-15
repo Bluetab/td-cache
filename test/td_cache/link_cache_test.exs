@@ -35,7 +35,7 @@ defmodule TdCache.LinkCacheTest do
       link_key = "link:#{link.id}"
       source_key = "#{link.source_type}:#{link.source_id}"
       target_key = "#{link.target_type}:#{link.target_id}"
-      assert {:ok, [0, "OK", 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, 3, 1, 1, 1, 1, 1]} == LinkCache.put(link)
 
       {:ok, events} = Stream.read(:redix, ["foo:events", "bar:events"], transform: true)
       assert Enum.count(events) == 2
@@ -53,7 +53,7 @@ defmodule TdCache.LinkCacheTest do
 
     test "writes a link entry with tags in redis and reads it back", context do
       link = context[:tagged_link]
-      assert {:ok, [0, "OK", 1, 1, 1, 1, 1, 3]} == LinkCache.put(link)
+      assert {:ok, [0, 3, 1, 1, 1, 1, 1, 3]} == LinkCache.put(link)
 
       {:ok, l} = LinkCache.get(link.id)
       assert l.source == "#{link.source_type}:#{link.source_id}"
@@ -64,10 +64,10 @@ defmodule TdCache.LinkCacheTest do
 
     test "only rewrites a link entry if it's update timestamp has changed", context do
       link = context[:link]
-      assert {:ok, [0, "OK", 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, 3, 1, 1, 1, 1, 1]} == LinkCache.put(link)
       assert {:ok, []} == LinkCache.put(link)
 
-      assert {:ok, [1, "OK", 0, 0, 0, 0, 0]} ==
+      assert {:ok, [1, 3, 0, 0, 0, 0, 0]} ==
                LinkCache.put(Map.put(link, :updated_at, DateTime.utc_now()))
     end
 

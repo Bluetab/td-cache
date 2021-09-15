@@ -25,18 +25,18 @@ defmodule TdCache.TemplateCacheTest do
 
   test "put/1 returns Ok", context do
     [template | _] = context[:templates]
-    assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
+    assert {:ok, [5, 1, 1]} == TemplateCache.put(template)
   end
 
   test "put/1 returns updates only when updated at is changed", context do
     [template | _] = context[:templates]
-    assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
+    assert {:ok, [5, 1, 1]} == TemplateCache.put(template)
     assert {:ok, []} == TemplateCache.put(template)
   end
 
   test "put/1 emits an event when a new template is cached", context do
     [template | _] = context[:templates]
-    assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template)
+    assert {:ok, [5, 1, 1]} == TemplateCache.put(template)
 
     assert {:ok, [event]} = Stream.read(:redix, ["template:events"], transform: true)
     assert event.event == "template_updated"
@@ -45,7 +45,7 @@ defmodule TdCache.TemplateCacheTest do
 
   test "put/2 suppresses events if publish option is false", context do
     [template | _] = context[:templates]
-    assert {:ok, ["OK", 1, 1]} == TemplateCache.put(template, publish: false)
+    assert {:ok, [5, 1, 1]} == TemplateCache.put(template, publish: false)
   end
 
   test "get/1 gets content", context do

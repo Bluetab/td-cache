@@ -34,7 +34,7 @@ defmodule TdCache.DomainCacheTest do
 
   describe "DomainCache" do
     test "writes a domain entry in redis and reads it back", %{domain: %{id: id} = domain} do
-      {:ok, ["OK", 1, 1, 1, 0, 0]} = DomainCache.put(domain)
+      {:ok, [4, 1, 1, 1, 0, 0]} = DomainCache.put(domain)
       {:ok, d} = DomainCache.get(id)
       assert not is_nil(d)
       assert d.id == id
@@ -45,12 +45,12 @@ defmodule TdCache.DomainCacheTest do
     end
 
     test "updates a domain entry only if changed", %{domain: domain} do
-      assert {:ok, ["OK", 1, 1, 1, 0, 0]} = DomainCache.put(domain)
+      assert {:ok, [4, 1, 1, 1, 0, 0]} = DomainCache.put(domain)
       assert {:ok, []} = DomainCache.put(domain)
 
       updated = %{domain | name: "updated name", updated_at: DateTime.utc_now()}
 
-      assert {:ok, ["OK", 0, 0, 0, 0, 0]} = DomainCache.put(updated)
+      assert {:ok, [0, 0, 0, 0, 0, 0]} = DomainCache.put(updated)
       assert {:ok, %{name: "updated name"}} = DomainCache.get(domain.id)
 
       assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
