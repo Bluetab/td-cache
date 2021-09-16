@@ -96,26 +96,4 @@ defmodule TdCache.AclCache do
     key = "permission:#{permission}:roles"
     Redix.command(["SMEMBERS", key])
   end
-
-  def put_user_roles(user_id, domain_ids_by_role) do
-    key = "user:#{user_id}:roles"
-
-    values =
-      Enum.flat_map(domain_ids_by_role, fn {role, domain_ids} ->
-        [role, Enum.join(domain_ids, ",")]
-      end)
-
-    Redix.transaction_pipeline([
-      ["DEL", key],
-      ["HSET", key | values]
-    ])
-  end
-
-  def get_user_roles(user_id) do
-    key = "user:#{user_id}:roles"
-
-    Redix.read_map(key, fn [role, domain_ids] ->
-      {role, Redix.to_integer_list!(domain_ids)}
-    end)
-  end
 end

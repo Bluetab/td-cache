@@ -1,8 +1,10 @@
 defmodule TdCache.UserCacheTest do
-  @moduledoc false
+
   use ExUnit.Case
+
   alias TdCache.Redix
   alias TdCache.UserCache
+
   doctest TdCache.UserCache
 
   setup do
@@ -18,26 +20,26 @@ defmodule TdCache.UserCacheTest do
 
   test "put without full name returns OK", context do
     [user | _] = context[:users]
-    user = user |> Map.delete(:full_name)
+    user = Map.delete(user, :full_name)
     assert {:ok, [_, 2, 1, 1]} = put_user(user)
   end
 
   test "put without user name returns OK", context do
     [user | _] = context[:users]
-    user = user |> Map.delete(:user_name)
+    user = Map.delete(user, :user_name)
     assert {:ok, [_, 2, 1, 1]} = put_user(user)
   end
 
   test "put without user and full name returns OK", context do
     [user | _] = context[:users]
-    user = user |> Map.delete(:user_name)
-    user = user |> Map.delete(:full_name)
+    user = Map.delete(user, :user_name)
+    user = Map.delete(user, :full_name)
     assert {:ok, [_, 1, 1]} = put_user(user)
   end
 
   test "put without email returns OK", context do
     [user | _] = context[:users]
-    user = user |> Map.delete(:email)
+    user = Map.delete(user, :email)
     assert {:ok, [_, 2, 1, 1, 1]} = put_user(user)
   end
 
@@ -109,6 +111,21 @@ defmodule TdCache.UserCacheTest do
       |> put_user()
 
       assert UserCache.id_to_email_map() == %{}
+    end
+  end
+
+  describe "put_user_roles/2 and get_user_roles/1" do
+    test "puts a hash with comma-separated ids as values and reads it back" do
+      %{id: user_id} = user = random_user()
+      put_user(user)
+
+      domain_ids_by_role = %{
+        "role1" => [1, 2, 3],
+        "role2" => [4, 5, 6]
+      }
+
+      assert {:ok, [0, 2]} = UserCache.put_roles(user_id, domain_ids_by_role)
+      assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id)
     end
   end
 
