@@ -78,22 +78,4 @@ defmodule TdCache.AclCache do
       _ -> :ok
     end
   end
-
-  def put_role_permissions(roles_by_permission) do
-    roles_by_permission
-    |> Enum.flat_map(fn {permission, roles} ->
-      key = "permission:#{permission}:roles"
-
-      [
-        ["DEL", key],
-        ["SADD", key | roles]
-      ]
-    end)
-    |> Redix.transaction_pipeline()
-  end
-
-  def get_permission_roles(permission) do
-    key = "permission:#{permission}:roles"
-    Redix.command(["SMEMBERS", key])
-  end
 end

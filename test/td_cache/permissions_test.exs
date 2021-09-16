@@ -1,18 +1,22 @@
 defmodule TdCache.PermissionsTest do
   use ExUnit.Case
+
   alias TdCache.ConceptCache
+  alias TdCache.DomainCache
   alias TdCache.IngestCache
   alias TdCache.Permissions
   alias TdCache.Redix
   alias TdCache.TaxonomyCache
+  alias TdCache.UserCache
+
   doctest TdCache.Permissions
 
   setup do
-    user = %{id: random_id()}
-    parent = %{id: random_id(), name: "parent", updated_at: DateTime.utc_now()}
+    user = %{id: unique_id()}
+    parent = %{id: unique_id(), name: "parent", updated_at: DateTime.utc_now()}
 
     domain = %{
-      id: random_id(),
+      id: unique_id(),
       name: "child",
       parent_ids: [parent.id],
       updated_at: DateTime.utc_now()
@@ -38,7 +42,9 @@ defmodule TdCache.PermissionsTest do
         "business_concept:ids:inactive",
         "business_concept:events",
         "domain:*",
-        "domains:*"
+        "domains:*",
+        "permission:foo:roles",
+        "permission:bar:roles"
       ])
     end)
 
@@ -54,7 +60,7 @@ defmodule TdCache.PermissionsTest do
     acl_entries: acl_entries
   } do
     import Permissions, only: :functions
-    session_id = "#{random_id()}"
+    session_id = "#{unique_id()}"
     expire_at = DateTime.utc_now() |> DateTime.add(100) |> DateTime.to_unix()
     cache_session_permissions!(session_id, expire_at, acl_entries)
     assert has_permission?(session_id, :create_business_concept, "domain", domain.id)
@@ -74,13 +80,63 @@ defmodule TdCache.PermissionsTest do
     refute has_permission?(session_id, :manage_quality_rule)
   end
 
+  describe "put_role_permissions/1 and get_permission_roles/1" do
+    test "writes and reads roles by permission" do
+      roles_by_permission = %{
+        "foo" => ["role1", "role2"],
+        "bar" => ["role4", "role3"]
+      }
+
+      assert {:ok, [0, 2, 0, 2]} = Permissions.put_role_permissions(roles_by_permission)
+      assert {:ok, roles} = Permissions.get_permission_roles("foo")
+      assert Enum.sort(roles) == ["role1", "role2"]
+      assert {:ok, roles} = Permissions.get_permission_roles("bar")
+      assert Enum.sort(roles) == ["role3", "role4"]
+    end
+  end
+
+  describe "permitted_domain_ids/2" do
+    setup do
+      user = %{id: user_id = unique_id()}
+      ts = DateTime.utc_now()
+
+      parent = %{id: unique_id(), name: "parent", updated_at: ts}
+      domain = %{id: unique_id(), parent_ids: [parent.id], name: "domain", updated_at: ts}
+
+      child = %{
+        id: unique_id(),
+        parent_ids: [domain.id, parent.id],
+        name: "child",
+        updated_at: ts
+      }
+
+      {:ok, _} = Permissions.put_role_permissions(%{"foo" => ["role1", "role2"]})
+      {:ok, _} = UserCache.put_roles(user_id, %{"role1" => [parent.id]})
+      {:ok, _} = DomainCache.put(parent)
+      {:ok, _} = DomainCache.put(domain)
+      {:ok, _} = DomainCache.put(child)
+
+      [user: user, parent: parent, domain: domain, child: child]
+    end
+
+    test "returns all permitted domain_ids, including descendents", %{
+      user: user,
+      domain: domain,
+      parent: parent,
+      child: child
+    } do
+      domain_ids = Permissions.permitted_domain_ids(user.id, "foo")
+      assert Enum.sort(domain_ids) == Enum.sort([domain.id, parent.id, child.id])
+    end
+  end
+
   defp concept_entry(%{id: domain_id}) do
-    id = random_id()
+    id = unique_id()
     %{id: id, domain_id: domain_id, name: "concept #{id}", business_concept_version_id: id}
   end
 
   defp ingest_entry(%{id: domain_id}) do
-    id = random_id()
+    id = unique_id()
     %{id: id, domain_id: domain_id, name: "ingest #{id}", ingest_version_id: id}
   end
 
@@ -99,5 +155,5 @@ defmodule TdCache.PermissionsTest do
     |> Enum.map(&acl_entry(domain, user, &1))
   end
 
-  defp random_id, do: System.unique_integer([:positive])
+  defp unique_id, do: System.unique_integer([:positive])
 end

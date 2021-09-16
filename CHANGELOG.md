@@ -5,18 +5,7 @@
 ### Added
 
 - [TD-4076] New permission `approve_grant_request`
-- [TD-4076] `DomainCache.id_to_parent_ids_map/0` supports querying parent domain
-  ids
-- `DomainCache.put_domain` now supports the `publish` option (if `false`, events
-  will not be published)
-- `AclCache.has_role?/4` determines whether a `user_id` has a `role` for a
-  specified resource
-- `TaxonomyCache.has_role?/4` determines whether a `user_id` has a `role` in
-  a specified `domain_id` or a parent domain
-- `AclCache.put_role_permissions/1`, `AclCache.get_permission_roles/1` to
-  determine which roles have a given permission
-- `UserCache.put_user_roles/2`, `UserCache.get_user_roles/1` to determine the
-  domain_ids in which a user has roles
+- [TD-4076] Support for querying permissions in taxonomy hierarchy
 - [TD-3780] `TaxonomyCache` persists `descendent_ids` and
   `TaxonomyCache.put_domain/1` forces update if specified
 
