@@ -10,6 +10,7 @@ defmodule TdCache.DomainCache do
   @roots_key "domains:root"
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
+  @ids_to_parent_key "domains:id_to_parent_ids"
   @domain_keys "domain:keys"
   @deleted_ids "domain:deleted_ids"
 
@@ -67,6 +68,16 @@ defmodule TdCache.DomainCache do
     map = get_domain_external_id_to_id_map()
 
     {:ok, map}
+  end
+
+  @doc """
+  Reads domain id to parent_id map from cache.
+  """
+  def id_to_parent_id_map do
+    case get_domain_id_to_parent_id_map() do
+      {:ok, nil} -> {:ok, %{}}
+      {:ok, map} -> {:ok, map}
+    end
   end
 
   def external_id_to_id(external_id) do
@@ -152,11 +163,18 @@ defmodule TdCache.DomainCache do
     read_map(@ids_to_external_ids_key)
   end
 
+  defp get_domain_id_to_parent_id_map do
+    Redix.read_map(@ids_to_parent_key, fn [domain_id, parent_id] ->
+      {String.to_integer(domain_id), String.to_integer(parent_id)}
+    end)
+  end
+
   defp delete_domain(id) do
     key = "domain:#{id}"
 
     commands = [
       ["DEL", key],
+      ["HDEL", @ids_to_parent_key, id],
       ["HDEL", @ids_to_names_key, id],
       ["HDEL", @ids_to_external_ids_key, id],
       ["SREM", @domain_keys, key],
@@ -182,16 +200,17 @@ defmodule TdCache.DomainCache do
   defp put_domain(%{updated_at: ts}, ts, nil), do: {:ok, []}
 
   defp put_domain(%{id: id, name: name} = domain, _ts, _force) do
-    parent_ids = domain |> Map.get(:parent_ids, []) |> Enum.join(",")
-    descendent_ids = domain |> Map.get(:descendent_ids, []) |> Enum.join(",")
+    parent_ids = Map.get(domain, :parent_ids, [])
+    descendent_ids = Map.get(domain, :descendent_ids, [])
     external_id = Map.get(domain, :external_id)
+    parent_id = Map.get(domain, :parent_id)
 
     domain =
       domain
-      |> Map.put(:parent_ids, parent_ids)
-      |> Map.put(:descendent_ids, descendent_ids)
+      |> Map.put(:parent_ids, Enum.join(parent_ids, ","))
+      |> Map.put(:descendent_ids, Enum.join(descendent_ids, ","))
 
-    add_or_remove_root = if parent_ids == "", do: "SADD", else: "SREM"
+    add_or_remove_root = if parent_ids == [], do: "SADD", else: "SREM"
 
     add_or_remove_external_id =
       case external_id do
@@ -199,16 +218,23 @@ defmodule TdCache.DomainCache do
         _ -> ["HSET", @ids_to_external_ids_key, id, external_id]
       end
 
+    add_or_remove_parent_id =
+      case parent_id do
+        nil -> ["HDEL", @ids_to_parent_key, id]
+        parent_id -> ["HSET", @ids_to_parent_key, id, parent_id]
+      end
+
     commands = [
       ["HSET", "domain:#{id}", Map.take(domain, @props)],
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", @domain_keys, "domain:#{id}"],
       add_or_remove_external_id,
+      add_or_remove_parent_id,
       [add_or_remove_root, @roots_key, id],
       ["SREM", @deleted_ids, id]
     ]
 
-    {:ok, [_, _, added, _, _, _] = results} = Redix.transaction_pipeline(commands)
+    {:ok, [_, _, added, _, _, _, _] = results} = Redix.transaction_pipeline(commands)
 
     event = %{
       event: if(added == 0, do: "domain_updated", else: "domain_created"),

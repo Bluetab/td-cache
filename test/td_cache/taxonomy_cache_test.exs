@@ -24,15 +24,15 @@ defmodule TdCache.TaxonomyCacheTest do
   end
 
   test "put_domain returns OK", %{domain: domain} do
-    assert {:ok, [5, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [5, 1, 1, 1, 0, 0, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
     assert [%{event: "domain_created"}] = events
   end
 
   test "put_domain forces refresh if specified", %{domain: domain} do
-    assert {:ok, [5, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [5, 1, 1, 1, 0, 0, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, []} = TaxonomyCache.put_domain(domain)
-    assert {:ok, [0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
+    assert {:ok, [0, 0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
   end
 
   test "put_domain invalidates local cache", %{domain: %{id: id} = domain} do
