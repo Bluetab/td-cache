@@ -1,5 +1,4 @@
 defmodule TdCache.UserCacheTest do
-
   use ExUnit.Case
 
   alias TdCache.Redix

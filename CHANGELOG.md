@@ -5,8 +5,8 @@
 ### Added
 
 - [TD-4076] New permission `approve_grant_request`
-- [TD-4076] `DomainCache.id_to_parent_id_map/0` supports querying the parent_id
-  of all domain_ids
+- [TD-4076] `DomainCache.id_to_parent_ids_map/0` supports querying parent domain
+  ids
 - `DomainCache.put_domain` now supports the `publish` option (if `false`, events
   will not be published)
 - `AclCache.has_role?/4` determines whether a `user_id` has a `role` for a

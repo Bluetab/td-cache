@@ -10,7 +10,7 @@ defmodule TdCache.DomainCache do
   @roots_key "domains:root"
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
-  @ids_to_parent_key "domains:id_to_parent_ids"
+  @ids_to_parent_ids_key "domains:id_to_parent_ids"
   @domain_keys "domain:keys"
   @deleted_ids "domain:deleted_ids"
 
@@ -71,10 +71,10 @@ defmodule TdCache.DomainCache do
   end
 
   @doc """
-  Reads domain id to parent_id map from cache.
+  Reads domain id to parent_ids map from cache.
   """
-  def id_to_parent_id_map do
-    case get_domain_id_to_parent_id_map() do
+  def id_to_parent_ids_map do
+    case get_domain_id_to_parent_ids_map() do
       {:ok, nil} -> {:ok, %{}}
       {:ok, map} -> {:ok, map}
     end
@@ -163,9 +163,9 @@ defmodule TdCache.DomainCache do
     read_map(@ids_to_external_ids_key)
   end
 
-  defp get_domain_id_to_parent_id_map do
-    Redix.read_map(@ids_to_parent_key, fn [domain_id, parent_id] ->
-      {String.to_integer(domain_id), String.to_integer(parent_id)}
+  defp get_domain_id_to_parent_ids_map do
+    Redix.read_map(@ids_to_parent_ids_key, fn [domain_id, parent_ids] ->
+      {String.to_integer(domain_id), Redix.to_integer_list!(parent_ids)}
     end)
   end
 
@@ -174,7 +174,7 @@ defmodule TdCache.DomainCache do
 
     commands = [
       ["DEL", key],
-      ["HDEL", @ids_to_parent_key, id],
+      ["HDEL", @ids_to_parent_ids_key, id],
       ["HDEL", @ids_to_names_key, id],
       ["HDEL", @ids_to_external_ids_key, id],
       ["SREM", @domain_keys, key],
@@ -203,7 +203,6 @@ defmodule TdCache.DomainCache do
     parent_ids = Map.get(domain, :parent_ids, [])
     descendent_ids = Map.get(domain, :descendent_ids, [])
     external_id = Map.get(domain, :external_id)
-    parent_id = Map.get(domain, :parent_id)
 
     domain =
       domain
@@ -218,10 +217,10 @@ defmodule TdCache.DomainCache do
         _ -> ["HSET", @ids_to_external_ids_key, id, external_id]
       end
 
-    add_or_remove_parent_id =
-      case parent_id do
-        nil -> ["HDEL", @ids_to_parent_key, id]
-        parent_id -> ["HSET", @ids_to_parent_key, id, parent_id]
+    add_or_remove_parent_ids =
+      case parent_ids do
+        [_ | _] = parent_ids -> ["HSET", @ids_to_parent_ids_key, id, Enum.join(parent_ids, ",")]
+        _ -> ["HDEL", @ids_to_parent_ids_key, id]
       end
 
     commands = [
@@ -229,7 +228,7 @@ defmodule TdCache.DomainCache do
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", @domain_keys, "domain:#{id}"],
       add_or_remove_external_id,
-      add_or_remove_parent_id,
+      add_or_remove_parent_ids,
       [add_or_remove_root, @roots_key, id],
       ["SREM", @deleted_ids, id]
     ]

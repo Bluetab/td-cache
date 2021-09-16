@@ -19,7 +19,6 @@ defmodule TdCache.DomainCacheTest do
       id: System.unique_integer([:positive]),
       external_id: "domain",
       name: "child",
-      parent_id: parent.id,
       parent_ids: [parent.id],
       updated_at: DateTime.utc_now(),
       descendent_ids: [1, 2]
@@ -101,15 +100,15 @@ defmodule TdCache.DomainCacheTest do
     end
   end
 
-  describe "id_to_parent_id_map/0" do
-    test "returns a map with domain_id keys and parent_id values", %{
-      domain: %{id: domain_id, parent_id: parent_id} = domain
+  describe "id_to_parent_ids_map/0" do
+    test "returns a map with domain_id keys and parent_ids values", %{
+      domain: %{id: domain_id, parent_ids: parent_ids} = domain
     } do
-      assert DomainCache.id_to_parent_id_map() == {:ok, %{}}
+      assert DomainCache.id_to_parent_ids_map() == {:ok, %{}}
 
       DomainCache.put(domain)
 
-      assert DomainCache.id_to_parent_id_map() == {:ok, %{domain_id => parent_id}}
+      assert DomainCache.id_to_parent_ids_map() == {:ok, %{domain_id => parent_ids}}
     end
   end
 end
