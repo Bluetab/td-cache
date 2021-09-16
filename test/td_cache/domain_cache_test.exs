@@ -108,7 +108,7 @@ defmodule TdCache.DomainCacheTest do
 
       DomainCache.put(domain)
 
-      assert DomainCache.id_to_parent_ids_map() == {:ok, %{domain_id => parent_ids}}
+      assert DomainCache.id_to_parent_ids_map() == {:ok, %{domain_id => [domain_id | parent_ids]}}
     end
   end
 end

@@ -217,18 +217,12 @@ defmodule TdCache.DomainCache do
         _ -> ["HSET", @ids_to_external_ids_key, id, external_id]
       end
 
-    add_or_remove_parent_ids =
-      case parent_ids do
-        [_ | _] = parent_ids -> ["HSET", @ids_to_parent_ids_key, id, Enum.join(parent_ids, ",")]
-        _ -> ["HDEL", @ids_to_parent_ids_key, id]
-      end
-
     commands = [
       ["HSET", "domain:#{id}", Map.take(domain, @props)],
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", @domain_keys, "domain:#{id}"],
       add_or_remove_external_id,
-      add_or_remove_parent_ids,
+      ["HSET", @ids_to_parent_ids_key, id, Enum.join([id | parent_ids], ",")],
       [add_or_remove_root, @roots_key, id],
       ["SREM", @deleted_ids, id]
     ]
