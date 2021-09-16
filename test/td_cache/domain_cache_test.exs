@@ -48,8 +48,17 @@ defmodule TdCache.DomainCacheTest do
       assert d.name == domain.name
       assert d.parent_ids == "#{parent_id}"
       assert d.descendent_ids == "1,2"
+    end
+
+    test "publishes an event when a domain is created", %{domain: domain} do
+      {:ok, _} = DomainCache.put(domain)
       assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
       assert [%{event: "domain_created"}] = events
+    end
+
+    test "does not publish an event if publish: false is specified", %{domain: domain} do
+      {:ok, _} = DomainCache.put(domain, publish: false)
+      assert {:ok, []} = Stream.read(:redix, ["domain:events"], transform: true)
     end
 
     test "updates a domain entry only if changed", %{domain: domain} do

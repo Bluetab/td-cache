@@ -190,16 +190,16 @@ defmodule TdCache.DomainCache do
 
     domain
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_domain(last_updated, opts[:force])
+    |> put_domain(last_updated, opts[:force], Keyword.get(opts, :publish, true))
   end
 
   defp put_domain(_, _), do: {:error, :empty}
 
-  defp put_domain(%{updated_at: ts}, ts, false), do: {:ok, []}
+  defp put_domain(%{updated_at: ts}, ts, false, _), do: {:ok, []}
 
-  defp put_domain(%{updated_at: ts}, ts, nil), do: {:ok, []}
+  defp put_domain(%{updated_at: ts}, ts, nil, _), do: {:ok, []}
 
-  defp put_domain(%{id: id, name: name} = domain, _ts, _force) do
+  defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish) do
     parent_ids = Map.get(domain, :parent_ids, [])
     descendent_ids = Map.get(domain, :descendent_ids, [])
     external_id = Map.get(domain, :external_id)
@@ -236,17 +236,19 @@ defmodule TdCache.DomainCache do
 
     {:ok, [_, _, added, _, _, _, _] = results} = Redix.transaction_pipeline(commands)
 
-    event = %{
-      event: if(added == 0, do: "domain_updated", else: "domain_created"),
-      domain: "domain:#{id}"
-    }
+    if publish do
+      event = %{
+        event: if(added == 0, do: "domain_updated", else: "domain_created"),
+        domain: "domain:#{id}"
+      }
 
-    {:ok, _event_id} = Publisher.publish(event, "domain:events")
+      {:ok, _event_id} = Publisher.publish(event, "domain:events")
+    end
 
     {:ok, results}
   end
 
-  defp put_domain(_, _, _), do: {:error, :empty}
+  defp put_domain(_, _, _, _), do: {:error, :empty}
 
   defp read_map(collection) do
     case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do
