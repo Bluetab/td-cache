@@ -184,7 +184,7 @@ defmodule TdCache.Permissions do
     |> Enum.flat_map(fn {_, domain_ids} -> domain_ids end)
   end
 
-  def put_role_permissions(roles_by_permission) do
+  def put_permission_roles(roles_by_permission) do
     roles_by_permission
     |> Enum.flat_map(fn {permission, roles} ->
       key = "permission:#{permission}:roles"

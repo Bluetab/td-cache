@@ -80,14 +80,14 @@ defmodule TdCache.PermissionsTest do
     refute has_permission?(session_id, :manage_quality_rule)
   end
 
-  describe "put_role_permissions/1 and get_permission_roles/1" do
+  describe "put_permission_roles/1 and get_permission_roles/1" do
     test "writes and reads roles by permission" do
       roles_by_permission = %{
         "foo" => ["role1", "role2"],
         "bar" => ["role4", "role3"]
       }
 
-      assert {:ok, [0, 2, 0, 2]} = Permissions.put_role_permissions(roles_by_permission)
+      assert {:ok, [0, 2, 0, 2]} = Permissions.put_permission_roles(roles_by_permission)
       assert {:ok, roles} = Permissions.get_permission_roles("foo")
       assert Enum.sort(roles) == ["role1", "role2"]
       assert {:ok, roles} = Permissions.get_permission_roles("bar")
@@ -110,7 +110,7 @@ defmodule TdCache.PermissionsTest do
         updated_at: ts
       }
 
-      {:ok, _} = Permissions.put_role_permissions(%{"foo" => ["role1", "role2"]})
+      {:ok, _} = Permissions.put_permission_roles(%{"foo" => ["role1", "role2"]})
       {:ok, _} = UserCache.put_roles(user_id, %{"role1" => [parent.id]})
       {:ok, _} = DomainCache.put(parent)
       {:ok, _} = DomainCache.put(domain)
