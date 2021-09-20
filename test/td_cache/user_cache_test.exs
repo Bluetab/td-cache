@@ -113,7 +113,7 @@ defmodule TdCache.UserCacheTest do
     end
   end
 
-  describe "put_user_roles/2 and get_user_roles/1" do
+  describe "put_roles/2 and get_roles/1" do
     test "puts a hash with comma-separated ids as values and reads it back" do
       %{id: user_id} = user = random_user()
       put_user(user)
