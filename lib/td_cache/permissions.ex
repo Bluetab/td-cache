@@ -176,12 +176,14 @@ defmodule TdCache.Permissions do
   end
 
   defp get_acl_domain_ids(user_id, permission) do
-    {:ok, roles} = get_permission_roles(permission)
-    {:ok, role_domain_id_map} = UserCache.get_roles(user_id)
-
-    role_domain_id_map
-    |> Map.take(roles)
-    |> Enum.flat_map(fn {_, domain_ids} -> domain_ids end)
+    with {:ok, roles} when is_list(roles) <- get_permission_roles(permission),
+         {:ok, %{} = role_domain_id_map} <- UserCache.get_roles(user_id) do
+      role_domain_id_map
+      |> Map.take(roles)
+      |> Enum.flat_map(fn {_, domain_ids} -> domain_ids end)
+    else
+      {:ok, nil} -> []
+    end
   end
 
   def put_role_permissions(roles_by_permission) do

@@ -128,6 +128,10 @@ defmodule TdCache.PermissionsTest do
       domain_ids = Permissions.permitted_domain_ids(user.id, "foo")
       assert Enum.sort(domain_ids) == Enum.sort([domain.id, parent.id, child.id])
     end
+
+    test "returns an empty list if no such key exists" do
+      assert Permissions.permitted_domain_ids(123, "foo") == []
+    end
   end
 
   defp concept_entry(%{id: domain_id}) do
