@@ -19,10 +19,10 @@ defmodule TdCache.CacheCleanerTest do
       commands = [
         ["SET", "TD_CACHE_TEST:DELETE:STRING", "Some string"],
         ["SADD", "TD_CACHE_TEST:DELETE:SET", "foo1", "foo2", "foo3"],
-        ["HMSET", "TD_CACHE_TEST:DELETE:HASH", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3"],
+        ["HSET", "TD_CACHE_TEST:DELETE:HASH", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3"],
         ["SET", "TD_CACHE_TEST:REMOVE:STRING", "Some string"],
         ["SADD", "TD_CACHE_TEST:REMOVE:SET", "foo1", "foo2", "foo3"],
-        ["HMSET", "TD_CACHE_TEST:REMOVE:HASH", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3"],
+        ["HSET", "TD_CACHE_TEST:REMOVE:HASH", "foo1", "bar1", "foo2", "bar2", "foo3", "bar3"],
         ["SET", "TD_CACHE_TEST:IGNORE:STRING", "foo"],
         ["SET", "TD_CACHE_TEST:RETAIN:STRING", "foo"]
       ]

@@ -10,6 +10,7 @@ defmodule TdCache.DomainCache do
   @roots_key "domains:root"
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
+  @ids_to_parent_ids_key "domains:id_to_parent_ids"
   @domain_keys "domain:keys"
   @deleted_ids "domain:deleted_ids"
 
@@ -67,6 +68,16 @@ defmodule TdCache.DomainCache do
     map = get_domain_external_id_to_id_map()
 
     {:ok, map}
+  end
+
+  @doc """
+  Reads domain id to parent_ids map from cache.
+  """
+  def id_to_parent_ids_map do
+    case get_domain_id_to_parent_ids_map() do
+      {:ok, nil} -> {:ok, %{}}
+      {:ok, map} -> {:ok, map}
+    end
   end
 
   def external_id_to_id(external_id) do
@@ -152,11 +163,18 @@ defmodule TdCache.DomainCache do
     read_map(@ids_to_external_ids_key)
   end
 
+  defp get_domain_id_to_parent_ids_map do
+    Redix.read_map(@ids_to_parent_ids_key, fn [domain_id, parent_ids] ->
+      {String.to_integer(domain_id), Redix.to_integer_list!(parent_ids)}
+    end)
+  end
+
   defp delete_domain(id) do
     key = "domain:#{id}"
 
     commands = [
       ["DEL", key],
+      ["HDEL", @ids_to_parent_ids_key, id],
       ["HDEL", @ids_to_names_key, id],
       ["HDEL", @ids_to_external_ids_key, id],
       ["SREM", @domain_keys, key],
@@ -172,26 +190,26 @@ defmodule TdCache.DomainCache do
 
     domain
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_domain(last_updated, opts[:force])
+    |> put_domain(last_updated, opts[:force], Keyword.get(opts, :publish, true))
   end
 
   defp put_domain(_, _), do: {:error, :empty}
 
-  defp put_domain(%{updated_at: ts}, ts, false), do: {:ok, []}
+  defp put_domain(%{updated_at: ts}, ts, false, _), do: {:ok, []}
 
-  defp put_domain(%{updated_at: ts}, ts, nil), do: {:ok, []}
+  defp put_domain(%{updated_at: ts}, ts, nil, _), do: {:ok, []}
 
-  defp put_domain(%{id: id, name: name} = domain, _ts, _force) do
-    parent_ids = domain |> Map.get(:parent_ids, []) |> Enum.join(",")
-    descendent_ids = domain |> Map.get(:descendent_ids, []) |> Enum.join(",")
+  defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish) do
+    parent_ids = Map.get(domain, :parent_ids, [])
+    descendent_ids = Map.get(domain, :descendent_ids, [])
     external_id = Map.get(domain, :external_id)
 
     domain =
       domain
-      |> Map.put(:parent_ids, parent_ids)
-      |> Map.put(:descendent_ids, descendent_ids)
+      |> Map.put(:parent_ids, Enum.join(parent_ids, ","))
+      |> Map.put(:descendent_ids, Enum.join(descendent_ids, ","))
 
-    add_or_remove_root = if parent_ids == "", do: "SADD", else: "SREM"
+    add_or_remove_root = if parent_ids == [], do: "SADD", else: "SREM"
 
     add_or_remove_external_id =
       case external_id do
@@ -200,27 +218,30 @@ defmodule TdCache.DomainCache do
       end
 
     commands = [
-      ["HMSET", "domain:#{id}", Map.take(domain, @props)],
+      ["HSET", "domain:#{id}", Map.take(domain, @props)],
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", @domain_keys, "domain:#{id}"],
       add_or_remove_external_id,
+      ["HSET", @ids_to_parent_ids_key, id, Enum.join([id | parent_ids], ",")],
       [add_or_remove_root, @roots_key, id],
       ["SREM", @deleted_ids, id]
     ]
 
-    {:ok, [_, _, added, _, _, _] = results} = Redix.transaction_pipeline(commands)
+    {:ok, [_, _, added, _, _, _, _] = results} = Redix.transaction_pipeline(commands)
 
-    event = %{
-      event: if(added == 0, do: "domain_updated", else: "domain_created"),
-      domain: "domain:#{id}"
-    }
+    if publish do
+      event = %{
+        event: if(added == 0, do: "domain_updated", else: "domain_created"),
+        domain: "domain:#{id}"
+      }
 
-    {:ok, _event_id} = Publisher.publish(event, "domain:events")
+      {:ok, _event_id} = Publisher.publish(event, "domain:events")
+    end
 
     {:ok, results}
   end
 
-  defp put_domain(_, _, _), do: {:error, :empty}
+  defp put_domain(_, _, _, _), do: {:error, :empty}
 
   defp read_map(collection) do
     case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do

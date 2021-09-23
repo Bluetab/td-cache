@@ -130,7 +130,7 @@ defmodule TdCache.StructureCache do
       |> add_metadata(structure)
 
     [
-      ["HMSET", "data_structure:#{id}", structure_props],
+      ["HSET", "data_structure:#{id}", structure_props],
       ["SADD", "data_structure:keys", "data_structure:#{id}"],
       refresh_deleted_ids_command(structure)
     ] ++ structure_path_commands(structure)

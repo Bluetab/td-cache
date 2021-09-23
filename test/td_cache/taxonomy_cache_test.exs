@@ -1,8 +1,12 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
+
+  alias TdCache.AclCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
   alias TdCache.TaxonomyCache
+
+  @role "test_role"
 
   doctest TdCache.TaxonomyCache
 
@@ -20,15 +24,15 @@ defmodule TdCache.TaxonomyCacheTest do
   end
 
   test "put_domain returns OK", %{domain: domain} do
-    assert {:ok, ["OK", 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [5, 1, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
     assert [%{event: "domain_created"}] = events
   end
 
   test "put_domain forces refresh if specified", %{domain: domain} do
-    assert {:ok, ["OK", 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [5, 1, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, []} = TaxonomyCache.put_domain(domain)
-    assert {:ok, ["OK", 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
+    assert {:ok, [0, 0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
   end
 
   test "put_domain invalidates local cache", %{domain: %{id: id} = domain} do
@@ -200,6 +204,31 @@ defmodule TdCache.TaxonomyCacheTest do
              external_id: _,
              name: _
            } = map[id3]
+  end
+
+  describe "has_role?/4" do
+    setup %{
+      root: root,
+      parent: %{id: id2} = parent,
+      domain: domain
+    } do
+      user_id = System.unique_integer([:positive])
+      Enum.each([root, parent, domain], &TaxonomyCache.put_domain/1)
+      AclCache.set_acl_role_users("domain", id2, @role, [user_id])
+      on_exit(fn -> AclCache.delete_acl_roles("domain", id2) end)
+      [user_id: user_id]
+    end
+
+    test "returns true if a user_id has a role in a domain or its parents", %{
+      root: %{id: id1},
+      parent: %{id: id2},
+      domain: %{id: id3},
+      user_id: user_id
+    } do
+      refute TaxonomyCache.has_role?(id1, @role, user_id)
+      assert TaxonomyCache.has_role?(id2, @role, user_id)
+      assert TaxonomyCache.has_role?(id3, @role, user_id)
+    end
   end
 
   defp random_domain(params \\ %{}) do

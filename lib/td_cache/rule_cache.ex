@@ -75,7 +75,7 @@ defmodule TdCache.RuleCache do
     results =
       Redix.transaction_pipeline!([
         ["SREM", "business_concept:#{current_concept_id}:rules", "rule:#{id}"],
-        ["HMSET", "rule:#{id}", Map.take(rule, @props)],
+        ["HSET", "rule:#{id}", Map.take(rule, @props)],
         ["SADD", "rule:keys", "rule:#{id}"]
       ])
 
@@ -101,7 +101,7 @@ defmodule TdCache.RuleCache do
       Redix.transaction_pipeline!([
         ["SREM", "business_concept:#{current_concept_id}:rules", "rule:#{id}"],
         ["SADD", "business_concept:#{business_concept_id}:rules", "rule:#{id}"],
-        ["HMSET", "rule:#{id}", Map.take(rule, @props)],
+        ["HSET", "rule:#{id}", Map.take(rule, @props)],
         ["SADD", "rule:keys", "rule:#{id}"]
       ])
 
@@ -122,7 +122,7 @@ defmodule TdCache.RuleCache do
 
   defp put_rule(%{id: id} = rule, _last_updated) do
     Redix.transaction_pipeline([
-      ["HMSET", "rule:#{id}", Map.take(rule, @props)],
+      ["HSET", "rule:#{id}", Map.take(rule, @props)],
       ["SADD", "rule:keys", "rule:#{id}"]
     ])
   end

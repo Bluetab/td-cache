@@ -210,7 +210,7 @@ defmodule TdCache.TemplateCache do
       |> Map.put(:content, Jason.encode!(content))
 
     commands = [
-      ["HMSET", "template:#{id}", template],
+      ["HSET", "template:#{id}", template],
       ["HSET", @name_to_id_key, name, id],
       ["SADD", "template:keys", "template:#{id}"]
     ]

@@ -118,7 +118,7 @@ defmodule TdCache.StructureCacheTest do
     end
 
     test "deletes an entry in redis", %{structure: structure} do
-      assert {:ok, ["OK", 1, 1, 0, 2]} = StructureCache.put(structure)
+      assert {:ok, [8, 1, 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1, 0]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
     end

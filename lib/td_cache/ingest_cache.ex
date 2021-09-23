@@ -44,7 +44,7 @@ defmodule TdCache.IngestCache do
 
   def put(%{id: id} = ingest) do
     commands = [
-      ["HMSET", "ingest:#{id}", Map.take(ingest, @props)],
+      ["HSET", "ingest:#{id}", Map.take(ingest, @props)],
       ["SADD", @keys, "ingest:#{id}"]
     ]
 

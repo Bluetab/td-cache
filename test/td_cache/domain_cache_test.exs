@@ -40,24 +40,33 @@ defmodule TdCache.DomainCacheTest do
       domain: %{id: id} = domain,
       parent: %{id: parent_id}
     } do
-      {:ok, ["OK", 1, 1, 1, 0, 0]} = DomainCache.put(domain)
+      {:ok, [5, 1, 1, 1, 1, 0, 0]} = DomainCache.put(domain)
       {:ok, d} = DomainCache.get(id)
       assert not is_nil(d)
       assert d.id == id
       assert d.name == domain.name
       assert d.parent_ids == "#{parent_id}"
       assert d.descendent_ids == "1,2"
+    end
+
+    test "publishes an event when a domain is created", %{domain: domain} do
+      {:ok, _} = DomainCache.put(domain)
       assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
       assert [%{event: "domain_created"}] = events
     end
 
+    test "does not publish an event if publish: false is specified", %{domain: domain} do
+      {:ok, _} = DomainCache.put(domain, publish: false)
+      assert {:ok, []} = Stream.read(:redix, ["domain:events"], transform: true)
+    end
+
     test "updates a domain entry only if changed", %{domain: domain} do
-      assert {:ok, ["OK", 1, 1, 1, 0, 0]} = DomainCache.put(domain)
+      assert {:ok, [5, 1, 1, 1, 1, 0, 0]} = DomainCache.put(domain)
       assert {:ok, []} = DomainCache.put(domain)
 
       updated = %{domain | name: "updated name", updated_at: DateTime.utc_now()}
 
-      assert {:ok, ["OK", 0, 0, 0, 0, 0]} = DomainCache.put(updated)
+      assert {:ok, [0, 0, 0, 0, 0, 0, 0]} = DomainCache.put(updated)
       assert {:ok, %{name: "updated name"}} = DomainCache.get(domain.id)
 
       assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
@@ -66,14 +75,14 @@ defmodule TdCache.DomainCacheTest do
 
     test "deletes an entry in redis", %{domain: %{id: id} = domain} do
       {:ok, _} = DomainCache.put(domain)
-      {:ok, [1, 1, 1, 1, 0, 1]} = DomainCache.delete(id)
+      {:ok, [1, 1, 1, 1, 1, 0, 1]} = DomainCache.delete(id)
       assert {:ok, nil} == DomainCache.get(id)
     end
 
     test "get deleted domain ids", %{domain: %{id: id} = domain} do
       {:ok, _} = DomainCache.put(domain)
       assert {:ok, []} = DomainCache.deleted_domains()
-      {:ok, [1, 1, 1, 1, 0, 1]} = DomainCache.delete(id)
+      {:ok, [1, 1, 1, 1, 1, 0, 1]} = DomainCache.delete(id)
       assert {:ok, [^id]} = DomainCache.deleted_domains()
     end
   end
@@ -88,6 +97,18 @@ defmodule TdCache.DomainCacheTest do
 
     test "returns error if no matching domain exists" do
       assert DomainCache.external_id_to_id("foobarbaz") == :error
+    end
+  end
+
+  describe "id_to_parent_ids_map/0" do
+    test "returns a map with domain_id keys and parent_ids values", %{
+      domain: %{id: domain_id, parent_ids: parent_ids} = domain
+    } do
+      assert DomainCache.id_to_parent_ids_map() == {:ok, %{}}
+
+      DomainCache.put(domain)
+
+      assert DomainCache.id_to_parent_ids_map() == {:ok, %{domain_id => [domain_id | parent_ids]}}
     end
   end
 end

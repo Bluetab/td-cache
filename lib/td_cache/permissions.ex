@@ -4,10 +4,12 @@ defmodule TdCache.Permissions do
   """
 
   alias TdCache.ConceptCache
+  alias TdCache.DomainCache
   alias TdCache.IngestCache
   alias TdCache.PermissionsConfig
   alias TdCache.Redix
   alias TdCache.TaxonomyCache
+  alias TdCache.UserCache
 
   @permissions PermissionsConfig.permissions() |> Enum.with_index() |> Map.new()
 
@@ -158,4 +160,46 @@ defmodule TdCache.Permissions do
   defp set_bit_cmd(offset), do: ["SET", "u1", offset, 1]
 
   defp get_bit_cmd(offset), do: ["GET", "u1", offset]
+
+  def permitted_domain_ids(user_id, permission) do
+    acl_domain_ids = get_acl_domain_ids(user_id, permission)
+
+    {:ok, %{} = id_to_parent_ids} = DomainCache.id_to_parent_ids_map()
+
+    Enum.reduce(id_to_parent_ids, [], fn {id, domain_ids}, acc ->
+      if Enum.any?(acl_domain_ids, &(&1 in domain_ids)) do
+        [id | acc]
+      else
+        acc
+      end
+    end)
+  end
+
+  defp get_acl_domain_ids(user_id, permission) do
+    with {:ok, roles} when is_list(roles) <- get_permission_roles(permission),
+         {:ok, %{} = role_domain_id_map} <- UserCache.get_roles(user_id) do
+      role_domain_id_map
+      |> Map.take(roles)
+      |> Enum.flat_map(fn {_, domain_ids} -> domain_ids end)
+    else
+      {:ok, nil} -> []
+    end
+  end
+
+  def put_permission_roles(roles_by_permission) do
+    delete = ["DEL", "permission:*:roles"]
+
+    adds =
+      Enum.map(roles_by_permission, fn {permission, roles} ->
+        key = "permission:#{permission}:roles"
+        ["SADD", key | roles]
+      end)
+
+    Redix.transaction_pipeline([delete | adds])
+  end
+
+  def get_permission_roles(permission) do
+    key = "permission:#{permission}:roles"
+    Redix.command(["SMEMBERS", key])
+  end
 end

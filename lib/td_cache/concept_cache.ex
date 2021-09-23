@@ -253,7 +253,11 @@ defmodule TdCache.ConceptCache do
 
   defp concept_entry_to_map(%{} = concept) do
     domain = get_domain(Map.get(concept, :domain_id))
-    shared_to_ids = get_shared_to_ids(Map.get(concept, :shared_to_ids))
+
+    shared_to_ids =
+      concept
+      |> Map.get(:shared_to_ids)
+      |> Redix.to_integer_list!()
 
     concept
     |> Map.put(:domain, domain)
@@ -264,21 +268,6 @@ defmodule TdCache.ConceptCache do
     case domain_id do
       nil -> nil
       _ -> DomainCache.get!(domain_id)
-    end
-  end
-
-  defp get_shared_to_ids(shared_to_ids) do
-    case shared_to_ids do
-      "" ->
-        []
-
-      nil ->
-        []
-
-      _ ->
-        shared_to_ids
-        |> String.split(",")
-        |> Enum.map(&String.to_integer/1)
     end
   end
 
@@ -314,9 +303,9 @@ defmodule TdCache.ConceptCache do
     concept = Map.put(concept, :shared_to_ids, shared_to_ids)
 
     commands = [
-      ["HMSET", "business_concept:#{id}", Map.take(concept, @props)],
+      ["HSET", "business_concept:#{id}", Map.take(concept, @props)],
       [
-        "HMSET",
+        "HSET",
         "business_concept:#{id}",
         "content",
         Jason.encode!(Map.get(concept, :content, %{}))

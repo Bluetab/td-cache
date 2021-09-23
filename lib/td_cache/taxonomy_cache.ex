@@ -4,7 +4,9 @@ defmodule TdCache.TaxonomyCache do
   """
   use GenServer
 
+  alias TdCache.AclCache
   alias TdCache.DomainCache
+  alias TdCache.Redix
 
   ## Client API
 
@@ -24,6 +26,10 @@ defmodule TdCache.TaxonomyCache do
 
   def get_parent_ids(id, with_self, opts) do
     GenServer.call(__MODULE__, {:parent_ids, id, with_self, opts})
+  end
+
+  def has_role?(domain_id, role, user_id, opts \\ []) do
+    GenServer.call(__MODULE__, {:has_role, domain_id, role, user_id, opts})
   end
 
   def get_descendent_ids(domain_id, with_self \\ true, opts \\ [])
@@ -72,6 +78,27 @@ defmodule TdCache.TaxonomyCache do
   end
 
   @impl true
+  def handle_call({:has_role, domain_id, role, user_id, opts}, _from, state) do
+    parent_ids =
+      get_cache(
+        {:parent, domain_id},
+        fn -> do_get_parent_ids(domain_id, true) end,
+        opts[:refresh]
+      )
+
+    reply =
+      get_cache(
+        {:has_role, parent_ids, role, user_id},
+        fn ->
+          Enum.any?(parent_ids, &AclCache.has_role?("domain", &1, role, user_id))
+        end,
+        opts[:refresh]
+      )
+
+    {:reply, reply, state}
+  end
+
+  @impl true
   def handle_call({:descendent_ids, id, with_self, opts}, _from, state) do
     reply =
       get_cache(
@@ -106,12 +133,12 @@ defmodule TdCache.TaxonomyCache do
         parent_ids =
           domain
           |> Map.get(:parent_ids)
-          |> to_integer_list
+          |> Redix.to_integer_list!()
 
         descendent_ids =
           domain
           |> Map.get(:descendent_ids)
-          |> to_integer_list
+          |> Redix.to_integer_list!()
 
         domain
         |> Map.put(:parent_ids, parent_ids)
@@ -122,7 +149,7 @@ defmodule TdCache.TaxonomyCache do
   defp do_get_parent_ids(domain_id, false) do
     case DomainCache.prop(domain_id, :parent_ids) do
       {:ok, ""} -> []
-      {:ok, ids} -> to_integer_list(ids)
+      {:ok, ids} -> Redix.to_integer_list!(ids)
     end
   end
 
@@ -133,23 +160,13 @@ defmodule TdCache.TaxonomyCache do
   defp do_get_descendent_ids(domain_id, false) do
     case DomainCache.prop(domain_id, :descendent_ids) do
       {:ok, ""} -> []
-      {:ok, ids} -> to_integer_list(ids)
+      {:ok, ids} -> Redix.to_integer_list!(ids)
     end
   end
 
   defp do_get_descendent_ids(domain_id, true) do
     [domain_id | do_get_descendent_ids(domain_id, false)]
   end
-
-  defp to_integer_list(""), do: []
-
-  defp to_integer_list(ids) when is_binary(ids) do
-    ids
-    |> String.split(",")
-    |> Enum.map(&String.to_integer/1)
-  end
-
-  defp to_integer_list(_), do: []
 
   def get_name(domain_id) do
     {:ok, name} = DomainCache.prop(domain_id, :name)

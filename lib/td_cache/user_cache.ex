@@ -78,6 +78,14 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:put, user})
   end
 
+  def put_roles(user_id, domain_ids_by_role) do
+    GenServer.call(__MODULE__, {:put_roles, user_id, domain_ids_by_role})
+  end
+
+  def get_roles(user_id) do
+    GenServer.call(__MODULE__, {:get_roles, user_id})
+  end
+
   def delete(id) do
     GenServer.call(__MODULE__, {:delete, id})
   end
@@ -116,6 +124,18 @@ defmodule TdCache.UserCache do
   @impl true
   def handle_call({:put, user}, _from, state) do
     reply = put_user(user)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:put_roles, user_id, domain_ids_by_role}, _from, state) do
+    reply = do_put_roles(user_id, domain_ids_by_role)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:get_roles, user_id}, _from, state) do
+    reply = do_get_roles(user_id)
     {:reply, reply, state}
   end
 
@@ -167,7 +187,7 @@ defmodule TdCache.UserCache do
   defp put_user(%{id: id} = user) do
     [
       ["DEL", "user:#{id}"],
-      ["HMSET", "user:#{id}", get_props(user)],
+      ["HSET", "user:#{id}", get_props(user)],
       ["SADD", @ids, "#{id}"]
     ]
     |> add_full_name(user)
@@ -203,16 +223,40 @@ defmodule TdCache.UserCache do
       [nil, nil] ->
         Redix.transaction_pipeline([
           ["DEL", "user:#{id}"],
+          ["DEL", "user:#{id}:roles"],
           ["SREM", @ids, "#{id}"]
         ])
 
       [full_name, user_name] ->
         Redix.transaction_pipeline([
           ["DEL", "user:#{id}"],
+          ["DEL", "user:#{id}:roles"],
           ["HDEL", @name_to_id_key, full_name],
           ["HDEL", @user_name_to_id_key, user_name],
           ["SREM", @ids, "#{id}"]
         ])
     end
+  end
+
+  defp do_put_roles(user_id, domain_ids_by_role) do
+    key = "user:#{user_id}:roles"
+
+    values =
+      Enum.flat_map(domain_ids_by_role, fn {role, domain_ids} ->
+        [role, Enum.join(domain_ids, ",")]
+      end)
+
+    Redix.transaction_pipeline([
+      ["DEL", key],
+      ["HSET", key | values]
+    ])
+  end
+
+  defp do_get_roles(user_id) do
+    key = "user:#{user_id}:roles"
+
+    Redix.read_map(key, fn [role, domain_ids] ->
+      {role, Redix.to_integer_list!(domain_ids)}
+    end)
   end
 end
