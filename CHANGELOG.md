@@ -1,11 +1,16 @@
 # Changelog
 
-## [4.28.0] 2021-09-20
+## [4.28.1] 2021-09-23
 
 ### Added
 
 - [TD-4076] New permission `approve_grant_request`
 - [TD-4076] Support for querying permissions in taxonomy hierarchy
+
+## [4.28.0] 2021-09-20
+
+### Added
+
 - [TD-3780] `TaxonomyCache` persists `descendent_ids` and
   `TaxonomyCache.put_domain/1` forces update if specified
 
