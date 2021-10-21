@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- [TD-4076] Fixed `TdCache.Permissions.put_permission_roles` DEL expression
+- [TD-4203] Fixed `TdCache.Permissions.put_permission_roles` DEL expression
 
 ## [4.28.1] 2021-09-23
 
