@@ -87,11 +87,28 @@ defmodule TdCache.PermissionsTest do
         "bar" => ["role4", "role3"]
       }
 
-      assert {:ok, [0, 2, 2]} = Permissions.put_permission_roles(roles_by_permission)
+      assert {:ok, [2, 2]} = Permissions.put_permission_roles(roles_by_permission)
       assert {:ok, roles} = Permissions.get_permission_roles("foo")
       assert Enum.sort(roles) == ["role1", "role2"]
       assert {:ok, roles} = Permissions.get_permission_roles("bar")
       assert Enum.sort(roles) == ["role3", "role4"]
+    end
+
+    test "removes existing roles from permissions" do
+      roles_by_permission = %{
+        "foo" => ["role1", "role2"]
+      }
+
+      assert {:ok, [2]} = Permissions.put_permission_roles(roles_by_permission)
+      assert {:ok, roles} = Permissions.get_permission_roles("foo")
+      assert Enum.sort(roles) == ["role1", "role2"]
+
+      roles_by_permission = %{
+        "foo" => ["role1"]
+      }
+      assert {:ok, [1, 1]} = Permissions.put_permission_roles(roles_by_permission)
+      assert {:ok, roles} = Permissions.get_permission_roles("foo")
+      assert Enum.sort(roles) == ["role1"]
     end
   end
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.31.0] 2021-10-21
+
+### Fixed
+
+- [TD-4076] Fixed `TdCache.Permissions.put_permission_roles` DEL expression
+
 ## [4.28.1] 2021-09-23
 
 ### Added

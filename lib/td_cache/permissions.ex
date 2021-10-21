@@ -187,7 +187,10 @@ defmodule TdCache.Permissions do
   end
 
   def put_permission_roles(roles_by_permission) do
-    delete = ["DEL", "permission:*:roles"]
+    deletes =
+      ["KEYS", "permission:*:roles"]
+      |> Redix.command!()
+      |> Enum.map(&["DEL", &1])
 
     adds =
       Enum.map(roles_by_permission, fn {permission, roles} ->
@@ -195,7 +198,7 @@ defmodule TdCache.Permissions do
         ["SADD", key | roles]
       end)
 
-    Redix.transaction_pipeline([delete | adds])
+    Redix.transaction_pipeline(deletes ++ adds)
   end
 
   def get_permission_roles(permission) do
