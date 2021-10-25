@@ -1,9 +1,9 @@
 defmodule TdCache.UserCacheTest do
   use ExUnit.Case
 
+  alias TdCache.AclCache
   alias TdCache.Redix
   alias TdCache.UserCache
-  alias TdCache.AclCache
 
   doctest TdCache.UserCache
 

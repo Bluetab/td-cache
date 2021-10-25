@@ -4,8 +4,8 @@ defmodule TdCache.UserCache do
   """
   use GenServer
 
-  alias TdCache.Redix
   alias TdCache.AclCache
+  alias TdCache.Redix
 
   @ids "users:ids"
   @props [:user_name, :full_name, :email]
