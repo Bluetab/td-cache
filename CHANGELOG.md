@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- [TD-4212] Remove ACLs after user deletion
+
 ## [4.31.0] 2021-10-21
 
 ### Fixed

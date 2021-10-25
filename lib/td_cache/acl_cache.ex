@@ -33,6 +33,18 @@ defmodule TdCache.AclCache do
     Redix.command(["DEL", key])
   end
 
+  def delete_acl_role_user_command(
+    %{
+      resource_type: resource_type,
+      resource_id: resource_id,
+      role: %{name: role_name}
+    },
+    user_id
+  ) do
+    key = create_acl_role_users_key(resource_type, resource_id, role_name)
+    ["SREM", key, "#{user_id}"]
+  end
+
   def create_acl_role_users_key(resource_type, resource_id, role) do
     "acl_role_users:#{resource_type}:#{resource_id}:#{role}"
   end
