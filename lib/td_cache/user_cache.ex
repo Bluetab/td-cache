@@ -219,7 +219,7 @@ defmodule TdCache.UserCache do
     |> Map.new()
   end
 
-  defp delete_user(%{id: user_id, acl_entries: acl_entries} = user) do
+  defp delete_user(%{id: user_id, acl_entries: acl_entries}) do
     acl_commands = Enum.map(
       acl_entries,
       fn acl_entry ->
