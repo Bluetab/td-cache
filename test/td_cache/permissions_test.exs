@@ -106,6 +106,7 @@ defmodule TdCache.PermissionsTest do
       roles_by_permission = %{
         "foo" => ["role1"]
       }
+
       assert {:ok, [1, 1]} = Permissions.put_permission_roles(roles_by_permission)
       assert {:ok, roles} = Permissions.get_permission_roles("foo")
       assert Enum.sort(roles) == ["role1"]
