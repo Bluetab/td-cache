@@ -82,6 +82,7 @@ defmodule TdCache.UserCacheTest do
 
   test "delete_user deletes the user and its ACLs from cache", context do
     [user | _] = context[:users]
+
     %{
       id: user_id,
       acl_entries: [

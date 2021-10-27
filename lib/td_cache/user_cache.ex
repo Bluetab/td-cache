@@ -220,12 +220,13 @@ defmodule TdCache.UserCache do
   end
 
   defp delete_user(%{id: user_id, acl_entries: acl_entries}) do
-    acl_commands = Enum.map(
-      acl_entries,
-      fn acl_entry ->
-        AclCache.delete_acl_role_user_command(acl_entry, user_id)
-      end
-    )
+    acl_commands =
+      Enum.map(
+        acl_entries,
+        fn acl_entry ->
+          AclCache.delete_acl_role_user_command(acl_entry, user_id)
+        end
+      )
 
     case Redix.command!(["HMGET", "user:#{user_id}", "full_name", "user_name"]) do
       [nil, nil] ->
@@ -245,7 +246,7 @@ defmodule TdCache.UserCache do
         ]
     end
     |> Kernel.++(acl_commands)
-    |> Redix.transaction_pipeline
+    |> Redix.transaction_pipeline()
   end
 
   defp do_put_roles(user_id, domain_ids_by_role) do
