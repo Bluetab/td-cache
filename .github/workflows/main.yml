@@ -24,6 +24,7 @@ jobs:
           elixir-version: '1.11.4'
       - run: mix deps.get
       - run: mix credo --strict
+      - run: mix dialyzer
       - run: mix test
         env:
           REDIS_HOST: localhost
