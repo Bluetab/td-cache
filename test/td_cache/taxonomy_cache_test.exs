@@ -1,7 +1,6 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
 
-  alias TdCache.AclCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
   alias TdCache.TaxonomyCache
@@ -214,8 +213,8 @@ defmodule TdCache.TaxonomyCacheTest do
     } do
       user_id = System.unique_integer([:positive])
       Enum.each([root, parent, domain], &TaxonomyCache.put_domain/1)
-      AclCache.set_acl_role_users("domain", id2, @role, [user_id])
-      on_exit(fn -> AclCache.delete_acl_roles("domain", id2) end)
+      CacheHelpers.put_user_ids([user_id])
+      CacheHelpers.put_acl("domain", id2, @role, [user_id])
       [user_id: user_id]
     end
 

@@ -4,7 +4,6 @@ defmodule TdCache.UserCache do
   """
   use GenServer
 
-  alias TdCache.AclCache
   alias TdCache.Redix
 
   @ids "users:ids"
@@ -90,6 +89,8 @@ defmodule TdCache.UserCache do
   def delete(id) do
     GenServer.call(__MODULE__, {:delete, id})
   end
+
+  def ids_key, do: @ids
 
   ## Callbacks
 
@@ -219,34 +220,24 @@ defmodule TdCache.UserCache do
     |> Map.new()
   end
 
-  defp delete_user(%{id: user_id, acl_entries: acl_entries}) do
-    acl_commands =
-      Enum.map(
-        acl_entries,
-        fn acl_entry ->
-          AclCache.delete_acl_role_user_command(acl_entry, user_id)
-        end
-      )
-
-    case Redix.command!(["HMGET", "user:#{user_id}", "full_name", "user_name"]) do
+  defp delete_user(id) do
+    case Redix.command!(["HMGET", "user:#{id}", "full_name", "user_name"]) do
       [nil, nil] ->
-        [
-          ["DEL", "user:#{user_id}"],
-          ["DEL", "user:#{user_id}:roles"],
-          ["SREM", @ids, "#{user_id}"]
-        ]
+        Redix.transaction_pipeline([
+          ["DEL", "user:#{id}"],
+          ["DEL", "user:#{id}:roles"],
+          ["SREM", @ids, id]
+        ])
 
       [full_name, user_name] ->
-        [
-          ["DEL", "user:#{user_id}"],
-          ["DEL", "user:#{user_id}:roles"],
+        Redix.transaction_pipeline([
+          ["DEL", "user:#{id}"],
+          ["DEL", "user:#{id}:roles"],
           ["HDEL", @name_to_id_key, full_name],
           ["HDEL", @user_name_to_id_key, user_name],
-          ["SREM", @ids, "#{user_id}"]
-        ]
+          ["SREM", @ids, id]
+        ])
     end
-    |> Kernel.++(acl_commands)
-    |> Redix.transaction_pipeline()
   end
 
   defp do_put_roles(user_id, domain_ids_by_role) do

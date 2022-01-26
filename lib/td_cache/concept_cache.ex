@@ -245,10 +245,6 @@ defmodule TdCache.ConceptCache do
     {:ok, Enum.map(shared_to_ids, &DomainCache.get!(&1))}
   end
 
-  defp read_shared_to(_) do
-    {:ok, []}
-  end
-
   defp concept_entry_to_map(nil), do: nil
 
   defp concept_entry_to_map(%{} = concept) do

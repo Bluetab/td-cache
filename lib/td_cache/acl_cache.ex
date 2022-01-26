@@ -4,19 +4,28 @@ defmodule TdCache.AclCache do
   """
 
   alias TdCache.Redix
+  alias TdCache.UserCache
 
-  def create_acl_roles_key(resource_type, resource_id) do
-    "acl_roles:#{resource_type}:#{resource_id}"
+  defmodule Keys do
+    @moduledoc false
+
+    def acl_roles_key(resource_type, resource_id) do
+      "acl_roles:#{resource_type}:#{resource_id}"
+    end
+
+    def acl_role_users_key(resource_type, resource_id, role) do
+      "acl_role_users:#{resource_type}:#{resource_id}:#{role}"
+    end
   end
 
   def get_acl_roles(resource_type, resource_id) do
-    key = create_acl_roles_key(resource_type, resource_id)
+    key = Keys.acl_roles_key(resource_type, resource_id)
     {:ok, roles} = Redix.command(["SMEMBERS", key])
     roles
   end
 
   def set_acl_roles(resource_type, resource_id, roles) when is_list(roles) do
-    key = create_acl_roles_key(resource_type, resource_id)
+    key = Keys.acl_roles_key(resource_type, resource_id)
 
     Redix.transaction_pipeline([
       ["DEL", key],
@@ -24,70 +33,44 @@ defmodule TdCache.AclCache do
     ])
   end
 
-  def set_acl_roles(resource_type, resource_id, %MapSet{} = roles) do
-    set_acl_roles(resource_type, resource_id, MapSet.to_list(roles))
-  end
-
   def delete_acl_roles(resource_type, resource_id) do
-    key = create_acl_roles_key(resource_type, resource_id)
+    key = Keys.acl_roles_key(resource_type, resource_id)
     Redix.command(["DEL", key])
   end
 
-  def delete_acl_role_user_command(
-        %{
-          resource_type: resource_type,
-          resource_id: resource_id,
-          role: %{name: role_name}
-        },
-        user_id
-      ) do
-    key = create_acl_role_users_key(resource_type, resource_id, role_name)
-    ["SREM", key, "#{user_id}"]
-  end
-
-  def create_acl_role_users_key(resource_type, resource_id, role) do
-    "acl_role_users:#{resource_type}:#{resource_id}:#{role}"
-  end
-
   def get_acl_role_users(resource_type, resource_id, role) do
-    key = create_acl_role_users_key(resource_type, resource_id, role)
-    {:ok, role_users} = Redix.command(["SMEMBERS", key])
-    role_users
+    key = Keys.acl_role_users_key(resource_type, resource_id, role)
+
+    case Redix.command(["SINTER", key, UserCache.ids_key()]) do
+      {:ok, user_ids} -> Redix.to_integer_list!(user_ids)
+    end
   end
 
   def has_role?(resource_type, resource_id, role, user_id) do
-    key = create_acl_role_users_key(resource_type, resource_id, role)
-    Redix.command!(["SMEMBERS", key])
-    Redix.command!(["SISMEMBER", key, user_id]) == 1
+    key = Keys.acl_role_users_key(resource_type, resource_id, role)
+
+    Redix.transaction_pipeline!([
+      ["SISMEMBER", key, user_id],
+      ["SISMEMBER", UserCache.ids_key(), user_id]
+    ]) == [1, 1]
   end
 
   def set_acl_role_users(resource_type, resource_id, role, user_ids) when is_list(user_ids) do
-    key = create_acl_role_users_key(resource_type, resource_id, role)
+    key = Keys.acl_role_users_key(resource_type, resource_id, role)
 
     case user_ids do
-      [] ->
-        Redix.command(["DEL", key])
-
-      _ ->
-        Redix.transaction_pipeline([
-          ["DEL", key],
-          ["SADD", key] ++ user_ids
-        ])
+      [] -> Redix.command(["DEL", key])
+      _ -> Redix.transaction_pipeline([["DEL", key], ["SADD", key | user_ids]])
     end
   end
 
   def delete_acl_role_users(resource_type, resource_id, role) do
-    key = create_acl_role_users_key(resource_type, resource_id, role)
+    key = Keys.acl_role_users_key(resource_type, resource_id, role)
     Redix.command(["DEL", key])
   end
 
-  def delete_acl_role_user(resource_type, resource_id, role, user) do
-    key = create_acl_role_users_key(resource_type, resource_id, role)
-    users = get_acl_role_users(resource_type, resource_id, role)
-
-    case Enum.member?(users, to_string(user)) do
-      true -> Redix.command(["SREM", key, "#{user}"])
-      _ -> :ok
-    end
+  def delete_acl_role_user(resource_type, resource_id, role, user_id) do
+    key = Keys.acl_role_users_key(resource_type, resource_id, role)
+    Redix.command(["SREM", key, user_id])
   end
 end
