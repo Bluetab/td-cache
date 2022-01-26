@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- `AclCache.get_acl_role_users` now returns a list of integers. User ids are
+  only included in the result if they are present in the user cache.
+- `ConceptCache.put` and `ConceptCache.delete` now support an option to prevent
+  events from being published
+
 ## [4.31.1] 2021-10-27
 
 ### Fixed

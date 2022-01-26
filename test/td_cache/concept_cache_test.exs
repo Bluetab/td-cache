@@ -146,6 +146,13 @@ defmodule TdCache.ConceptCacheTest do
       assert e.ids == "#{concept.id}"
     end
 
+    test "doesn't publish an event when an entry is removed if publish is false", context do
+      concept = context[:concept]
+      Redix.command!(["SADD", "business_concept:ids:active", concept.id])
+      {:ok, _} = ConceptCache.delete(concept.id, publish: false)
+      assert {:ok, []} = Stream.read(:redix, [@stream], transform: true)
+    end
+
     test "publishes an event when an entry is restored", context do
       concept = context[:concept]
       Redix.command!(["SADD", "business_concept:ids:inactive", concept.id])
@@ -154,6 +161,14 @@ defmodule TdCache.ConceptCacheTest do
       {:ok, [e]} = Stream.read(:redix, [@stream], transform: true)
       assert e.event == "restore_concepts"
       assert e.ids == "#{concept.id}"
+    end
+
+    test "doesn't publish an event when an entry is restored if publish is false", context do
+      concept = context[:concept]
+      Redix.command!(["SADD", "business_concept:ids:inactive", concept.id])
+      {:ok, _} = ConceptCache.put(concept, publish: false)
+
+      assert {:ok, []} = Stream.read(:redix, [@stream], transform: true)
     end
 
     test "updates active and inactive ids, publishes events identifying removed and restored ids" do
