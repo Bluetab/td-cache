@@ -1,5 +1,5 @@
 name: test
-on: [push]
+on: push
 
 jobs:
   test:
@@ -18,28 +18,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set mix file hash
-        id: set_vars
-        run: |
-          mix_hash="${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}"
-          echo "::set-output name=mix_hash::$mix_hash"
-      - name: Cache PLT files
-        id: cache-plt
-        uses: actions/cache@v2
-        with:
-          path: |
-            _build/dev/*.plt
-            _build/dev/*.plt.hash
-          key: plt-cache-${{ steps.set_vars.outputs.mix_hash }}
-          restore-keys: |
-            plt-cache-
       - uses: erlef/setup-elixir@v1
         with:
           otp-version: '23.3.4.5'
           elixir-version: '1.11.4'
       - run: mix deps.get
       - run: mix credo --strict
-      - run: mix dialyzer
       - run: mix test
         env:
           REDIS_HOST: localhost

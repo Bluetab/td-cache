@@ -17,7 +17,7 @@ defmodule TdCache.Audit.Event do
 
   @type t :: %__MODULE__{
           event: String.t(),
-          payload: Map.t(),
+          payload: map(),
           resource_id: integer(),
           resource_type: String.t(),
           user_id: integer()
