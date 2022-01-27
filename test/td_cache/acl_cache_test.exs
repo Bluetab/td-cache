@@ -27,8 +27,13 @@ defmodule TdCache.AclCacheTest do
     end)
   end
 
-  test "set_acl_roles returns Ok" do
-    {:ok, [_, 3]} = AclCache.set_acl_roles(@resource_type, @resource_id, @roles)
+  describe "AclCache.set_acl_roles/3" do
+    test "sets members, deletes key if roles is an empty list" do
+      assert {:ok, [0, 3]} = AclCache.set_acl_roles(@resource_type, @resource_id, @roles)
+      assert Redix.exists?(AclCache.Keys.acl_roles_key(@resource_type, @resource_id))
+      assert {:ok, 1} = AclCache.set_acl_roles(@resource_type, @resource_id, [])
+      refute Redix.exists?(AclCache.Keys.acl_roles_key(@resource_type, @resource_id))
+    end
   end
 
   test "get_acl_roles returns same value that was put" do
