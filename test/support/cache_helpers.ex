@@ -20,7 +20,7 @@ defmodule TdCache.CacheHelpers do
 
   def put_domain(%{id: id} = domain) do
     on_exit(fn -> DomainCache.delete(id) end)
-    DomainCache.put(domain)
+    DomainCache.put(domain, publish: false)
   end
 
   def put_concept(%{id: id} = concept) do
