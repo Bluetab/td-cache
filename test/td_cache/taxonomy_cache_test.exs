@@ -1,6 +1,9 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
 
+  import TdCache.Factory
+
+  alias TdCache.CacheHelpers
   alias TdCache.Redix
   alias TdCache.Redix.Stream
   alias TdCache.TaxonomyCache
@@ -10,16 +13,16 @@ defmodule TdCache.TaxonomyCacheTest do
   doctest TdCache.TaxonomyCache
 
   setup do
-    root = random_domain()
-    parent = random_domain() |> Map.put(:parent_ids, [root.id])
-    domain = random_domain() |> Map.put(:parent_ids, [parent.id, root.id])
+    root = build(:domain)
+    parent = build(:domain, parent_ids: [root.id])
+    domain = build(:domain, parent_ids: [parent.id, root.id])
 
     root = Map.put(root, :descendent_ids, [parent.id, domain.id])
     parent = Map.put(parent, :descendent_ids, [domain.id])
 
     on_exit(fn -> Redix.del!(["domain:*", "domains:*"]) end)
 
-    {:ok, root: root, parent: parent, domain: domain}
+    [root: root, parent: parent, domain: domain]
   end
 
   test "put_domain returns OK", %{domain: domain} do
@@ -123,9 +126,9 @@ defmodule TdCache.TaxonomyCacheTest do
 
     map = TaxonomyCache.get_domain_name_to_id_map()
 
-    domains
-    |> Enum.all?(&Map.has_key?(map, &1.name))
-    |> assert
+    for %{name: domain_name} <- domains do
+      assert Map.has_key?(map, domain_name)
+    end
   end
 
   test "get_domain_external_id_to_id_map returns a map with names as keys and ids as values",
@@ -136,9 +139,9 @@ defmodule TdCache.TaxonomyCacheTest do
 
     map = TaxonomyCache.get_domain_external_id_to_id_map()
 
-    domains
-    |> Enum.all?(&(Map.get(map, &1.external_id) == &1.id))
-    |> assert
+    for %{id: id, external_id: external_id} <- domains do
+      assert Map.get(map, external_id) == id
+    end
   end
 
   test "get_domain_ids returns a list with all domain ids",
@@ -211,9 +214,9 @@ defmodule TdCache.TaxonomyCacheTest do
       parent: %{id: id2} = parent,
       domain: domain
     } do
-      user_id = System.unique_integer([:positive])
+      %{id: user_id} = user = build(:user)
       Enum.each([root, parent, domain], &TaxonomyCache.put_domain/1)
-      CacheHelpers.put_user_ids([user_id])
+      CacheHelpers.put_user(user)
       CacheHelpers.put_acl("domain", id2, @role, [user_id])
       [user_id: user_id]
     end
@@ -228,17 +231,5 @@ defmodule TdCache.TaxonomyCacheTest do
       assert TaxonomyCache.has_role?(id2, @role, user_id)
       assert TaxonomyCache.has_role?(id3, @role, user_id)
     end
-  end
-
-  defp random_domain(params \\ %{}) do
-    id = Map.get(params, :id, System.unique_integer([:positive]))
-
-    %{
-      id: id,
-      name: "domain #{id}",
-      external_id: "external id #{id}",
-      updated_at: DateTime.utc_now()
-    }
-    |> Map.merge(params)
   end
 end

@@ -1,42 +1,32 @@
 defmodule TdCache.PermissionsTest do
   use ExUnit.Case
 
-  alias TdCache.ConceptCache
-  alias TdCache.DomainCache
-  alias TdCache.IngestCache
+  import TdCache.Factory
+
+  alias TdCache.CacheHelpers
   alias TdCache.Permissions
   alias TdCache.Redix
-  alias TdCache.TaxonomyCache
   alias TdCache.UserCache
 
   doctest TdCache.Permissions
 
   setup do
-    user = %{id: unique_id()}
-    parent = %{id: unique_id(), name: "parent", updated_at: DateTime.utc_now()}
+    user = build(:user)
+    parent = build(:domain)
+    domain = build(:domain, parent_ids: [parent.id])
 
-    domain = %{
-      id: unique_id(),
-      name: "child",
-      parent_ids: [parent.id],
-      updated_at: DateTime.utc_now()
-    }
+    CacheHelpers.put_domain(parent)
+    CacheHelpers.put_domain(domain)
 
-    {:ok, _} = TaxonomyCache.put_domain(domain)
-    {:ok, _} = TaxonomyCache.put_domain(parent)
+    concept = build(:concept, domain_id: domain.id)
+    CacheHelpers.put_concept(concept)
 
-    concept = concept_entry(domain)
-    {:ok, _} = ConceptCache.put(concept)
-
-    ingest = ingest_entry(domain)
-    {:ok, _} = IngestCache.put(ingest)
+    ingest = build(:ingest, domain_id: domain.id)
+    CacheHelpers.put_ingest(ingest)
 
     acl_entries = acl_entries(domain, user, [["create_business_concept"], ["create_ingest"]])
 
     on_exit(fn ->
-      ConceptCache.delete(concept.id)
-      IngestCache.delete(ingest.id)
-
       Redix.del!([
         "session:*",
         "business_concept:ids:inactive",
@@ -48,8 +38,7 @@ defmodule TdCache.PermissionsTest do
       ])
     end)
 
-    {:ok,
-     concept: concept, domain: domain, ingest: ingest, parent: parent, acl_entries: acl_entries}
+    [concept: concept, domain: domain, ingest: ingest, parent: parent, acl_entries: acl_entries]
   end
 
   test "resolves cached session permissions", %{
@@ -95,17 +84,13 @@ defmodule TdCache.PermissionsTest do
     end
 
     test "removes existing roles from permissions" do
-      roles_by_permission = %{
-        "foo" => ["role1", "role2"]
-      }
+      roles_by_permission = %{"foo" => ["role1", "role2"]}
 
       assert {:ok, [2]} = Permissions.put_permission_roles(roles_by_permission)
       assert {:ok, roles} = Permissions.get_permission_roles("foo")
       assert Enum.sort(roles) == ["role1", "role2"]
 
-      roles_by_permission = %{
-        "foo" => ["role1"]
-      }
+      roles_by_permission = %{"foo" => ["role1"]}
 
       assert {:ok, [1, 1]} = Permissions.put_permission_roles(roles_by_permission)
       assert {:ok, roles} = Permissions.get_permission_roles("foo")
@@ -115,24 +100,18 @@ defmodule TdCache.PermissionsTest do
 
   describe "permitted_domain_ids/2" do
     setup do
-      user = %{id: user_id = unique_id()}
-      ts = DateTime.utc_now()
+      user = build(:user)
 
-      parent = %{id: unique_id(), name: "parent", updated_at: ts}
-      domain = %{id: unique_id(), parent_ids: [parent.id], name: "domain", updated_at: ts}
+      parent = build(:domain)
+      domain = build(:domain, parent_ids: [parent.id])
+      child = build(:domain, parent_ids: [domain.id, parent.id])
 
-      child = %{
-        id: unique_id(),
-        parent_ids: [domain.id, parent.id],
-        name: "child",
-        updated_at: ts
-      }
+      CacheHelpers.put_domain(parent)
+      CacheHelpers.put_domain(domain)
+      CacheHelpers.put_domain(child)
 
       {:ok, _} = Permissions.put_permission_roles(%{"foo" => ["role1", "role2"]})
-      {:ok, _} = UserCache.put_roles(user_id, %{"role1" => [parent.id]})
-      {:ok, _} = DomainCache.put(parent)
-      {:ok, _} = DomainCache.put(domain)
-      {:ok, _} = DomainCache.put(child)
+      {:ok, _} = UserCache.put_roles(user.id, %{"role1" => [parent.id]})
 
       [user: user, parent: parent, domain: domain, child: child]
     end
@@ -152,16 +131,6 @@ defmodule TdCache.PermissionsTest do
     end
   end
 
-  defp concept_entry(%{id: domain_id}) do
-    id = unique_id()
-    %{id: id, domain_id: domain_id, name: "concept #{id}", business_concept_version_id: id}
-  end
-
-  defp ingest_entry(%{id: domain_id}) do
-    id = unique_id()
-    %{id: id, domain_id: domain_id, name: "ingest #{id}", ingest_version_id: id}
-  end
-
   defp acl_entry(%{id: domain_id}, %{id: user_id}, permissions) do
     %{
       resource_type: "domain",
@@ -173,8 +142,7 @@ defmodule TdCache.PermissionsTest do
   end
 
   defp acl_entries(domain, user, permissions) do
-    permissions
-    |> Enum.map(&acl_entry(domain, user, &1))
+    Enum.map(permissions, &acl_entry(domain, user, &1))
   end
 
   defp unique_id, do: System.unique_integer([:positive])

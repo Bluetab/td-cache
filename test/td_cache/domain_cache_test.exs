@@ -1,6 +1,8 @@
 defmodule TdCache.DomainCacheTest do
   use ExUnit.Case
 
+  import TdCache.Factory
+
   alias TdCache.DomainCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
@@ -8,31 +10,17 @@ defmodule TdCache.DomainCacheTest do
   doctest TdCache.DomainCache
 
   setup do
-    parent = %{
-      id: System.unique_integer([:positive]),
-      external_id: "parent",
-      name: "parent",
-      updated_at: DateTime.utc_now()
-    }
-
-    domain = %{
-      id: System.unique_integer([:positive]),
-      external_id: "domain",
-      name: "child",
-      parent_ids: [parent.id],
-      updated_at: DateTime.utc_now(),
-      descendent_ids: [1, 2]
-    }
-
+    parent = build(:domain)
+    domain = build(:domain, parent_ids: [parent.id], descendent_ids: [1, 2])
     parent = Map.put(parent, :descendent_ids, [domain.id])
 
     on_exit(fn ->
       DomainCache.delete(domain.id)
       DomainCache.delete(parent.id)
-      Redix.del!("domain:*")
+      Redix.del!(["domain:*", "domains:*"])
     end)
 
-    {:ok, domain: domain, parent: parent}
+    [domain: domain, parent: parent]
   end
 
   describe "DomainCache" do
@@ -79,11 +67,13 @@ defmodule TdCache.DomainCacheTest do
       assert {:ok, nil} == DomainCache.get(id)
     end
 
-    test "get deleted domain ids", %{domain: %{id: id} = domain} do
+    test "keeps a set of deleted domain ids", %{domain: %{id: id} = domain} do
       {:ok, _} = DomainCache.put(domain)
-      assert {:ok, []} = DomainCache.deleted_domains()
-      {:ok, [1, 1, 1, 1, 1, 0, 1]} = DomainCache.delete(id)
-      assert {:ok, [^id]} = DomainCache.deleted_domains()
+      {:ok, deleted_ids} = DomainCache.deleted_domains()
+      refute Enum.member?(deleted_ids, id)
+      {:ok, _} = DomainCache.delete(id)
+      {:ok, deleted_ids} = DomainCache.deleted_domains()
+      assert Enum.member?(deleted_ids, id)
     end
   end
 

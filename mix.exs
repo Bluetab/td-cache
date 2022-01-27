@@ -30,7 +30,8 @@ defmodule TdCache.MixProject do
       {:redix, "~> 1.0"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:jason, "~> 1.1"},
-      {:dialyxir, "~> 1.0", only: :dev, runtime: false}
+      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
+      {:ex_machina, "~> 2.4", only: :test}
     ]
   end
 end

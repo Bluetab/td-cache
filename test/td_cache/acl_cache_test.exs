@@ -2,6 +2,7 @@ defmodule TdCache.AclCacheTest do
   use ExUnit.Case
 
   alias TdCache.AclCache
+  alias TdCache.CacheHelpers
   alias TdCache.Redix
 
   doctest TdCache.AclCache
@@ -46,7 +47,7 @@ defmodule TdCache.AclCacheTest do
     AclCache.set_acl_roles(@resource_type, @resource_id, @roles)
     AclCache.delete_acl_roles(@resource_type, @resource_id)
     key = AclCache.Keys.acl_roles_key(@resource_type, @resource_id)
-    refute Redix.exists?("#{key}")
+    refute Redix.exists?(key)
   end
 
   test "set_acl_role_users accepts an empty list" do

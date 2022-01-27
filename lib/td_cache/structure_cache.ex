@@ -93,7 +93,7 @@ defmodule TdCache.StructureCache do
     Redix.transaction_pipeline([
       ["DEL", "data_structure:#{id}", "data_structure:#{id}:path"],
       ["SREM", "data_structure:keys", "data_structure:#{id}"],
-      ["SADD", "data_structure:deleted_ids", "#{id}"]
+      ["SADD", "data_structure:deleted_ids", id]
     ])
   end
 
