@@ -1,6 +1,8 @@
 defmodule TdCache.UserCacheTest do
   use ExUnit.Case
 
+  alias TdCache.AclCache
+  alias TdCache.Redix
   alias TdCache.UserCache
 
   doctest TdCache.UserCache
@@ -76,6 +78,27 @@ defmodule TdCache.UserCacheTest do
 
   test "get_user returns nil if the user is not cached" do
     assert {:ok, nil} == UserCache.get("9876543")
+  end
+
+  describe "delete/1" do
+    test "deletes the user from cache", %{users: [user | _]} do
+      %{id: user_id} = user
+      put_user(user)
+      assert Redix.exists?("user:#{user_id}")
+      UserCache.delete(user_id)
+      refute Redix.exists?("user:#{user_id}")
+    end
+
+    test "deletes user's ACLs from cache", %{users: [user | _]} do
+      %{id: user_id} = user
+      domain_id = System.unique_integer([:positive])
+      put_user(user)
+      UserCache.put_roles(user_id, %{"my_role" => [domain_id]})
+      CacheHelpers.put_acl("domain", domain_id, "my_role", [user_id])
+      assert AclCache.has_role?("domain", domain_id, "my_role", user_id)
+      UserCache.delete(user_id)
+      refute AclCache.has_role?("domain", domain_id, "my_role", user_id)
+    end
   end
 
   describe "exists?/1" do
