@@ -30,7 +30,7 @@ defmodule TdCache.DomainCacheTest do
     } do
       {:ok, [5, 1, 1, 1, 1, 0, 0]} = DomainCache.put(domain)
       {:ok, d} = DomainCache.get(id)
-      assert not is_nil(d)
+      assert d
       assert d.id == id
       assert d.name == domain.name
       assert d.parent_ids == "#{parent_id}"

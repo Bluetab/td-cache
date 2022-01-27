@@ -51,7 +51,7 @@ defmodule TdCache.ConceptCacheTest do
       concept = context[:concept]
       {:ok, [4, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
-      assert not is_nil(c)
+      assert c
       assert c.id == concept.id
       assert c.name == concept.name
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
@@ -83,7 +83,7 @@ defmodule TdCache.ConceptCacheTest do
 
       {:ok, [5, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
-      assert not is_nil(c)
+      assert c
       assert c.id == concept.id
       assert c.name == concept.name
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
@@ -94,7 +94,7 @@ defmodule TdCache.ConceptCacheTest do
       assert c.domain
       assert c.domain.id == domain.id
       assert c.domain.name == domain.name
-      assert c.domain.parent_ids == Enum.join(domain.parent_ids, ",")
+      assert c.domain.parent_ids == domain.parent_ids
     end
 
     test "reads the content property of a concept", %{concept: %{content: content} = concept} do

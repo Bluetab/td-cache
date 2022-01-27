@@ -6,7 +6,6 @@ defmodule TdCache.ConceptCache do
   use GenServer
 
   alias Jason
-  alias TdCache.DomainCache
   alias TdCache.EventStream.Publisher
   alias TdCache.LinkCache
   alias TdCache.Redix
@@ -242,7 +241,7 @@ defmodule TdCache.ConceptCache do
   end
 
   defp read_shared_to(%{shared_to_ids: shared_to_ids}) do
-    {:ok, Enum.map(shared_to_ids, &DomainCache.get!(&1))}
+    {:ok, Enum.map(shared_to_ids, &TaxonomyCache.get_domain/1)}
   end
 
   defp concept_entry_to_map(nil), do: nil
@@ -266,7 +265,7 @@ defmodule TdCache.ConceptCache do
   defp get_domain(domain_id) do
     case domain_id do
       nil -> nil
-      _ -> DomainCache.get!(domain_id)
+      _ -> TaxonomyCache.get_domain(domain_id)
     end
   end
 
