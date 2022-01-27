@@ -11,6 +11,7 @@ defmodule TdCache.Permissions do
   alias TdCache.TaxonomyCache
   alias TdCache.UserCache
 
+  @default_permissions_key "permission:defaults"
   @permissions PermissionsConfig.permissions() |> Enum.with_index() |> Map.new()
 
   @permissions_by_offset PermissionsConfig.permissions()
@@ -142,7 +143,7 @@ defmodule TdCache.Permissions do
       |> Enum.flat_map(&set_bit_cmd/1)
 
     [
-      ["BITFIELD" | [key | cmds]],
+      ["BITFIELD", key | cmds],
       ["EXPIREAT", key, expire_at]
     ]
   end
@@ -204,5 +205,20 @@ defmodule TdCache.Permissions do
   def get_permission_roles(permission) do
     key = "permission:#{permission}:roles"
     Redix.command(["SMEMBERS", key])
+  end
+
+  def put_default_permissions([]) do
+    Redix.command(["DEL", @default_permissions_key])
+  end
+
+  def put_default_permissions(permissions) do
+    Redix.transaction_pipeline([
+      ["DEL", @default_permissions_key],
+      ["SADD", @default_permissions_key | permissions]
+    ])
+  end
+
+  def is_default_permission?(permission) do
+    Redix.command!(["SISMEMBER", @default_permissions_key, permission]) == 1
   end
 end

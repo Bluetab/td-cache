@@ -34,7 +34,8 @@ defmodule TdCache.PermissionsTest do
         "domain:*",
         "domains:*",
         "permission:foo:roles",
-        "permission:bar:roles"
+        "permission:bar:roles",
+        "permission:defaults"
       ])
     end)
 
@@ -128,6 +129,31 @@ defmodule TdCache.PermissionsTest do
 
     test "returns an empty list if no such key exists" do
       assert Permissions.permitted_domain_ids(123, "foo") == []
+    end
+  end
+
+  describe "put_default_permissions/1" do
+    setup do
+      on_exit(fn -> Redix.command!(["DEL", "permission:defaults"]) end)
+    end
+
+    test "replaces the set of default permissions" do
+      assert Redix.command!(["SCARD", "permission:defaults"]) == 0
+      assert {:ok, [_, 2]} = Permissions.put_default_permissions(["foo", "bar", "foo"])
+      assert Redix.command!(["SCARD", "permission:defaults"]) == 2
+      assert {:ok, 1} = Permissions.put_default_permissions([])
+      assert Redix.command!(["SCARD", "permission:defaults"]) == 0
+    end
+  end
+
+  describe "is_default_permission?/1" do
+    test "returns true iff the permission exists in the default permissions" do
+      Permissions.put_default_permissions([])
+      refute Permissions.is_default_permission?("foo")
+      Permissions.put_default_permissions(["foo", "bar"])
+      assert Permissions.is_default_permission?("foo")
+      assert Permissions.is_default_permission?(:bar)
+      refute Permissions.is_default_permission?("baz")
     end
   end
 

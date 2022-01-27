@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+
+- `Permissions.put_default_permissions/1` and
+  `Permissions.is_default_permission?/1` maintain the set of default
+  permissions
+
 ### Changed
 
 - `AclCache.get_acl_role_users` now returns a list of integers. User ids are
