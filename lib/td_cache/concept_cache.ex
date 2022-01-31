@@ -142,13 +142,8 @@ defmodule TdCache.ConceptCache do
   def handle_call({:get, id, :domain_ids, opts}, _from, state) do
     domain_ids =
       case get_cache(id, fn -> read_concept(id) end, opts) do
-        %{domain_id: domain_id} ->
-          domain_id
-          |> String.to_integer()
-          |> TaxonomyCache.get_parent_ids()
-
-        _ ->
-          []
+        %{domain_id: domain_id} -> TaxonomyCache.reaching_domain_ids(domain_id)
+        _ -> []
       end
 
     {:reply, {:ok, domain_ids}, state}
@@ -247,26 +242,19 @@ defmodule TdCache.ConceptCache do
   defp concept_entry_to_map(nil), do: nil
 
   defp concept_entry_to_map(%{} = concept) do
-    domain =
-      concept
-      |> Map.get(:domain_id)
-      |> get_domain()
-
-    shared_to_ids =
-      concept
-      |> Map.get(:shared_to_ids)
-      |> Redix.to_integer_list!()
-
     concept
-    |> Map.put(:domain, domain)
-    |> Map.put(:shared_to_ids, shared_to_ids)
+    |> Map.update(:domain_id, nil, &to_integer_id/1)
+    |> Map.update(:shared_to_ids, [], &Redix.to_integer_list!/1)
+    |> put_domain()
   end
 
-  defp get_domain(domain_id) do
-    case domain_id do
-      nil -> nil
-      _ -> TaxonomyCache.get_domain(domain_id)
-    end
+  defp to_integer_id(""), do: nil
+  defp to_integer_id(id), do: String.to_integer(id)
+
+  defp put_domain(%{domain_id: nil} = concept), do: Map.put(concept, :domain, nil)
+
+  defp put_domain(%{domain_id: domain_id} = concept) do
+    Map.put(concept, :domain, TaxonomyCache.get_domain(domain_id))
   end
 
   defp delete_concept(id, opts) do

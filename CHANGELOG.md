@@ -2,18 +2,25 @@
 
 ## [Unreleased]
 
-### Added
-
-- `Permissions.put_default_permissions/1` and
-  `Permissions.is_default_permission?/1` maintain the set of default
-  permissions
-
 ### Changed
 
-- `AclCache.get_acl_role_users` now returns a list of integers. User ids are
-  only included in the result if they are present in the user cache.
-- `ConceptCache.put` and `ConceptCache.delete` now support an option to prevent
-  events from being published
+- [TD-4461] Refactored permissions model to resolve permissions within the
+  taxonomy tree (i.e. to consider permissions not only in the specific domain
+  being queried, but also in its parent domains). The
+  `Permissions.has_permission?/4` function now also considers global permissions
+  (the permissions of the default role) before querying session-specific
+  permissions.
+
+### Removed
+
+- The `PermissionsConfig` module is no longer used and has been removed
+- The following unused and deprecated functions have been removed:
+  - `DomainCache.id_to_parent_ids_map/0`
+  - `TaxonomyCache.get_descendent_ids/1`
+  - `TaxonomyCache.get_domain_name_to_id_map/0`
+  - `TaxonomyCache.get_name/1`
+  - `TaxonomyCache.get_parent_ids/1`
+  - `TaxonomyCache.get_root_domain_ids/0`
 
 ## [4.31.1] 2021-10-27
 

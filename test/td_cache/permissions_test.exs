@@ -1,17 +1,16 @@
 defmodule TdCache.PermissionsTest do
   use ExUnit.Case
 
+  import Assertions
   import TdCache.Factory
 
   alias TdCache.CacheHelpers
   alias TdCache.Permissions
   alias TdCache.Redix
-  alias TdCache.UserCache
 
   doctest TdCache.Permissions
 
   setup do
-    user = build(:user)
     parent = build(:domain)
     domain = build(:domain, parent_ids: [parent.id])
 
@@ -24,7 +23,7 @@ defmodule TdCache.PermissionsTest do
     ingest = build(:ingest, domain_id: domain.id)
     CacheHelpers.put_ingest(ingest)
 
-    acl_entries = acl_entries(domain, user, [["create_business_concept"], ["create_ingest"]])
+    permissions = %{"create_business_concept" => [domain.id], "create_ingest" => [domain.id]}
 
     on_exit(fn ->
       Redix.del!([
@@ -39,7 +38,12 @@ defmodule TdCache.PermissionsTest do
       ])
     end)
 
-    [concept: concept, domain: domain, ingest: ingest, parent: parent, acl_entries: acl_entries]
+    [concept: concept, domain: domain, ingest: ingest, parent: parent, permissions: permissions]
+  end
+
+  test "considers default permissions", %{} do
+    Permissions.put_default_permissions(["foo"])
+    assert Permissions.has_permission?("any_session_id", :foo, "any_type", "any_id")
   end
 
   test "resolves cached session permissions", %{
@@ -47,12 +51,12 @@ defmodule TdCache.PermissionsTest do
     domain: domain,
     ingest: ingest,
     parent: parent,
-    acl_entries: acl_entries
+    permissions: permissions
   } do
     import Permissions, only: :functions
     session_id = "#{unique_id()}"
     expire_at = DateTime.utc_now() |> DateTime.add(100) |> DateTime.to_unix()
-    cache_session_permissions!(session_id, expire_at, acl_entries)
+    cache_session_permissions!(session_id, expire_at, permissions)
     assert has_permission?(session_id, :create_business_concept, "domain", domain.id)
     assert has_permission?(session_id, :create_business_concept, "domain", [domain.id, parent.id])
     assert has_permission?(session_id, :create_business_concept, "business_concept", concept.id)
@@ -101,34 +105,33 @@ defmodule TdCache.PermissionsTest do
 
   describe "permitted_domain_ids/2" do
     setup do
-      user = build(:user)
-
       parent = build(:domain)
-      domain = build(:domain, parent_ids: [parent.id])
-      child = build(:domain, parent_ids: [domain.id, parent.id])
+      domain = build(:domain, parent_id: parent.id)
+      child = build(:domain, parent_id: domain.id)
 
       CacheHelpers.put_domain(parent)
       CacheHelpers.put_domain(domain)
       CacheHelpers.put_domain(child)
 
-      {:ok, _} = Permissions.put_permission_roles(%{"foo" => ["role1", "role2"]})
-      {:ok, _} = UserCache.put_roles(user.id, %{"role1" => [parent.id]})
+      session_id = "#{unique_id()}"
+      expire_at = DateTime.utc_now() |> DateTime.add(100) |> DateTime.to_unix()
+      Permissions.cache_session_permissions!(session_id, expire_at, %{"foo" => [parent.id]})
 
-      [user: user, parent: parent, domain: domain, child: child]
+      [session_id: session_id, parent: parent, domain: domain, child: child]
     end
 
     test "returns all permitted domain_ids, including descendents", %{
-      user: user,
+      session_id: session_id,
       domain: domain,
       parent: parent,
       child: child
     } do
-      domain_ids = Permissions.permitted_domain_ids(user.id, "foo")
-      assert Enum.sort(domain_ids) == Enum.sort([domain.id, parent.id, child.id])
+      domain_ids = Permissions.permitted_domain_ids(session_id, "foo")
+      assert_lists_equal(domain_ids, [parent.id, domain.id, child.id])
     end
 
     test "returns an empty list if no such key exists" do
-      assert Permissions.permitted_domain_ids(123, "foo") == []
+      assert Permissions.permitted_domain_ids("invalid_session", "foo") == []
     end
   end
 
@@ -155,20 +158,6 @@ defmodule TdCache.PermissionsTest do
       assert Permissions.is_default_permission?(:bar)
       refute Permissions.is_default_permission?("baz")
     end
-  end
-
-  defp acl_entry(%{id: domain_id}, %{id: user_id}, permissions) do
-    %{
-      resource_type: "domain",
-      resource_id: domain_id,
-      principal_type: "user",
-      principal_id: user_id,
-      permissions: permissions
-    }
-  end
-
-  defp acl_entries(domain, user, permissions) do
-    Enum.map(permissions, &acl_entry(domain, user, &1))
   end
 
   defp unique_id, do: System.unique_integer([:positive])

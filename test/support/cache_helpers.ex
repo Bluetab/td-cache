@@ -5,9 +5,9 @@ defmodule TdCache.CacheHelpers do
 
   alias TdCache.AclCache
   alias TdCache.ConceptCache
-  alias TdCache.DomainCache
   alias TdCache.IngestCache
   alias TdCache.Redix
+  alias TdCache.TaxonomyCache
   alias TdCache.UserCache
 
   import ExUnit.Callbacks, only: [on_exit: 1]
@@ -19,8 +19,8 @@ defmodule TdCache.CacheHelpers do
   end
 
   def put_domain(%{id: id} = domain) do
-    on_exit(fn -> DomainCache.delete(id) end)
-    DomainCache.put(domain, publish: false)
+    on_exit(fn -> TaxonomyCache.delete_domain(id) end)
+    TaxonomyCache.put_domain(domain, publish: false)
   end
 
   def put_concept(%{id: id} = concept) do

@@ -4,186 +4,125 @@ defmodule TdCache.Permissions do
   """
 
   alias TdCache.ConceptCache
-  alias TdCache.DomainCache
   alias TdCache.IngestCache
-  alias TdCache.PermissionsConfig
   alias TdCache.Redix
   alias TdCache.TaxonomyCache
-  alias TdCache.UserCache
 
   @default_permissions_key "permission:defaults"
-  @permissions PermissionsConfig.permissions() |> Enum.with_index() |> Map.new()
-
-  @permissions_by_offset PermissionsConfig.permissions()
-                         |> Enum.with_index()
-                         |> Enum.map(fn {a, b} -> {b, a} end)
-                         |> Enum.sort()
-                         |> Enum.map(fn {_, b} -> b end)
-
-  def permissions, do: @permissions |> Map.keys()
-
-  def perms, do: @permissions
 
   def has_permission?(session_id, permission, resource_type, resource_id)
-      when is_bitstring(permission) do
-    has_permission?(session_id, String.to_atom(permission), resource_type, resource_id)
+
+  def has_permission?(session_id, permission, resource_type, resource_id)
+      when is_atom(permission) do
+    has_permission?(session_id, Atom.to_string(permission), resource_type, resource_id)
   end
 
-  def has_permission?(session_id, permission, "domain", domain_ids) when is_list(domain_ids) do
-    domain_ids
-    |> Enum.map(&TaxonomyCache.get_parent_ids(&1, true))
-    |> List.flatten()
-    |> Enum.uniq()
-    |> Enum.any?(&has_resource_permission?(session_id, permission, "domain", &1))
+  def has_permission?(session_id, permission, resource_type, resource_id) do
+    if is_default_permission?(permission) do
+      true
+    else
+      do_has_permission?(session_id, permission, resource_type, resource_id)
+    end
   end
 
-  def has_permission?(session_id, permission, "domain", domain_id) do
-    domain_id
-    |> TaxonomyCache.get_parent_ids(true)
-    |> Enum.any?(&has_resource_permission?(session_id, permission, "domain", &1))
+  defp do_has_permission?(session_id, permission, "domain", domain_ids)
+       when is_list(domain_ids) do
+    case permitted_domain_ids(session_id, permission) do
+      [] -> false
+      ids -> Enum.any?(domain_ids, &Enum.member?(ids, &1))
+    end
   end
 
-  def has_permission?(session_id, permission, "business_concept", business_concept_id) do
-    {:ok, domain_id} =
-      business_concept_id
-      |> ConceptCache.get(:domain_id)
+  defp do_has_permission?(session_id, permission, "domain", domain_id)
+       when is_binary(domain_id) do
+    has_permission?(session_id, permission, "domain", String.to_integer(domain_id))
+  end
 
+  defp do_has_permission?(session_id, permission, "domain", domain_id) do
+    case permitted_domain_ids(session_id, permission) do
+      [] -> false
+      ids -> Enum.member?(ids, domain_id)
+    end
+  end
+
+  defp do_has_permission?(session_id, permission, "business_concept", business_concept_id) do
+    {:ok, domain_id} = ConceptCache.get(business_concept_id, :domain_id)
     has_permission?(session_id, permission, "domain", domain_id)
   end
 
-  def has_permission?(session_id, permission, "ingest", ingest_id) do
-    ingest_id
-    |> IngestCache.get_domain_id()
-    |> (&has_permission?(session_id, permission, "domain", &1)).()
+  defp do_has_permission?(session_id, permission, "ingest", ingest_id) do
+    domain_id = IngestCache.get_domain_id(ingest_id)
+    has_permission?(session_id, permission, "domain", domain_id)
   end
 
   def has_permission?(session_id, permission) do
-    ["KEYS", Enum.join(["session", session_id, "*"], ":")]
-    |> Redix.command!()
-    |> Enum.map(&(&1 |> String.split(":") |> Enum.slice(2, 2)))
-    |> Enum.any?(fn [resource_type, resource_id] ->
-      has_permission?(session_id, permission, resource_type, resource_id)
-    end)
+    key = session_permissions_key(session_id)
+    Redix.command!(["HEXISTS", key, permission]) == 1
   end
 
   def has_any_permission?(session_id, permissions, resource_type, resource_id) do
-    permissions
-    |> Enum.any?(&has_permission?(session_id, &1, resource_type, resource_id))
+    Enum.any?(permissions, &has_permission?(session_id, &1, resource_type, resource_id))
   end
 
-  def has_any_permission_on_resource_type?(session_id, permissions, resource_type) do
-    session_id
-    |> get_acls_by_resource_type(resource_type)
-    |> Enum.flat_map(& &1.permissions)
-    |> Enum.uniq()
-    |> Enum.any?(&Enum.member?(permissions, &1))
+  def has_any_permission_on_resource_type?(session_id, permissions, "domain") do
+    Enum.any?(permissions, &has_permission?(session_id, &1))
   end
 
-  defp has_resource_permission?(session_id, permission, resource_type, resource_id) do
-    key = get_key(session_id, resource_type, resource_id)
+  @deprecated "This function will be removed, refactor to avoid using it"
+  def get_acls_by_resource_type(session_id, "domain") do
+    key = session_permissions_key(session_id)
 
-    cmds =
-      @permissions
-      |> Map.get(permission)
-      |> get_bit_cmd
+    case Redix.read_map(key, fn {k, v} -> {k, Redix.to_integer_list!(v)} end) do
+      {:ok, map} ->
+        map
+        |> Enum.flat_map(fn {permission, domain_ids} ->
+          Enum.map(domain_ids, &{&1, permission})
+        end)
+        |> Enum.group_by(fn {domain_id, _} -> domain_id end, fn {_, permission} -> permission end)
+        |> Enum.map(fn {domain_id, permissions} ->
+          %{
+            resource_type: "domain",
+            resource_id: String.to_integer(domain_id),
+            permissions: permissions
+          }
+        end)
 
-    {:ok, bits} = Redix.command(["BITFIELD" | [key | cmds]])
-    bits |> Enum.any?(&(&1 > 0))
+      _ ->
+        []
+    end
   end
 
-  def get_acls_by_resource_type(session_id, resource_type) do
-    pattern = get_key_pattern(session_id, resource_type)
+  def cache_session_permissions!(session_id, expire_at, domain_ids_by_permission) do
+    key = session_permissions_key(session_id)
 
-    ["KEYS", pattern]
-    |> Redix.command!()
-    |> Enum.map(&read_acl_entry(&1))
+    domain_ids_by_permission
+    |> Enum.flat_map(fn {permission, domain_ids} -> [permission, Enum.join(domain_ids, ",")] end)
+    |> do_cache_session_permissions(key, expire_at)
   end
 
-  defp read_acl_entry(key) do
-    permissions =
-      ["GET", key]
-      |> Redix.command!()
-      |> bitstring_to_list
-      |> Enum.zip(@permissions_by_offset)
-      |> Enum.filter(fn {bit, _} -> bit == 1 end)
-      |> Enum.map(fn {_, perm} -> perm end)
+  defp do_cache_session_permissions([], key, _), do: Redix.command!(["DEL", key])
 
-    [_, _, resource_type, resource_id] = key |> String.split(":", parts: 4)
-
-    %{
-      resource_type: resource_type,
-      resource_id: String.to_integer(resource_id),
-      permissions: permissions
-    }
-  end
-
-  defp bitstring_to_list(<<>>), do: []
-
-  defp bitstring_to_list(<<x::size(1), rest::bitstring>>) do
-    [x | bitstring_to_list(rest)]
-  end
-
-  def cache_session_permissions!(session_id, expire_at, acl_entries) do
-    acl_entries
-    |> Enum.flat_map(&entry_to_commands(session_id, expire_at, &1))
-    |> Redix.transaction_pipeline!()
-  end
-
-  defp entry_to_commands(session_id, expire_at, %{
-         resource_type: resource_type,
-         resource_id: resource_id,
-         permissions: perms
-       }) do
-    key = get_key(session_id, resource_type, resource_id)
-
-    cmds =
-      perms
-      |> Enum.map(&String.to_atom/1)
-      |> Enum.map(&Map.get(@permissions, &1))
-      |> Enum.flat_map(&set_bit_cmd/1)
-
-    [
-      ["BITFIELD", key | cmds],
+  defp do_cache_session_permissions(entries, key, expire_at) do
+    Redix.transaction_pipeline!([
+      ["DEL", key],
+      ["HSET", key | entries],
       ["EXPIREAT", key, expire_at]
-    ]
+    ])
   end
 
-  defp get_key_pattern(session_id, resource_type) do
-    ["session", session_id, resource_type, "*"]
-    |> Enum.join(":")
-  end
+  defp session_permissions_key(session_id), do: "session:" <> session_id <> ":permissions"
 
-  defp get_key(session_id, resource_type, resource_id) do
-    ["session", session_id, resource_type, resource_id]
-    |> Enum.join(":")
-  end
+  def permitted_domain_ids(session_id, permission) do
+    key = session_permissions_key(session_id)
 
-  defp set_bit_cmd(offset), do: ["SET", "u1", offset, 1]
+    case Redix.command!(["HGET", key, permission]) do
+      nil ->
+        []
 
-  defp get_bit_cmd(offset), do: ["GET", "u1", offset]
-
-  def permitted_domain_ids(user_id, permission) do
-    acl_domain_ids = get_acl_domain_ids(user_id, permission)
-
-    {:ok, %{} = id_to_parent_ids} = DomainCache.id_to_parent_ids_map()
-
-    Enum.reduce(id_to_parent_ids, [], fn {id, domain_ids}, acc ->
-      if Enum.any?(acl_domain_ids, &(&1 in domain_ids)) do
-        [id | acc]
-      else
-        acc
-      end
-    end)
-  end
-
-  defp get_acl_domain_ids(user_id, permission) do
-    with {:ok, roles} when is_list(roles) <- get_permission_roles(permission),
-         {:ok, %{} = role_domain_id_map} <- UserCache.get_roles(user_id) do
-      role_domain_id_map
-      |> Map.take(roles)
-      |> Enum.flat_map(fn {_, domain_ids} -> domain_ids end)
-    else
-      {:ok, nil} -> []
+      joined_domain_ids ->
+        joined_domain_ids
+        |> Redix.to_integer_list!()
+        |> TaxonomyCache.reachable_domain_ids()
     end
   end
 

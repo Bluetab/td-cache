@@ -1,6 +1,7 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
 
+  import Assertions
   import TdCache.Factory
 
   alias TdCache.CacheHelpers
@@ -14,11 +15,8 @@ defmodule TdCache.TaxonomyCacheTest do
 
   setup do
     root = build(:domain)
-    parent = build(:domain, parent_ids: [root.id])
-    domain = build(:domain, parent_ids: [parent.id, root.id])
-
-    root = Map.put(root, :descendent_ids, [parent.id, domain.id])
-    parent = Map.put(parent, :descendent_ids, [domain.id])
+    parent = build(:domain, parent_id: root.id)
+    domain = build(:domain, parent_id: parent.id)
 
     on_exit(fn -> Redix.del!(["domain:*", "domains:*"]) end)
 
@@ -26,80 +24,40 @@ defmodule TdCache.TaxonomyCacheTest do
   end
 
   test "put_domain returns OK", %{domain: domain} do
-    assert {:ok, [5, 1, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [3, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
     assert [%{event: "domain_created"}] = events
   end
 
   test "put_domain forces refresh if specified", %{domain: domain} do
-    assert {:ok, [5, 1, 1, 1, 1, 0, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [3, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, []} = TaxonomyCache.put_domain(domain)
-    assert {:ok, [0, 0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
+    assert {:ok, [0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
   end
 
-  test "put_domain invalidates local cache", %{domain: %{id: id} = domain} do
-    ConCache.put(:taxonomy, {:id, id}, :foo)
-    ConCache.put(:taxonomy, {:parent, id}, :foo)
-    ConCache.put(:taxonomy, {:descendents, id}, :foo)
-    assert ConCache.get(:taxonomy, {:id, id})
-    assert ConCache.get(:taxonomy, {:parent, id})
-    assert ConCache.get(:taxonomy, {:descendents, id})
+  test "put_domain invalidates local cache", %{domain: domain} do
+    ConCache.put(:taxonomy, :tree, :foo)
+    assert ConCache.get(:taxonomy, :tree)
     TaxonomyCache.put_domain(domain)
-    refute ConCache.get(:taxonomy, {:id, id})
-    refute ConCache.get(:taxonomy, {:parent, id})
-    refute ConCache.get(:taxonomy, {:descendents, id})
+    refute ConCache.get(:taxonomy, :tree)
   end
 
-  test "get_parent_ids with self returns parent ids including domain_id", %{domain: domain} do
-    TaxonomyCache.put_domain(domain)
-    assert TaxonomyCache.get_parent_ids(domain.id) == [domain.id | domain.parent_ids]
-  end
-
-  test "get_parent_ids with refresh opt forces to update in-memory info", %{domain: domain} do
-    TaxonomyCache.put_domain(domain)
-    assert TaxonomyCache.get_parent_ids(domain.id, false, refresh: true) == domain.parent_ids
-  end
-
-  test "get_parent_ids without self returns parent ids excluding domain_id", %{domain: domain} do
-    TaxonomyCache.put_domain(domain)
-    assert TaxonomyCache.get_parent_ids(domain.id, false) == domain.parent_ids
-  end
-
-  test "get_parent_ids when domain has no parents returns an empty list", %{domain: domain} do
-    domain = Map.put(domain, :parent_ids, [])
-    TaxonomyCache.put_domain(domain)
-    assert TaxonomyCache.get_parent_ids(domain.id, false) == []
-  end
-
-  test "get_descendent_ids with self returns descendent ids including domain_id", %{root: domain} do
-    TaxonomyCache.put_domain(domain)
-    assert TaxonomyCache.get_descendent_ids(domain.id) == [domain.id | domain.descendent_ids]
-  end
-
-  test "get_descendent_ids with refresh opt forces to update in-memory info", %{root: domain} do
-    TaxonomyCache.put_domain(domain)
-
-    assert TaxonomyCache.get_descendent_ids(domain.id, false, refresh: true) ==
-             domain.descendent_ids
-  end
-
-  test "get_descendent_ids without self returns descendent ids excluding domain_id", %{
-    parent: domain
+  test "reaching_domain_ids returns parent ids including domain_id", %{
+    domain: domain,
+    parent: parent,
+    root: root
   } do
-    TaxonomyCache.put_domain(domain)
-    assert TaxonomyCache.get_parent_ids(domain.id, false) == domain.parent_ids
+    Enum.each([root, parent, domain], &CacheHelpers.put_domain/1)
+    parent_ids = TaxonomyCache.reaching_domain_ids(domain.id)
+    assert parent_ids == [domain.id, parent.id, root.id]
   end
 
-  test "get_descendent_ids when domain has no descendents returns an empty list", %{
+  test "get_parent_ids when domain has no parent a list with only the domain's id", %{
     domain: domain
   } do
+    domain = Map.put(domain, :parent_id, nil)
     TaxonomyCache.put_domain(domain)
-    assert TaxonomyCache.get_descendent_ids(domain.id, false) == []
-  end
-
-  test "get_name returns name", %{domain: domain} do
-    TaxonomyCache.put_domain(domain)
-    assert TaxonomyCache.get_name(domain.id) == domain.name
+    assert TaxonomyCache.reaching_domain_ids(domain.id) == [domain.id]
   end
 
   test "delete_domain deletes the domain from cache", %{domain: domain} do
@@ -109,26 +67,10 @@ defmodule TdCache.TaxonomyCacheTest do
   end
 
   test "delete_domain invalidates local cache" do
-    ConCache.put(:taxonomy, {:id, 123}, :foo)
-    ConCache.put(:taxonomy, {:parent, 123}, :foo)
-    assert ConCache.get(:taxonomy, {:id, 123})
-    assert ConCache.get(:taxonomy, {:parent, 123})
+    ConCache.put(:taxonomy, :tree, :foo)
+    assert ConCache.get(:taxonomy, :tree)
     TaxonomyCache.delete_domain(123)
-    refute ConCache.get(:taxonomy, {:id, 123})
-    refute ConCache.get(:taxonomy, {:parent, 123})
-  end
-
-  test "get_domain_name_to_id_map returns a map with names as keys and ids as values",
-       %{root: root, parent: parent, domain: domain} do
-    domains = [root, parent, domain]
-
-    Enum.map(domains, &TaxonomyCache.put_domain(&1))
-
-    map = TaxonomyCache.get_domain_name_to_id_map()
-
-    for %{name: domain_name} <- domains do
-      assert Map.has_key?(map, domain_name)
-    end
+    refute ConCache.get(:taxonomy, :tree)
   end
 
   test "get_domain_external_id_to_id_map returns a map with names as keys and ids as values",
@@ -186,18 +128,22 @@ defmodule TdCache.TaxonomyCacheTest do
     assert %{
              id: ^id1,
              parent_ids: [^id1],
-             descendent_ids: [^id1, ^id2, ^id3],
+             descendent_ids: descendent_ids,
              external_id: _,
              name: _
            } = map[id1]
 
+    assert_lists_equal(descendent_ids, [id1, id2, id3])
+
     assert %{
              id: ^id2,
              parent_ids: [^id2, ^id1],
-             descendent_ids: [^id2, ^id3],
+             descendent_ids: descendent_ids,
              external_id: _,
              name: _
            } = map[id2]
+
+    assert_lists_equal(descendent_ids, [id2, id3])
 
     assert %{
              id: ^id3,

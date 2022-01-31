@@ -25,7 +25,7 @@ defmodule TdCache.IngestCache do
       domain_id ->
         domain_id
         |> String.to_integer()
-        |> TaxonomyCache.get_parent_ids()
+        |> TaxonomyCache.reaching_domain_ids()
     end
   end
 
