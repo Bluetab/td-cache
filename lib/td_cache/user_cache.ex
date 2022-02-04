@@ -86,8 +86,6 @@ defmodule TdCache.UserCache do
     end
   end
 
-
-
   def put(user) do
     GenServer.call(__MODULE__, {:put, user})
   end
