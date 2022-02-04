@@ -236,8 +236,6 @@ defmodule TdCache.UserCache do
   defp add_user_name(pipeline, _), do: pipeline
 
   defp add_external_id(pipeline, %{id: id, external_id: external_id}) when external_id != nil do
-    IO.inspect(id, label: "ADD_EXTERNAL_ID__ID")
-    IO.inspect(external_id, label: "ADD_EXTERNAL_ID__EXTERNAL_ID")
     pipeline ++ [["HSET", @external_id_to_id_key, external_id, id]]
   end
 
