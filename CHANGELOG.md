@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.31.1] 2021-10-27
+
+### Fixed
+
+- [TD-4212] Remove ACLs after user deletion
+
+## [4.31.0] 2021-10-21
+
+### Fixed
+
+- [TD-4203] Fixed `TdCache.Permissions.put_permission_roles` DEL expression
+
 ## [4.28.1] 2021-09-23
 
 ### Added

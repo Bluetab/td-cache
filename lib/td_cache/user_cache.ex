@@ -4,6 +4,7 @@ defmodule TdCache.UserCache do
   """
   use GenServer
 
+  alias TdCache.AclCache
   alias TdCache.Redix
 
   @ids "users:ids"
@@ -98,8 +99,8 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:get_roles, user_id})
   end
 
-  def delete(%{:__struct__ => TdAuth.Accounts.User, id: id}) do
-    GenServer.call(__MODULE__, {:delete, id})
+  def delete(%{:__struct__ => TdAuth.Accounts.User} = user) do
+    GenServer.call(__MODULE__, {:delete, user})
   end
 
   def delete(id) do
@@ -162,8 +163,8 @@ defmodule TdCache.UserCache do
   end
 
   @impl true
-  def handle_call({:delete, id}, _from, state) do
-    reply = delete_user(id)
+  def handle_call({:delete, user_or_user_id}, _from, state) do
+    reply = delete_user(user_or_user_id)
     {:reply, reply, state}
   end
 
@@ -254,24 +255,43 @@ defmodule TdCache.UserCache do
     |> Map.new()
   end
 
-  defp delete_user(id) do
-    case Redix.command!(["HMGET", "user:#{id}", "full_name", "user_name", "external_id"]) do
+  defp delete_user(%{id: user_id, acl_entries: acl_entries}) do
+    acl_commands =
+      Enum.map(
+        acl_entries,
+        fn acl_entry ->
+          AclCache.delete_acl_role_user_command(acl_entry, user_id)
+        end
+      )
+
+    delete_user_command(user_id)
+    |> Kernel.++(acl_commands)
+    |> Redix.transaction_pipeline()
+  end
+
+  defp delete_user(user_id) do
+    delete_user_command(user_id)
+    |> Redix.transaction_pipeline()
+  end
+
+  defp delete_user_command(user_id) do
+    case Redix.command!(["HMGET", "user:#{user_id}", "full_name", "user_name", "external_id"]) do
       [nil, nil, nil] ->
-        Redix.transaction_pipeline([
-          ["DEL", "user:#{id}"],
-          ["DEL", "user:#{id}:roles"],
-          ["SREM", @ids, "#{id}"]
-        ])
+        [
+          ["DEL", "user:#{user_id}"],
+          ["DEL", "user:#{user_id}:roles"],
+          ["SREM", @ids, "#{user_id}"]
+        ]
 
       [full_name, user_name, external_id] ->
-        Redix.transaction_pipeline([
-          ["DEL", "user:#{id}"],
-          ["DEL", "user:#{id}:roles"],
+        [
+          ["DEL", "user:#{user_id}"],
+          ["DEL", "user:#{user_id}:roles"],
           ["HDEL", @name_to_id_key, full_name],
           ["HDEL", @user_name_to_id_key, user_name],
           ["HDEL", @external_id_to_id_key, external_id],
-          ["SREM", @ids, "#{id}"]
-        ])
+          ["SREM", @ids, "#{user_id}"]
+        ]
     end
   end
 
