@@ -98,10 +98,6 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:get_roles, user_id})
   end
 
-  def delete(%{:__struct__ => TdAuth.Accounts.User} = user) do
-    GenServer.call(__MODULE__, {:delete, user})
-  end
-
   def delete(id) do
     GenServer.call(__MODULE__, {:delete, id})
   end
