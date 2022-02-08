@@ -94,29 +94,11 @@ defmodule TdCache.UserCacheTest do
     assert {:ok, nil} == UserCache.get("9876543")
   end
 
-  test "delete_user deletes the user and its ACLs from cache", context do
+  test "delete_user deletes the user from cache", context do
     [user | _] = context[:users]
-
-    %{
-      id: user_id,
-      acl_entries: [
-        %{
-          resource_id: resource_id,
-          resource_type: resource_type,
-          role: %{
-            name: role_name
-          }
-        }
-      ]
-    } = user
-
     put_user(user)
-    assert Redix.exists?("user:#{user_id}")
-    AclCache.set_acl_role_users(resource_type, resource_id, role_name, [user_id])
-    assert AclCache.has_role?(resource_type, resource_id, role_name, user_id)
-    UserCache.delete(user)
-    assert not Redix.exists?("user:#{user_id}")
-    assert not AclCache.has_role?(resource_type, resource_id, role_name, user_id)
+    UserCache.delete(user.id)
+    assert not Redix.exists?("user:#{user.id}")
   end
 
   describe "exists?/1" do
@@ -162,33 +144,19 @@ defmodule TdCache.UserCacheTest do
   end
 
   defp random_user do
-    user_id = System.unique_integer([:positive])
-    acl_id = System.unique_integer([:positive])
-    resource_id = System.unique_integer([:positive])
-    role_id = System.unique_integer([:positive])
+    id = System.unique_integer([:positive])
 
     %{
-      id: user_id,
-      external_id: "external_id_#{user_id}",
-      full_name: "user #{user_id}",
-      user_name: "user_name#{user_id}",
-      email: "user#{user_id}@foo.bar",
-      acl_entries: [
-        %{
-          id: acl_id,
-          resource_id: resource_id,
-          resource_type: "domain",
-          role: %{
-            id: role_id,
-            name: "role_name"
-          }
-        }
-      ]
+      id: id,
+      external_id: "external_id_#{id}",
+      full_name: "user #{id}",
+      user_name: "user_name#{id}",
+      email: "user#{id}@foo.bar"
     }
   end
 
-  defp put_user(user) do
-    on_exit(fn -> UserCache.delete(user) end)
+  defp put_user(%{id: id} = user) do
+    on_exit(fn -> UserCache.delete(id) end)
     UserCache.put(user)
   end
 end
