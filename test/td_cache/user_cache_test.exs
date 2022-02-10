@@ -83,7 +83,8 @@ defmodule TdCache.UserCacheTest do
     assert u == Map.take(user, [:user_name, :full_name, :email, :id, :external_id])
   end
 
-  test "get_by_user_name returns a map with user_name, full_name, email and external_id", context do
+  test "get_by_user_name returns a map with user_name, full_name, email and external_id",
+       context do
     [user | _] = context[:users]
     put_user(user)
     {:ok, u} = UserCache.get_by_user_name(user.user_name)
