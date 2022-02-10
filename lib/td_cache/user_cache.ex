@@ -4,13 +4,13 @@ defmodule TdCache.UserCache do
   """
   use GenServer
 
-  alias TdCache.AclCache
   alias TdCache.Redix
 
   @ids "users:ids"
-  @props [:user_name, :full_name, :email]
+  @props [:user_name, :full_name, :email, :external_id]
   @name_to_id_key "users:name_to_id"
   @user_name_to_id_key "users:user_name_to_id"
+  @external_id_to_id_key "users:external_id_to_id"
 
   ## Client API
 
@@ -75,6 +75,17 @@ defmodule TdCache.UserCache do
     end
   end
 
+  def get_by_external_id(external_id) do
+    GenServer.call(__MODULE__, {:external_id, external_id})
+  end
+
+  def get_by_external_id!(external_id) do
+    case get_by_external_id(external_id) do
+      {:ok, user} -> user
+      error -> error
+    end
+  end
+
   def put(user) do
     GenServer.call(__MODULE__, {:put, user})
   end
@@ -119,6 +130,12 @@ defmodule TdCache.UserCache do
   @impl true
   def handle_call({:user_name, user_name}, _from, state) do
     user = read_by_user_name(user_name)
+    {:reply, {:ok, user}, state}
+  end
+
+  @impl true
+  def handle_call({:external_id, external_id}, _from, state) do
+    user = read_by_external_id(external_id)
     {:reply, {:ok, user}, state}
   end
 
@@ -185,6 +202,13 @@ defmodule TdCache.UserCache do
     end
   end
 
+  defp read_by_external_id(external_id) do
+    case Redix.command!(["HGET", @external_id_to_id_key, external_id]) do
+      nil -> nil
+      id -> read_user(id)
+    end
+  end
+
   defp put_user(%{id: id} = user) do
     [
       ["DEL", "user:#{id}"],
@@ -193,6 +217,7 @@ defmodule TdCache.UserCache do
     ]
     |> add_full_name(user)
     |> add_user_name(user)
+    |> add_external_id(user)
     |> Redix.transaction_pipeline()
   end
 
@@ -208,6 +233,12 @@ defmodule TdCache.UserCache do
 
   defp add_user_name(pipeline, _), do: pipeline
 
+  defp add_external_id(pipeline, %{id: id, external_id: external_id}) when external_id != nil do
+    pipeline ++ [["HSET", @external_id_to_id_key, external_id, id]]
+  end
+
+  defp add_external_id(pipeline, _), do: pipeline
+
   defp get_props(%{} = user) do
     user
     |> Map.take(@props)
@@ -219,34 +250,25 @@ defmodule TdCache.UserCache do
     |> Map.new()
   end
 
-  defp delete_user(%{id: user_id, acl_entries: acl_entries}) do
-    acl_commands =
-      Enum.map(
-        acl_entries,
-        fn acl_entry ->
-          AclCache.delete_acl_role_user_command(acl_entry, user_id)
-        end
-      )
+  defp delete_user(id) do
+    case Redix.command!(["HMGET", "user:#{id}", "full_name", "user_name", "external_id"]) do
+      [nil, nil, nil] ->
+        Redix.transaction_pipeline([
+          ["DEL", "user:#{id}"],
+          ["DEL", "user:#{id}:roles"],
+          ["SREM", @ids, id]
+        ])
 
-    case Redix.command!(["HMGET", "user:#{user_id}", "full_name", "user_name"]) do
-      [nil, nil] ->
-        [
-          ["DEL", "user:#{user_id}"],
-          ["DEL", "user:#{user_id}:roles"],
-          ["SREM", @ids, "#{user_id}"]
-        ]
-
-      [full_name, user_name] ->
-        [
-          ["DEL", "user:#{user_id}"],
-          ["DEL", "user:#{user_id}:roles"],
+      [full_name, user_name, external_id] ->
+        Redix.transaction_pipeline([
+          ["DEL", "user:#{id}"],
+          ["DEL", "user:#{id}:roles"],
           ["HDEL", @name_to_id_key, full_name],
           ["HDEL", @user_name_to_id_key, user_name],
-          ["SREM", @ids, "#{user_id}"]
-        ]
+          ["HDEL", @external_id_to_id_key, external_id],
+          ["SREM", @ids, id]
+        ])
     end
-    |> Kernel.++(acl_commands)
-    |> Redix.transaction_pipeline()
   end
 
   defp do_put_roles(user_id, domain_ids_by_role) do

@@ -15,32 +15,46 @@ defmodule TdCache.UserCacheTest do
 
   test "put returns OK", context do
     [user | _] = context[:users]
-    assert {:ok, [_, 3, 1, 1, 1]} = put_user(user)
+    assert {:ok, [_, 4, 1, 1, 1, 1]} = put_user(user)
   end
 
   test "put without full name returns OK", context do
     [user | _] = context[:users]
     user = Map.delete(user, :full_name)
-    assert {:ok, [_, 2, 1, 1]} = put_user(user)
+    assert {:ok, [_, 3, 1, 1, 1]} = put_user(user)
   end
 
   test "put without user name returns OK", context do
     [user | _] = context[:users]
     user = Map.delete(user, :user_name)
-    assert {:ok, [_, 2, 1, 1]} = put_user(user)
+    assert {:ok, [_, 3, 1, 1, 1]} = put_user(user)
   end
 
-  test "put without user and full name returns OK", context do
+  test "put without external_id returns OK", context do
+    [user | _] = context[:users]
+    user = Map.delete(user, :external_id)
+    assert {:ok, [_, 3, 1, 1, 1]} = put_user(user)
+  end
+
+  test "put without user name and full name returns OK", context do
     [user | _] = context[:users]
     user = Map.delete(user, :user_name)
     user = Map.delete(user, :full_name)
+    assert {:ok, [_, 2, 1, 1]} = put_user(user)
+  end
+
+  test "put without user name, full name and external_id returns OK", context do
+    [user | _] = context[:users]
+    user = Map.delete(user, :user_name)
+    user = Map.delete(user, :full_name)
+    user = Map.delete(user, :external_id)
     assert {:ok, [_, 1, 1]} = put_user(user)
   end
 
   test "put without email returns OK", context do
     [user | _] = context[:users]
     user = Map.delete(user, :email)
-    assert {:ok, [_, 2, 1, 1, 1]} = put_user(user)
+    assert {:ok, [_, 3, 1, 1, 1, 1]} = put_user(user)
   end
 
   test "list returns all users", %{users: users} do
@@ -55,54 +69,37 @@ defmodule TdCache.UserCacheTest do
     assert res |> Map.keys() |> Enum.sort() == users |> Enum.map(& &1.id) |> Enum.sort()
   end
 
-  test "get_user returns a map with user_name, full_name and email", context do
+  test "get_user returns a map with user_name, full_name, email and external_id", context do
     [user | _] = context[:users]
     put_user(user)
     {:ok, u} = UserCache.get(user.id)
-    assert u == Map.take(user, [:user_name, :full_name, :email, :id])
+    assert u == Map.take(user, [:user_name, :full_name, :email, :id, :external_id])
   end
 
-  test "get_by_name returns a map with user_name, full_name and email", context do
+  test "get_by_name returns a map with user_name, full_name, email and external_id", context do
     [user | _] = context[:users]
     put_user(user)
     {:ok, u} = UserCache.get_by_name(user.full_name)
-    assert u == Map.take(user, [:user_name, :full_name, :email, :id])
+    assert u == Map.take(user, [:user_name, :full_name, :email, :id, :external_id])
   end
 
-  test "get_by_user_name returns a map with user_name, full_name and email", context do
+  test "get_by_user_name returns a map with user_name, full_name, email and external_id",
+       context do
     [user | _] = context[:users]
     put_user(user)
     {:ok, u} = UserCache.get_by_user_name(user.user_name)
-    assert u == Map.take(user, [:user_name, :full_name, :email, :id])
+    assert u == Map.take(user, [:user_name, :full_name, :email, :id, :external_id])
   end
 
   test "get_user returns nil if the user is not cached" do
     assert {:ok, nil} == UserCache.get("9876543")
   end
 
-  test "delete_user deletes the user and its ACLs from cache", context do
+  test "delete_user deletes the user from cache", context do
     [user | _] = context[:users]
-
-    %{
-      id: user_id,
-      acl_entries: [
-        %{
-          resource_id: resource_id,
-          resource_type: resource_type,
-          role: %{
-            name: role_name
-          }
-        }
-      ]
-    } = user
-
     put_user(user)
-    assert Redix.exists?("user:#{user_id}")
-    AclCache.set_acl_role_users(resource_type, resource_id, role_name, [user_id])
-    assert AclCache.has_role?(resource_type, resource_id, role_name, user_id)
-    UserCache.delete(user)
-    assert not Redix.exists?("user:#{user_id}")
-    assert not AclCache.has_role?(resource_type, resource_id, role_name, user_id)
+    UserCache.delete(user.id)
+    assert not Redix.exists?("user:#{user.id}")
   end
 
   describe "exists?/1" do
@@ -148,32 +145,19 @@ defmodule TdCache.UserCacheTest do
   end
 
   defp random_user do
-    user_id = System.unique_integer([:positive])
-    acl_id = System.unique_integer([:positive])
-    resource_id = System.unique_integer([:positive])
-    role_id = System.unique_integer([:positive])
+    id = System.unique_integer([:positive])
 
     %{
-      id: user_id,
-      full_name: "user #{user_id}",
-      user_name: "user_name#{user_id}",
-      email: "user#{user_id}@foo.bar",
-      acl_entries: [
-        %{
-          id: acl_id,
-          resource_id: resource_id,
-          resource_type: "domain",
-          role: %{
-            id: role_id,
-            name: "role_name"
-          }
-        }
-      ]
+      id: id,
+      external_id: "external_id_#{id}",
+      full_name: "user #{id}",
+      user_name: "user_name#{id}",
+      email: "user#{id}@foo.bar"
     }
   end
 
-  defp put_user(user) do
-    on_exit(fn -> UserCache.delete(user) end)
+  defp put_user(%{id: id} = user) do
+    on_exit(fn -> UserCache.delete(id) end)
     UserCache.put(user)
   end
 end

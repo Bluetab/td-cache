@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.37.0] 2022-01-10
+
+### Added
+
+- [TD-4456] Add user external_id to id mapping (**removes [TD-4212]**)
+
 ## [4.31.1] 2021-10-27
 
 ### Fixed
