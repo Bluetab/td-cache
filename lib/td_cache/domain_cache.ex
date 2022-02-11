@@ -82,8 +82,8 @@ defmodule TdCache.DomainCache do
   @doc """
   Deletes cache entries relating to a given domain id.
   """
-  def delete(id) do
-    delete_domain(id)
+  def delete(id, opts \\ []) do
+    delete_domain(id, opts)
   end
 
   @doc """
@@ -131,8 +131,10 @@ defmodule TdCache.DomainCache do
     read_map(@ids_to_external_ids_key)
   end
 
-  defp delete_domain(id) do
+  defp delete_domain(id, opts) do
     key = "domain:#{id}"
+
+    add_or_remove = if Keyword.get(opts, :clean, false), do: "SREM", else: "SADD"
 
     commands = [
       ["DEL", key],
@@ -140,7 +142,7 @@ defmodule TdCache.DomainCache do
       ["HDEL", @ids_to_names_key, id],
       ["HDEL", @ids_to_external_ids_key, id],
       ["SREM", @domain_keys, key],
-      ["SADD", @deleted_ids, id]
+      [add_or_remove, @deleted_ids, id]
     ]
 
     Redix.transaction_pipeline(commands)
@@ -159,6 +161,9 @@ defmodule TdCache.DomainCache do
   defp put_domain(%{updated_at: ts}, ts, false, _), do: {:ok, []}
 
   defp put_domain(%{updated_at: ts}, ts, nil, _), do: {:ok, []}
+
+  defp put_domain(%{id: 0}, _ts, _force, _publish), do: raise("agh")
+  defp put_domain(%{id: nil}, _ts, _force, _publish), do: raise("agh")
 
   defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish) when is_integer(id) do
     parent_id = Map.get(domain, :parent_id) || @root_id
@@ -210,6 +215,12 @@ defmodule TdCache.DomainCache do
   end
 
   defp create_graph(graph, []), do: graph
+
+  defp create_graph(graph, [child_id, child_id | entries]) do
+    graph
+    |> Graph.add_vertex(child_id)
+    |> create_graph(entries)
+  end
 
   defp create_graph(graph, [child_id, parent_id | entries]) do
     graph

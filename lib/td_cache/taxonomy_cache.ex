@@ -140,21 +140,27 @@ defmodule TdCache.TaxonomyCache do
   defp to_integer(id) when is_binary(id), do: String.to_integer(id)
 
   def put_domain(%{} = domain, opts \\ []) do
-    delete_local_cache(Map.get(domain, :id))
+    domain
+    |> get_ids()
+    |> delete_local_cache()
+
     DomainCache.put(domain, opts)
   end
 
-  def delete_domain(domain_id) do
+  def delete_domain(domain_id, opts \\ []) do
     delete_local_cache(domain_id)
-    DomainCache.delete(domain_id)
+    DomainCache.delete(domain_id, opts)
   end
 
-  defp delete_local_cache(id) do
+  defp delete_local_cache(id_or_ids) do
     tree = ConCache.get(:taxonomy, :tree)
     ConCache.delete(:taxonomy, :tree)
-    ConCache.delete(:taxonomy, {:id, id, tree})
-    ConCache.delete(:taxonomy, {:reaching, id, tree})
-    ConCache.delete(:taxonomy, {:reachable, id, tree})
+
+    for id <- List.wrap(id_or_ids) do
+      ConCache.delete(:taxonomy, {:id, id, tree})
+      ConCache.delete(:taxonomy, {:reaching, id, tree})
+      ConCache.delete(:taxonomy, {:reachable, id, tree})
+    end
   end
 
   @doc """
@@ -209,5 +215,12 @@ defmodule TdCache.TaxonomyCache do
   def get_deleted_domain_ids do
     {:ok, domains} = DomainCache.deleted_domains()
     domains
+  end
+
+  defp get_ids(%{} = domain) do
+    domain
+    |> Map.take([:id, :parent_id])
+    |> Map.values()
+    |> Enum.reject(&is_nil/1)
   end
 end

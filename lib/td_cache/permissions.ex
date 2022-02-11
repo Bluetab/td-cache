@@ -72,8 +72,8 @@ defmodule TdCache.Permissions do
   def get_acls_by_resource_type(session_id, "domain") do
     key = session_permissions_key(session_id)
 
-    case Redix.read_map(key, fn {k, v} -> {k, Redix.to_integer_list!(v)} end) do
-      {:ok, map} ->
+    case Redix.read_map(key, fn [k, v] -> {k, Redix.to_integer_list!(v)} end) do
+      {:ok, %{} = map} ->
         map
         |> Enum.flat_map(fn {permission, domain_ids} ->
           Enum.map(domain_ids, &{&1, permission})
@@ -92,6 +92,21 @@ defmodule TdCache.Permissions do
     end
   end
 
+  def get_session_permissions(session_id) do
+    key = session_permissions_key(session_id)
+
+    case Redix.read_map(key, fn [k, v] -> {k, reachable_domain_ids(v)} end) do
+      {:ok, %{} = map} -> map
+      _ -> %{}
+    end
+  end
+
+  defp reachable_domain_ids(domain_ids) do
+    domain_ids
+    |> Redix.to_integer_list!()
+    |> TaxonomyCache.reachable_domain_ids()
+  end
+
   def cache_session_permissions!(session_id, expire_at, domain_ids_by_permission) do
     key = session_permissions_key(session_id)
 
@@ -106,9 +121,12 @@ defmodule TdCache.Permissions do
     Redix.transaction_pipeline!([
       ["DEL", key],
       ["HSET", key | entries],
-      ["EXPIREAT", key, expire_at]
+      expire_cmd(key, expire_at)
     ])
   end
+
+  defp expire_cmd(key, nil), do: ["EXPIRE", key, 1]
+  defp expire_cmd(key, expire_at), do: ["EXPIREAT", key, expire_at]
 
   defp session_permissions_key(session_id), do: "session:" <> session_id <> ":permissions"
 
@@ -155,6 +173,10 @@ defmodule TdCache.Permissions do
       ["DEL", @default_permissions_key],
       ["SADD", @default_permissions_key | permissions]
     ])
+  end
+
+  def get_default_permissions do
+    Redix.command(["SMEMBERS", @default_permissions_key])
   end
 
   def is_default_permission?(permission) do

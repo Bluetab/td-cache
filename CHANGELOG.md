@@ -4,7 +4,7 @@
 
 ### Changed
 
-- [TD-4461] Refactored permissions model to resolve permissions within the
+- [TD-4491] Refactored permissions model to resolve permissions within the
   taxonomy tree (i.e. to consider permissions not only in the specific domain
   being queried, but also in its parent domains). The
   `Permissions.has_permission?/4` function now also considers global permissions

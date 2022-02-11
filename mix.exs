@@ -26,7 +26,7 @@ defmodule TdCache.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:assertions, "~> 0.15", only: :test},
+      {:assertions, "~> 0.19", only: :test},
       {:con_cache, "~> 1.0"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.0", only: :dev, runtime: false},
