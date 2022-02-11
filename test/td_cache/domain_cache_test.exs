@@ -70,6 +70,13 @@ defmodule TdCache.DomainCacheTest do
     end
   end
 
+  describe "put/1" do
+    test "returns error if id is 0 or nil", %{domain: domain} do
+      assert {:error, :invalid} = DomainCache.put(%{domain | id: 0})
+      assert {:error, :invalid} = DomainCache.put(%{domain | id: nil})
+    end
+  end
+
   describe "external_id_to_id/1" do
     test "returns the id for a given external_id", %{
       domain: %{id: id, external_id: external_id} = domain

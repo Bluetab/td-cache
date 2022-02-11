@@ -162,10 +162,8 @@ defmodule TdCache.DomainCache do
 
   defp put_domain(%{updated_at: ts}, ts, nil, _), do: {:ok, []}
 
-  defp put_domain(%{id: 0}, _ts, _force, _publish), do: raise("agh")
-  defp put_domain(%{id: nil}, _ts, _force, _publish), do: raise("agh")
-
-  defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish) when is_integer(id) do
+  defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish)
+       when is_integer(id) and id != @root_id do
     parent_id = Map.get(domain, :parent_id) || @root_id
     external_id = Map.get(domain, :external_id)
 
