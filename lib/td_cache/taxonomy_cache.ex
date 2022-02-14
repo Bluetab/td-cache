@@ -104,8 +104,15 @@ defmodule TdCache.TaxonomyCache do
         nil
 
       {:ok, %{id: id} = domain} ->
+        parent_ids =
+          case do_get_reaching_ids(id, tree) do
+            [_ | ids] -> ids
+            _ -> []
+          end
+
         domain
-        |> Map.put(:parent_ids, do_get_reaching_ids(id, tree))
+        |> Map.put(:parent_id, Enum.at(parent_ids, 0))
+        |> Map.put(:parent_ids, parent_ids)
         |> Map.put(:descendent_ids, do_get_reachable_ids(id, tree))
     end
   end
