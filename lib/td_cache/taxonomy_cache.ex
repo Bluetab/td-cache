@@ -21,11 +21,11 @@ defmodule TdCache.TaxonomyCache do
     GenServer.call(__MODULE__, :domain_map)
   end
 
-  def reachable_domain_ids(id_or_ids) do
+  def reachable_domain_ids(id_or_ids) when is_integer(id_or_ids) or is_list(id_or_ids) do
     GenServer.call(__MODULE__, {:reachable, id_or_ids})
   end
 
-  def reaching_domain_ids(id_or_ids) do
+  def reaching_domain_ids(id_or_ids) when is_integer(id_or_ids) or is_list(id_or_ids) do
     GenServer.call(__MODULE__, {:reaching, id_or_ids})
   end
 

@@ -127,7 +127,7 @@ defmodule TdCache.TaxonomyCacheTest do
 
     assert %{
              id: ^id1,
-             parent_ids: [^id1],
+             parent_ids: [],
              descendent_ids: descendent_ids,
              external_id: _,
              name: _
@@ -137,7 +137,7 @@ defmodule TdCache.TaxonomyCacheTest do
 
     assert %{
              id: ^id2,
-             parent_ids: [^id2, ^id1],
+             parent_ids: [^id1],
              descendent_ids: descendent_ids,
              external_id: _,
              name: _
@@ -147,7 +147,7 @@ defmodule TdCache.TaxonomyCacheTest do
 
     assert %{
              id: ^id3,
-             parent_ids: [^id3, ^id2, ^id1],
+             parent_ids: [^id2, ^id1],
              descendent_ids: [^id3],
              external_id: _,
              name: _
