@@ -45,7 +45,8 @@ defmodule TdCache.Factory do
       id: unique_id(),
       full_name: sequence("full_name"),
       user_name: sequence("user_name"),
-      email: sequence("user_email")
+      email: sequence("user_email"),
+      external_id: sequence("user_external_id"),
     }
   end
 
