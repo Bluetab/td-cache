@@ -82,7 +82,7 @@ defmodule TdCache.Permissions do
         |> Enum.map(fn {domain_id, permissions} ->
           %{
             resource_type: "domain",
-            resource_id: String.to_integer(domain_id),
+            resource_id: domain_id,
             permissions: permissions
           }
         end)
