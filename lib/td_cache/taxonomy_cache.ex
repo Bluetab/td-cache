@@ -66,10 +66,8 @@ defmodule TdCache.TaxonomyCache do
 
   @impl true
   def handle_call(:count, _from, state) do
-    tree = get_cache(:tree, fn -> DomainCache.tree() end)
-    reply = Graph.no_vertices(tree) - 1
-
-    {:reply, reply, state}
+    count = get_cache(:count, fn -> DomainCache.count!() end)
+    {:reply, count, state}
   end
 
   @impl true

@@ -56,11 +56,18 @@ defmodule TdCache.DomainCache do
   end
 
   @doc """
-  Reads all domains from cache.
+  Reads all domain ids from cache.
   """
   def domains do
     domain_ids = get_domains()
     {:ok, domain_ids}
+  end
+
+  @doc """
+  Reads count of domains from cache.
+  """
+  def count! do
+    Redix.command!(["SCARD", @domain_keys])
   end
 
   @doc """

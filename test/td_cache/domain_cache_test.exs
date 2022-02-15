@@ -90,6 +90,21 @@ defmodule TdCache.DomainCacheTest do
     end
   end
 
+  describe "count!/0" do
+    test "returns the count of domains" do
+      assert DomainCache.count!() == 0
+      [d1, d2, d3] = build_many(3)
+      DomainCache.put(d1)
+      assert DomainCache.count!() == 1
+      DomainCache.put(d2)
+      assert DomainCache.count!() == 2
+      DomainCache.put(d3)
+      assert DomainCache.count!() == 3
+      DomainCache.delete(d2.id)
+      assert DomainCache.count!() == 2
+    end
+  end
+
   describe "tree/1" do
     setup do
       parents = build_many(3)
