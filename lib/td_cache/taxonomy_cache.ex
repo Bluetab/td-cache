@@ -21,6 +21,10 @@ defmodule TdCache.TaxonomyCache do
     GenServer.call(__MODULE__, :domain_map)
   end
 
+  def domain_count do
+    GenServer.call(__MODULE__, :count)
+  end
+
   def reachable_domain_ids(id_or_ids) when is_integer(id_or_ids) or is_list(id_or_ids) do
     GenServer.call(__MODULE__, {:reachable, id_or_ids})
   end
@@ -56,6 +60,14 @@ defmodule TdCache.TaxonomyCache do
       domain_ids
       |> Enum.map(&do_get_domain(&1, tree))
       |> Map.new(fn %{id: id} = domain -> {id, domain} end)
+
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call(:count, _from, state) do
+    tree = get_cache(:tree, fn -> DomainCache.tree() end)
+    reply = Graph.no_vertices(tree) - 1
 
     {:reply, reply, state}
   end

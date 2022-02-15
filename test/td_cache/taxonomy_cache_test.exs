@@ -52,6 +52,15 @@ defmodule TdCache.TaxonomyCacheTest do
     assert parent_ids == [domain.id, parent.id, root.id]
   end
 
+  test "domain_count returns count of cached domains", %{
+    domain: domain,
+    parent: parent,
+    root: root
+  } do
+    Enum.each([root, parent, domain], &CacheHelpers.put_domain/1)
+    assert TaxonomyCache.domain_count() == 3
+  end
+
   test "get_parent_ids when domain has no parent a list with only the domain's id", %{
     domain: domain
   } do
