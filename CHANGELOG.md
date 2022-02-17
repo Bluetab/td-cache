@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.38.0] 2022-02-17
+
+# Added
+
+- [TD-4437] New manage_rule_results permission
+
 ## [4.37.0] 2022-01-10
 
 ### Added
