@@ -78,6 +78,7 @@ defmodule TdCache.PermissionsConfig do
     :create_grant_request,
     :approve_grant_request,
     :manage_rule_results,
+    :manage_business_concepts_domain
   ]
 
   def permissions, do: @permissions
