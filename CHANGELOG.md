@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3186] New permission `link_quality_implementation`
+
 ## [4.38.1] 2022-02-22
 
 ### Added
