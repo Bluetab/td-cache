@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-4378] Add structures description
+
 ## [4.38.1] 2022-02-22
 
 ### Added
