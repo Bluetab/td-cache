@@ -56,6 +56,7 @@ defmodule TdCache.StructureCache do
     :type,
     :group,
     :system_id,
+    :description,
     :parent_id,
     :external_id,
     :updated_at,
