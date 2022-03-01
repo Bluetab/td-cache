@@ -22,6 +22,18 @@
   - `TaxonomyCache.get_parent_ids/1`
   - `TaxonomyCache.get_root_domain_ids/0`
 
+## [4.38.1] 2022-02-22
+
+### Added
+
+- [TD-4481] New permission `manage_business_concepts_domain`
+
+## [4.38.0] 2022-02-17
+
+### Added
+
+- [TD-4437] New manage_rule_results permission
+
 ## [4.37.0] 2022-01-10
 
 ### Added
