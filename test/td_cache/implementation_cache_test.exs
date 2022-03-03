@@ -1,0 +1,172 @@
+defmodule TdCache.ImplementationCacheTest do
+  use ExUnit.Case
+
+  alias TdCache.ImplementationCache
+  alias TdCache.LinkCache
+  alias TdCache.Redix
+
+  setup do
+    implementation = %{
+      id: 10,
+      implementation_key: "key",
+      domain_id: 10,
+      goal: 8.0,
+      minimum: 5.0,
+      updated_at: DateTime.utc_now(),
+      deleted_at: nil
+    }
+
+    on_exit(fn ->
+      ImplementationCache.delete(implementation.id)
+      Redix.command(["SREM", "implementation:deleted_ids", implementation.id])
+    end)
+
+    {:ok, implementation: implementation}
+  end
+
+  describe "ImplementationCache" do
+    test "writes an implementation entry in redis and reads it back", %{
+      implementation: implementation
+    } do
+      {:ok, _} = ImplementationCache.put(implementation)
+
+      {:ok, impl} = ImplementationCache.get(implementation.id)
+
+      assert not is_nil(impl)
+      assert impl.id == implementation.id
+      assert impl.implementation_key == implementation.implementation_key
+      refute Map.has_key?(impl, :latest_result)
+
+      assert not is_nil(impl.deleted_at)
+    end
+
+    test "writes an implementation entry in redis and reads it back with latest_result", %{
+      implementation: implementation
+    } do
+      implementation =
+        Map.put(implementation, :latest_result, %{
+          errors: 10
+        })
+
+      {:ok, _} = ImplementationCache.put(implementation)
+
+      {:ok, impl} = ImplementationCache.get(implementation.id)
+
+      assert not is_nil(impl)
+      assert impl.id == implementation.id
+      assert impl.latest_result.errors == 10
+    end
+
+    test "writes an implementation entry in redis and reads it back with rule", %{
+      implementation: implementation
+    } do
+      implementation =
+        implementation
+        |> Map.put(:rule, %{
+          id: 10,
+          name: "rule_name",
+          updated_at: DateTime.utc_now()
+        })
+        |> Map.put(:rule_id, 10)
+
+      {:ok, _} = ImplementationCache.put(implementation)
+
+      {:ok, impl} = ImplementationCache.get(implementation.id)
+
+      assert not is_nil(impl)
+      assert impl.id == implementation.id
+      assert impl.rule_id == 10
+      assert impl.rule.name == "rule_name"
+    end
+
+    test "updates an implementation already cached in redis when updated_at has changed", %{
+      implementation: implementation
+    } do
+      {:ok, _} = ImplementationCache.put(implementation)
+      {:ok, impl} = ImplementationCache.get(implementation.id)
+      assert not is_nil(impl)
+      domain_id = 20
+
+      updated_implementation =
+        implementation
+        |> Map.put(:domain_id, domain_id)
+        |> Map.put(:updated_at, DateTime.utc_now())
+
+      {:ok, _} = ImplementationCache.put(updated_implementation)
+      {:ok, impl} = ImplementationCache.get(implementation.id)
+      assert impl.domain_id == domain_id
+    end
+
+    test "does not update an implementation already cached in redis having same update_at value",
+         %{
+           implementation: implementation
+         } do
+      {:ok, _} = ImplementationCache.put(implementation)
+      {:ok, impl} = ImplementationCache.get(implementation.id)
+      assert not is_nil(impl)
+      goal = 2.0
+      updated_implementation = Map.put(implementation, :goal, goal)
+      {:ok, _} = ImplementationCache.put(updated_implementation)
+      {:ok, impl} = ImplementationCache.get(implementation.id)
+      assert impl.goal == 8
+    end
+
+    test "updates an implementation already cached in redis when deleted_at has changed", %{
+      implementation: implementation
+    } do
+      assert {:ok, _} = ImplementationCache.put(implementation)
+      assert {:ok, imp} = ImplementationCache.get(implementation.id)
+      assert Map.get(imp, :deleted_at) == "#{implementation.deleted_at}"
+
+      implementation = Map.put(implementation, :deleted_at, nil)
+      assert {:ok, _} = ImplementationCache.put(implementation)
+      assert {:ok, imp} = ImplementationCache.get(implementation.id)
+      assert Map.get(imp, :deleted_at) == ""
+    end
+
+    test "deletes an entry in redis", %{implementation: implementation} do
+      assert {:ok, [7, 0, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [1, 1, 1]} = ImplementationCache.delete(implementation.id)
+      assert {:ok, nil} = ImplementationCache.get(implementation.id)
+    end
+
+    test "deletes an entry in redis with latest_result", %{implementation: implementation} do
+      implementation =
+        Map.put(implementation, :latest_result, %{
+          errors: 1,
+          records: 2,
+          result_type: "type",
+          result: 20
+        })
+
+      assert {:ok, [7, 4, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [2, 1, 1]} = ImplementationCache.delete(implementation.id)
+      assert {:ok, nil} = ImplementationCache.get(implementation.id)
+    end
+
+    test "lists structure ids referenced in linkss", %{implementation: %{id: id}} do
+      create_link(id)
+      assert ImplementationCache.referenced_ids() == [id]
+    end
+  end
+
+  defp create_link(implementation_id) do
+    id = System.unique_integer([:positive])
+
+    concept_id = 8
+
+    on_exit(fn -> LinkCache.delete(id, publish: false) end)
+
+    LinkCache.put(
+      %{
+        id: id,
+        source_id: implementation_id,
+        target_id: concept_id,
+        updated_at: DateTime.utc_now(),
+        source_type: "implementation",
+        target_type: "business_concept"
+      },
+      publish: false
+    )
+  end
+end
