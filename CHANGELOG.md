@@ -18,6 +18,7 @@
   - `DomainCache.id_to_parent_ids_map/0`
   - `TaxonomyCache.get_descendent_ids/1`
   - `TaxonomyCache.get_domain_name_to_id_map/0`
+  - `TaxonomyCache.get_domain_external_id_to_id_map/0`
   - `TaxonomyCache.get_name/1`
   - `TaxonomyCache.get_parent_ids/1`
   - `TaxonomyCache.get_root_domain_ids/0`

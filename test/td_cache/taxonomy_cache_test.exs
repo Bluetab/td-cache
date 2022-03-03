@@ -82,16 +82,18 @@ defmodule TdCache.TaxonomyCacheTest do
     refute ConCache.get(:taxonomy, :tree)
   end
 
-  test "get_domain_external_id_to_id_map returns a map with names as keys and ids as values",
+  test "get_by_external_id returns the domain if it exists",
        %{root: root, parent: parent, domain: domain} do
     domains = [root, parent, domain]
 
+    for %{external_id: external_id} <- domains do
+      refute TaxonomyCache.get_by_external_id(external_id)
+    end
+
     Enum.map(domains, &TaxonomyCache.put_domain(&1))
 
-    map = TaxonomyCache.get_domain_external_id_to_id_map()
-
     for %{id: id, external_id: external_id} <- domains do
-      assert Map.get(map, external_id) == id
+      assert %{id: ^id} = TaxonomyCache.get_by_external_id(external_id)
     end
   end
 

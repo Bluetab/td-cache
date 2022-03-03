@@ -13,8 +13,14 @@ defmodule TdCache.TaxonomyCache do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @spec get_domain(binary | integer) :: map | nil
   def get_domain(id) do
     GenServer.call(__MODULE__, {:get, to_integer(id)})
+  end
+
+  @spec get_by_external_id(binary) :: map | nil
+  def get_by_external_id(external_id) do
+    GenServer.call(__MODULE__, {:get_by, external_id})
   end
 
   def domain_map do
@@ -49,6 +55,16 @@ defmodule TdCache.TaxonomyCache do
     tree = get_cache(:tree, fn -> DomainCache.tree() end)
     domain = get_cache({:id, id, tree}, fn -> do_get_domain(id, tree) end)
     {:reply, domain, state}
+  end
+
+  @impl true
+  def handle_call({:get_by, external_id}, from, state) do
+    case get_cache({:external_id, external_id}, fn ->
+           DomainCache.external_id_to_id(external_id)
+         end) do
+      :error -> {:reply, nil, state}
+      {:ok, id} -> handle_call({:get, id}, from, state)
+    end
   end
 
   @impl true
@@ -157,9 +173,8 @@ defmodule TdCache.TaxonomyCache do
   defp to_integer(id) when is_binary(id), do: String.to_integer(id)
 
   def put_domain(%{} = domain, opts \\ []) do
-    domain
-    |> get_ids()
-    |> delete_local_cache()
+    ids = get_ids(domain)
+    delete_local_cache(ids, Map.get(domain, :external_id))
 
     DomainCache.put(domain, opts)
   end
@@ -169,31 +184,16 @@ defmodule TdCache.TaxonomyCache do
     DomainCache.delete(domain_id, opts)
   end
 
-  defp delete_local_cache(id_or_ids) do
+  defp delete_local_cache(id_or_ids, external_id \\ nil) do
     tree = ConCache.get(:taxonomy, :tree)
     ConCache.delete(:taxonomy, :tree)
+    ConCache.delete(:taxonomy, {:external_id, external_id})
 
     for id <- List.wrap(id_or_ids) do
       ConCache.delete(:taxonomy, {:id, id, tree})
       ConCache.delete(:taxonomy, {:reaching, id, tree})
       ConCache.delete(:taxonomy, {:reachable, id, tree})
     end
-  end
-
-  @doc """
-  Obtain a map of domain external ids and the corresponding id.
-
-    ## Examples
-
-      iex> domain = %{id: 42, name: "Some domain", external_id: "External id", updated_at: DateTime.utc_now()}
-      iex> {:ok, _} = TaxonomyCache.put_domain(domain)
-      iex> TaxonomyCache.get_domain_external_id_to_id_map() |> Map.get("External id")
-      42
-
-  """
-  def get_domain_external_id_to_id_map do
-    {:ok, map} = DomainCache.external_id_to_id_map()
-    map
   end
 
   @doc """
