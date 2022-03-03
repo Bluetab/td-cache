@@ -122,13 +122,20 @@ defmodule TdCache.ImplementationCache do
         execution_result_info =
           "implementation:#{id}:execution_result_info"
           |> Redix.read_map()
-          |> then(fn {:ok, result} -> result end)
+          # TdCache github runner doesn't have Elixir 13
+          #|> then(fn {:ok, result} -> result end)
+          |> case do
+            {:ok, result} -> result
+          end
           |> MapHelpers.parse_fields(@result_props)
 
         rule =
           implementation
           |> maybe_get_rule()
-          |> then(fn {:ok, rule} -> rule end)
+          # |> then(fn {:ok, rule} -> rule end)
+          |> case do
+            {:ok, result} -> result
+          end
           |> MapHelpers.parse_fields(@rule_props)
 
         implementation
