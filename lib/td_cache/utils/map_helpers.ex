@@ -9,6 +9,7 @@ defmodule TdCache.Utils.MapHelpers do
     end)
   end
 
+  def parse_string(_, ""), do: nil
   def parse_string(_, nil), do: nil
   def parse_string(:integer, value) when is_binary(value), do: String.to_integer(value)
   def parse_string(:decimal, value) when is_binary(value), do: Decimal.new(value)

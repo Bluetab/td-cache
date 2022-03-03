@@ -68,7 +68,7 @@ defmodule TdCache.ImplementationCache do
 
     del_cmds =
       ids_to_delete
-      |> Enum.flat_map(&["implementation:#{&1}", "implementation:#{&1}:latest_result"])
+      |> Enum.flat_map(&["implementation:#{&1}", "implementation:#{&1}:execution_result_info"])
       |> Enum.chunk_every(1000)
       |> Enum.map(&["DEL" | &1])
 
@@ -96,6 +96,7 @@ defmodule TdCache.ImplementationCache do
     {:goal, :float},
     {:implementation_key, :string},
     {:minimum, :float},
+    {:result_type, :string},
     {:updated_at, :datetime}
   ]
 
@@ -107,8 +108,9 @@ defmodule TdCache.ImplementationCache do
   @result_props [
     {:errors, :integer},
     {:records, :integer},
-    {:result_type, :string},
-    {:result, :decimal}
+    {:result, :decimal},
+    {:date, :datetime},
+    {:result_text, :string}
   ]
 
   defp read_implementation(id) do
@@ -117,8 +119,8 @@ defmodule TdCache.ImplementationCache do
         nil
 
       {:ok, implementation} ->
-        latest_result =
-          "implementation:#{id}:latest_result"
+        execution_result_info =
+          "implementation:#{id}:execution_result_info"
           |> Redix.read_map()
           |> then(fn {:ok, result} -> result end)
           |> MapHelpers.parse_fields(@result_props)
@@ -131,7 +133,7 @@ defmodule TdCache.ImplementationCache do
 
         implementation
         |> MapHelpers.parse_fields(@props)
-        |> put_optional(:latest_result, latest_result)
+        |> put_optional(:execution_result_info, execution_result_info)
         |> put_optional(:rule, rule)
     end
   end
@@ -146,7 +148,7 @@ defmodule TdCache.ImplementationCache do
 
   defp delete_implementation(id) do
     Redix.transaction_pipeline([
-      ["DEL", "implementation:#{id}", "implementation:#{id}:latest_result"],
+      ["DEL", "implementation:#{id}", "implementation:#{id}:execution_result_info"],
       ["SREM", "implementation:keys", "implementation:#{id}"],
       ["SADD", "implementation:deleted_ids", "#{id}"]
     ])
@@ -190,9 +192,9 @@ defmodule TdCache.ImplementationCache do
 
     result_props_keys = Enum.map(@result_props, fn {key, _} -> key end)
 
-    latest_result_props =
+    execution_result_info_props =
       implementation
-      |> Map.get(:latest_result)
+      |> Map.get(:execution_result_info)
       |> case do
         result = %{} -> Map.take(result, result_props_keys)
         _ -> %{}
@@ -202,7 +204,7 @@ defmodule TdCache.ImplementationCache do
 
     [
       ["HSET", "implementation:#{id}", implementation_props],
-      ["HSET", "implementation:#{id}:latest_result", latest_result_props],
+      ["HSET", "implementation:#{id}:execution_result_info", execution_result_info_props],
       ["SADD", "implementation:keys", "implementation:#{id}"],
       refresh_deleted_ids_command(implementation)
     ]

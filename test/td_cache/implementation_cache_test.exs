@@ -35,16 +35,16 @@ defmodule TdCache.ImplementationCacheTest do
       assert not is_nil(impl)
       assert impl.id == implementation.id
       assert impl.implementation_key == implementation.implementation_key
-      refute Map.has_key?(impl, :latest_result)
+      refute Map.has_key?(impl, :execution_result_info)
 
-      assert not is_nil(impl.deleted_at)
+      assert is_nil(impl.deleted_at)
     end
 
-    test "writes an implementation entry in redis and reads it back with latest_result", %{
+    test "writes an implementation entry in redis and reads it back with execution_result_info", %{
       implementation: implementation
     } do
       implementation =
-        Map.put(implementation, :latest_result, %{
+        Map.put(implementation, :execution_result_info, %{
           errors: 10
         })
 
@@ -54,7 +54,7 @@ defmodule TdCache.ImplementationCacheTest do
 
       assert not is_nil(impl)
       assert impl.id == implementation.id
-      assert impl.latest_result.errors == 10
+      assert impl.execution_result_info.errors == 10
     end
 
     test "writes an implementation entry in redis and reads it back with rule", %{
@@ -116,12 +116,16 @@ defmodule TdCache.ImplementationCacheTest do
     } do
       assert {:ok, _} = ImplementationCache.put(implementation)
       assert {:ok, imp} = ImplementationCache.get(implementation.id)
-      assert Map.get(imp, :deleted_at) == "#{implementation.deleted_at}"
+      assert imp
+      |> Map.get(:deleted_at)
+      |> is_nil()
 
-      implementation = Map.put(implementation, :deleted_at, nil)
+      deleted_at = DateTime.utc_now()
+      implementation = Map.put(implementation, :deleted_at, deleted_at)
       assert {:ok, _} = ImplementationCache.put(implementation)
       assert {:ok, imp} = ImplementationCache.get(implementation.id)
-      assert Map.get(imp, :deleted_at) == ""
+
+      assert Map.get(imp, :deleted_at) == "#{deleted_at}"
     end
 
     test "deletes an entry in redis", %{implementation: implementation} do
@@ -130,16 +134,14 @@ defmodule TdCache.ImplementationCacheTest do
       assert {:ok, nil} = ImplementationCache.get(implementation.id)
     end
 
-    test "deletes an entry in redis with latest_result", %{implementation: implementation} do
+    test "deletes an entry in redis with execution_result_info", %{implementation: implementation} do
       implementation =
-        Map.put(implementation, :latest_result, %{
+        Map.put(implementation, :execution_result_info, %{
           errors: 1,
-          records: 2,
-          result_type: "type",
-          result: 20
+          records: 2
         })
 
-      assert {:ok, [7, 4, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [7, 2, 1, 0]} = ImplementationCache.put(implementation)
       assert {:ok, [2, 1, 1]} = ImplementationCache.delete(implementation.id)
       assert {:ok, nil} = ImplementationCache.get(implementation.id)
     end
