@@ -23,6 +23,12 @@
   - `TaxonomyCache.get_parent_ids/1`
   - `TaxonomyCache.get_root_domain_ids/0`
 
+## [4.39.0] 2022-03-04
+
+### Added
+
+- [TD-4378] Add structures description
+
 ## [4.38.1] 2022-02-22
 
 ### Added
