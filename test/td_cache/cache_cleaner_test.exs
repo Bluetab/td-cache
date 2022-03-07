@@ -1,20 +1,14 @@
 defmodule TdCache.CacheCleanerTest do
   use ExUnit.Case
+
   alias TdCache.CacheCleaner
   alias TdCache.Redix
-  doctest TdCache.CacheCleaner
 
   setup_all do
-    on_exit(fn ->
-      Redix.del!("TD_CACHE_TEST:*")
-    end)
+    on_exit(fn -> Redix.del!("TD_CACHE_TEST:*") end)
   end
 
   describe "CacheCleaner" do
-    test "starts automatically" do
-      assert Process.whereis(CacheCleaner)
-    end
-
     test "deletes keys from redis" do
       commands = [
         ["SET", "TD_CACHE_TEST:DELETE:STRING", "Some string"],
@@ -33,7 +27,11 @@ defmodule TdCache.CacheCleanerTest do
 
       assert Enum.count(keys) == 8
 
-      :ok = CacheCleaner.clean()
+      :ok =
+        CacheCleaner.clean([
+          "TD_CACHE_TEST:DELETE:*",
+          "TD_CACHE_TEST:REMOVE:*"
+        ])
 
       {:ok, keys} = Redix.command(["KEYS", "TD_CACHE_TEST:*"])
 

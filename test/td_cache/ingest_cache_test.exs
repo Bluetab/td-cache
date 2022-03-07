@@ -5,64 +5,55 @@ defmodule TdCache.IngestCacheTest do
 
   use ExUnit.Case
 
+  import TdCache.Factory
+
+  alias TdCache.CacheHelpers
   alias TdCache.IngestCache
   alias TdCache.Redix
 
   doctest TdCache.IngestCache
 
   setup do
-    ingest = ingest_fixture()
+    %{id: domain_id} = domain = build(:domain)
+    CacheHelpers.put_domain(domain)
+    ingest = build(:ingest, domain_id: domain_id)
+    on_exit(fn -> IngestCache.delete(ingest.id) end)
 
-    on_exit(fn ->
-      IngestCache.delete(ingest.id)
-    end)
-
-    {:ok, ingest: ingest}
+    [ingest: ingest]
   end
 
-  test "put returns Ok", %{ingest: ingest} do
+  test "put/1 returns Ok", %{ingest: ingest} do
     assert {:ok, [3, 1]} = IngestCache.put(ingest)
   end
 
-  test "get_domain_id from an ingest", %{ingest: ingest} do
+  test "get_domain_id/1 from an ingest", %{ingest: ingest} do
     {:ok, _} = IngestCache.put(ingest)
-
     assert IngestCache.get_domain_id(ingest.id) == "#{ingest.domain_id}"
   end
 
-  test "get_domain_ids from an ingest", %{ingest: ingest} do
+  test "get_domain_ids/1 returns the domain id", %{ingest: ingest} do
     %{domain_id: domain_id, id: id} = ingest
     {:ok, _} = IngestCache.put(ingest)
-
     assert IngestCache.get_domain_ids(id) == [domain_id]
   end
 
-  test "get_name from a ingest", %{ingest: ingest} do
-    {:ok, _} = IngestCache.put(ingest)
+  test "get_domain_ids/1 returns nil if ingest is missing" do
+    refute IngestCache.get_domain_ids(nil)
+  end
 
+  test "get_name/1 from a ingest", %{ingest: ingest} do
+    {:ok, _} = IngestCache.put(ingest)
     assert IngestCache.get_name(ingest.id) == ingest.name
   end
 
-  test "get_ingest_version_id from a ingest", %{ingest: ingest} do
+  test "get_ingest_version_id/1 from a ingest", %{ingest: ingest} do
     {:ok, _} = IngestCache.put(ingest)
-
     assert IngestCache.get_ingest_version_id(ingest.id) == "#{ingest.ingest_version_id}"
   end
 
-  test "delete deletes the ingest from cache", %{ingest: ingest} do
+  test "delete/1 deletes the ingest from cache", %{ingest: ingest} do
     {:ok, _} = IngestCache.put(ingest)
     assert {:ok, [1, 1]} = IngestCache.delete(ingest.id)
-    assert not Redix.exists?("ingest:#{ingest.id}")
-  end
-
-  defp ingest_fixture do
-    id = System.unique_integer([:positive])
-
-    %{
-      id: id,
-      domain_id: System.unique_integer([:positive]),
-      name: "ingest #{id}",
-      ingest_version_id: System.unique_integer([:positive])
-    }
+    refute Redix.exists?("ingest:#{ingest.id}")
   end
 end

@@ -6,7 +6,6 @@ defmodule TdCache.ConceptCache do
   use GenServer
 
   alias Jason
-  alias TdCache.DomainCache
   alias TdCache.EventStream.Publisher
   alias TdCache.LinkCache
   alias TdCache.Redix
@@ -37,8 +36,8 @@ defmodule TdCache.ConceptCache do
   @doc """
   Creates cache entries relating to a given concept.
   """
-  def put(concept) do
-    GenServer.call(__MODULE__, {:put, concept})
+  def put(concept, opts \\ []) do
+    GenServer.call(__MODULE__, {:put, concept, opts})
   end
 
   @doc """
@@ -92,8 +91,8 @@ defmodule TdCache.ConceptCache do
   @doc """
   Deletes cache entries relating to a given concept id.
   """
-  def delete(id) do
-    GenServer.call(__MODULE__, {:delete, id})
+  def delete(id, opts \\ []) do
+    GenServer.call(__MODULE__, {:delete, id, opts})
   end
 
   @doc """
@@ -128,8 +127,8 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call({:put, concept}, _from, state) do
-    reply = put_concept(concept)
+  def handle_call({:put, concept, opts}, _from, state) do
+    reply = put_concept(concept, opts)
     {:reply, reply, state}
   end
 
@@ -143,13 +142,8 @@ defmodule TdCache.ConceptCache do
   def handle_call({:get, id, :domain_ids, opts}, _from, state) do
     domain_ids =
       case get_cache(id, fn -> read_concept(id) end, opts) do
-        %{domain_id: domain_id} ->
-          domain_id
-          |> String.to_integer()
-          |> TaxonomyCache.get_parent_ids()
-
-        _ ->
-          []
+        %{domain_id: domain_id} -> TaxonomyCache.reaching_domain_ids(domain_id)
+        _ -> []
       end
 
     {:reply, {:ok, domain_ids}, state}
@@ -173,8 +167,8 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
-  def handle_call({:delete, id}, _from, state) do
-    reply = delete_concept(id)
+  def handle_call({:delete, id, opts}, _from, state) do
+    reply = delete_concept(id, opts)
     {:reply, reply, state}
   end
 
@@ -242,36 +236,28 @@ defmodule TdCache.ConceptCache do
   end
 
   defp read_shared_to(%{shared_to_ids: shared_to_ids}) do
-    {:ok, Enum.map(shared_to_ids, &DomainCache.get!(&1))}
-  end
-
-  defp read_shared_to(_) do
-    {:ok, []}
+    {:ok, Enum.map(shared_to_ids, &TaxonomyCache.get_domain/1)}
   end
 
   defp concept_entry_to_map(nil), do: nil
 
   defp concept_entry_to_map(%{} = concept) do
-    domain = get_domain(Map.get(concept, :domain_id))
-
-    shared_to_ids =
-      concept
-      |> Map.get(:shared_to_ids)
-      |> Redix.to_integer_list!()
-
     concept
-    |> Map.put(:domain, domain)
-    |> Map.put(:shared_to_ids, shared_to_ids)
+    |> Map.update(:domain_id, nil, &to_integer_id/1)
+    |> Map.update(:shared_to_ids, [], &Redix.to_integer_list!/1)
+    |> put_domain()
   end
 
-  defp get_domain(domain_id) do
-    case domain_id do
-      nil -> nil
-      _ -> DomainCache.get!(domain_id)
-    end
+  defp to_integer_id(""), do: nil
+  defp to_integer_id(id), do: String.to_integer(id)
+
+  defp put_domain(%{domain_id: nil} = concept), do: Map.put(concept, :domain, nil)
+
+  defp put_domain(%{domain_id: domain_id} = concept) do
+    Map.put(concept, :domain, TaxonomyCache.get_domain(domain_id))
   end
 
-  defp delete_concept(id) do
+  defp delete_concept(id, opts) do
     commands = [
       ["DEL", "business_concept:#{id}"],
       ["SREM", @keys, "business_concept:#{id}"],
@@ -283,7 +269,7 @@ defmodule TdCache.ConceptCache do
     results = Redix.transaction_pipeline!(commands)
     [_, _, inactivated, _, _] = results
 
-    unless inactivated == 0 do
+    if opts[:publish] != false && inactivated != 0 do
       publish_event("remove_concepts", id)
     end
 
@@ -294,7 +280,7 @@ defmodule TdCache.ConceptCache do
     ["SISMEMBER", @confidential_ids, id] |> Redix.command!()
   end
 
-  defp put_concept(%{id: id} = concept) do
+  defp put_concept(%{id: id} = concept, opts) do
     shared_to_ids =
       concept
       |> Map.get(:shared_to_ids, [])
@@ -319,7 +305,7 @@ defmodule TdCache.ConceptCache do
     results = Redix.transaction_pipeline!(commands)
     [_, _, _, activated, _, _] = results
 
-    unless activated == 0 do
+    if opts[:publish] != false && activated != 0 do
       publish_event("restore_concepts", id)
     end
 

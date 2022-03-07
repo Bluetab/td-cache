@@ -6,15 +6,25 @@ defmodule TdCache.DomainCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
-  @props [:name, :parent_ids, :external_id, :descendent_ids, :updated_at]
-  @roots_key "domains:root"
+  @props [:name, :external_id, :updated_at]
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
-  @ids_to_parent_ids_key "domains:id_to_parent_ids"
+  @graph_key "domains:graph"
   @domain_keys "domain:keys"
   @deleted_ids "domain:deleted_ids"
+  @root_id 0
 
   ## Client API
+
+  @doc """
+  Returns the tree of domain ids, including an artifical vertex 0 as the root
+  """
+  def tree do
+    ["HGETALL", @graph_key]
+    |> Redix.command!()
+    |> Enum.map(&to_integer/1)
+    |> create_graph()
+  end
 
   @doc """
   Creates cache entries relating to a given domain.
@@ -46,19 +56,18 @@ defmodule TdCache.DomainCache do
   end
 
   @doc """
-  Reads root domains from cache.
-  """
-  def roots do
-    domain_ids = get_root_domains()
-    {:ok, domain_ids}
-  end
-
-  @doc """
-  Reads all domains from cache.
+  Reads all domain ids from cache.
   """
   def domains do
     domain_ids = get_domains()
     {:ok, domain_ids}
+  end
+
+  @doc """
+  Reads count of domains from cache.
+  """
+  def count! do
+    Redix.command!(["SCARD", @domain_keys])
   end
 
   @doc """
@@ -70,16 +79,6 @@ defmodule TdCache.DomainCache do
     {:ok, map}
   end
 
-  @doc """
-  Reads domain id to parent_ids map from cache.
-  """
-  def id_to_parent_ids_map do
-    case get_domain_id_to_parent_ids_map() do
-      {:ok, nil} -> {:ok, %{}}
-      {:ok, map} -> {:ok, map}
-    end
-  end
-
   def external_id_to_id(external_id) do
     case get_domain_external_id_to_id_map() do
       %{^external_id => domain_id} -> {:ok, domain_id}
@@ -88,19 +87,10 @@ defmodule TdCache.DomainCache do
   end
 
   @doc """
-  Reads domain name to id map from cache.
-  """
-  def name_to_id_map do
-    map = get_domain_name_to_id_map()
-
-    {:ok, map}
-  end
-
-  @doc """
   Deletes cache entries relating to a given domain id.
   """
-  def delete(id) do
-    delete_domain(id)
+  def delete(id, opts \\ []) do
+    delete_domain(id, opts)
   end
 
   @doc """
@@ -113,22 +103,11 @@ defmodule TdCache.DomainCache do
 
   ## Private functions
 
-  defp read_domain(id) when is_binary(id) do
-    id = String.to_integer(id)
-    read_domain(id)
-  end
-
+  @spec read_domain(integer | binary) :: nil | map
   defp read_domain(id) do
     case Redix.read_map("domain:#{id}") do
       {:ok, nil} -> nil
-      {:ok, domain} -> Map.put(domain, :id, id)
-    end
-  end
-
-  defp get_root_domains do
-    case Redix.command(["SMEMBERS", @roots_key]) do
-      {:ok, ids} -> Enum.map(ids, &String.to_integer/1)
-      _ -> []
+      {:ok, domain} -> Map.put(domain, :id, to_integer(id))
     end
   end
 
@@ -155,31 +134,22 @@ defmodule TdCache.DomainCache do
 
   defp read_domain_id(id), do: id
 
-  defp get_domain_name_to_id_map do
-    read_map(@ids_to_names_key)
-  end
-
   defp get_domain_external_id_to_id_map do
     read_map(@ids_to_external_ids_key)
   end
 
-  defp get_domain_id_to_parent_ids_map do
-    Redix.read_map(@ids_to_parent_ids_key, fn [domain_id, parent_ids] ->
-      {String.to_integer(domain_id), Redix.to_integer_list!(parent_ids)}
-    end)
-  end
-
-  defp delete_domain(id) do
+  defp delete_domain(id, opts) do
     key = "domain:#{id}"
+
+    add_or_remove = if Keyword.get(opts, :clean, false), do: "SREM", else: "SADD"
 
     commands = [
       ["DEL", key],
-      ["HDEL", @ids_to_parent_ids_key, id],
+      ["HDEL", @graph_key, id],
       ["HDEL", @ids_to_names_key, id],
       ["HDEL", @ids_to_external_ids_key, id],
       ["SREM", @domain_keys, key],
-      ["SREM", @roots_key, id],
-      ["SADD", @deleted_ids, id]
+      [add_or_remove, @deleted_ids, id]
     ]
 
     Redix.transaction_pipeline(commands)
@@ -193,23 +163,16 @@ defmodule TdCache.DomainCache do
     |> put_domain(last_updated, opts[:force], Keyword.get(opts, :publish, true))
   end
 
-  defp put_domain(_, _), do: {:error, :empty}
+  defp put_domain(_, _), do: {:error, :invalid}
 
   defp put_domain(%{updated_at: ts}, ts, false, _), do: {:ok, []}
 
   defp put_domain(%{updated_at: ts}, ts, nil, _), do: {:ok, []}
 
-  defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish) do
-    parent_ids = Map.get(domain, :parent_ids, [])
-    descendent_ids = Map.get(domain, :descendent_ids, [])
+  defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish)
+       when is_integer(id) and id != @root_id do
+    parent_id = Map.get(domain, :parent_id) || @root_id
     external_id = Map.get(domain, :external_id)
-
-    domain =
-      domain
-      |> Map.put(:parent_ids, Enum.join(parent_ids, ","))
-      |> Map.put(:descendent_ids, Enum.join(descendent_ids, ","))
-
-    add_or_remove_root = if parent_ids == [], do: "SADD", else: "SREM"
 
     add_or_remove_external_id =
       case external_id do
@@ -222,12 +185,11 @@ defmodule TdCache.DomainCache do
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", @domain_keys, "domain:#{id}"],
       add_or_remove_external_id,
-      ["HSET", @ids_to_parent_ids_key, id, Enum.join([id | parent_ids], ",")],
-      [add_or_remove_root, @roots_key, id],
+      ["HSET", @graph_key, id, parent_id],
       ["SREM", @deleted_ids, id]
     ]
 
-    {:ok, [_, _, added, _, _, _, _] = results} = Redix.transaction_pipeline(commands)
+    {:ok, [_, _, added, _, _, _] = results} = Redix.transaction_pipeline(commands)
 
     if publish do
       event = %{
@@ -241,12 +203,35 @@ defmodule TdCache.DomainCache do
     {:ok, results}
   end
 
-  defp put_domain(_, _, _, _), do: {:error, :empty}
+  defp put_domain(_, _, _, _), do: {:error, :invalid}
 
   defp read_map(collection) do
     case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do
       {:ok, nil} -> %{}
       {:ok, map} -> map
     end
+  end
+
+  defp to_integer(id) when is_integer(id), do: id
+  defp to_integer(id) when is_binary(id), do: String.to_integer(id)
+
+  defp create_graph(entries) do
+    create_graph(Graph.new([], acyclic: true), entries)
+  end
+
+  defp create_graph(graph, []), do: graph
+
+  defp create_graph(graph, [child_id, child_id | entries]) do
+    graph
+    |> Graph.add_vertex(child_id)
+    |> create_graph(entries)
+  end
+
+  defp create_graph(graph, [child_id, parent_id | entries]) do
+    graph
+    |> Graph.add_vertex(child_id)
+    |> Graph.add_vertex(parent_id)
+    |> Graph.add_edge(parent_id, child_id)
+    |> create_graph(entries)
   end
 end

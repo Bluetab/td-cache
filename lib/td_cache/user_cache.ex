@@ -102,6 +102,8 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:delete, id})
   end
 
+  def ids_key, do: @ids
+
   ## Callbacks
 
   @impl true
@@ -178,7 +180,7 @@ defmodule TdCache.UserCache do
   defp read_user(id) when is_binary(id) do
     id
     |> String.to_integer()
-    |> read_user
+    |> read_user()
   end
 
   defp read_user(id) do
@@ -213,7 +215,7 @@ defmodule TdCache.UserCache do
     [
       ["DEL", "user:#{id}"],
       ["HSET", "user:#{id}", get_props(user)],
-      ["SADD", @ids, "#{id}"]
+      ["SADD", @ids, id]
     ]
     |> add_full_name(user)
     |> add_user_name(user)

@@ -39,7 +39,7 @@ defmodule TdCache.StructureCacheTest do
     test "writes a structure entry in redis and reads it back", %{structure: structure} do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
-      assert not is_nil(s)
+      assert s
       assert s.id == structure.id
       assert s.name == structure.name
       assert s.external_id == structure.external_id
@@ -47,7 +47,7 @@ defmodule TdCache.StructureCacheTest do
       assert s.path == structure.path
       assert s.type == structure.type
       assert s.metadata == structure.metadata
-      assert not is_nil(s.deleted_at)
+      assert s.deleted_at
     end
 
     test "writes a structure entry with system in redis and reads it back", %{
@@ -56,7 +56,7 @@ defmodule TdCache.StructureCacheTest do
     } do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
-      assert not is_nil(s)
+      assert s
       assert s.id == structure.id
       assert s.name == structure.name
       assert s.external_id == structure.external_id
@@ -80,7 +80,7 @@ defmodule TdCache.StructureCacheTest do
     } do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
-      assert not is_nil(s)
+      assert s
 
       updated_structure =
         structure
@@ -97,7 +97,7 @@ defmodule TdCache.StructureCacheTest do
     } do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
-      assert not is_nil(s)
+      assert s
       updated_structure = Map.put(structure, :external_id, "new_ext_id")
       {:ok, _} = StructureCache.put(updated_structure)
       {:ok, s} = StructureCache.get(structure.id)

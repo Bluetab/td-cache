@@ -104,7 +104,7 @@ defmodule TdCache.Redix do
     command!(["SET", key, node(), "NX", "EX", expiry_seconds]) == "OK"
   end
 
-  @spec to_integer_list!(nil | binary, binary) :: [integer]
+  @spec to_integer_list!(nil | binary | list, binary) :: [integer]
   def to_integer_list!(value, sep \\ ",")
 
   def to_integer_list!(nil, _), do: []
@@ -114,6 +114,12 @@ defmodule TdCache.Redix do
   def to_integer_list!(value, sep) when is_binary(value) do
     value
     |> String.split(sep)
-    |> Enum.map(&String.to_integer/1)
+    |> to_integer_list!()
+  end
+
+  def to_integer_list!([], _), do: []
+
+  def to_integer_list!([v | _] = values, _) when is_binary(v) do
+    Enum.map(values, &String.to_integer/1)
   end
 end
