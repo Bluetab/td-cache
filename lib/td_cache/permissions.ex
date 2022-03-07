@@ -56,8 +56,12 @@ defmodule TdCache.Permissions do
   end
 
   def has_permission?(session_id, permission) do
-    key = session_permissions_key(session_id)
-    Redix.command!(["HEXISTS", key, permission]) == 1
+    if is_default_permission?(permission) do
+      true
+    else
+      key = session_permissions_key(session_id)
+      Redix.command!(["HEXISTS", key, permission]) == 1
+    end
   end
 
   def has_any_permission?(session_id, permissions, resource_type, resource_id) do
@@ -66,30 +70,6 @@ defmodule TdCache.Permissions do
 
   def has_any_permission_on_resource_type?(session_id, permissions, "domain") do
     Enum.any?(permissions, &has_permission?(session_id, &1))
-  end
-
-  @deprecated "This function will be removed, refactor to avoid using it"
-  def get_acls_by_resource_type(session_id, "domain") do
-    key = session_permissions_key(session_id)
-
-    case Redix.read_map(key, fn [k, v] -> {k, Redix.to_integer_list!(v)} end) do
-      {:ok, %{} = map} ->
-        map
-        |> Enum.flat_map(fn {permission, domain_ids} ->
-          Enum.map(domain_ids, &{&1, permission})
-        end)
-        |> Enum.group_by(fn {domain_id, _} -> domain_id end, fn {_, permission} -> permission end)
-        |> Enum.map(fn {domain_id, permissions} ->
-          %{
-            resource_type: "domain",
-            resource_id: domain_id,
-            permissions: permissions
-          }
-        end)
-
-      _ ->
-        []
-    end
   end
 
   def get_session_permissions(session_id) do

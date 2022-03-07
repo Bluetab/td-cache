@@ -42,8 +42,12 @@ defmodule TdCache.PermissionsTest do
   end
 
   test "considers default permissions", %{} do
+    refute Permissions.has_permission?("any_session_id", :foo, "domain", "123")
+    refute Permissions.has_permission?("any_session_id", :foo)
     Permissions.put_default_permissions(["foo"])
+    assert Permissions.has_permission?("any_session_id", :foo, "domain", "123")
     assert Permissions.has_permission?("any_session_id", :foo, "any_type", "any_id")
+    assert Permissions.has_permission?("any_session_id", :foo)
   end
 
   test "resolves cached session permissions", %{

@@ -180,7 +180,7 @@ defmodule TdCache.UserCache do
   defp read_user(id) when is_binary(id) do
     id
     |> String.to_integer()
-    |> read_user
+    |> read_user()
   end
 
   defp read_user(id) do

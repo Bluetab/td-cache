@@ -7,15 +7,16 @@
 - [TD-4491] Refactored permissions model to resolve permissions within the
   taxonomy tree (i.e. to consider permissions not only in the specific domain
   being queried, but also in its parent domains). The
-  `Permissions.has_permission?/4` function now also considers global permissions
-  (the permissions of the default role) before querying session-specific
-  permissions.
+  `Permissions.has_permission?/2` and `Permissions.has_permission?/4` functions
+  now also considers global permissions (the permissions of the default role)
+  before querying session-specific permissions.
 
 ### Removed
 
 - The `PermissionsConfig` module is no longer used and has been removed
 - The following unused and deprecated functions have been removed:
   - `DomainCache.id_to_parent_ids_map/0`
+  - `Permissions.get_acls_by_resource_type/2`
   - `TaxonomyCache.get_descendent_ids/1`
   - `TaxonomyCache.get_domain_name_to_id_map/0`
   - `TaxonomyCache.get_domain_external_id_to_id_map/0`
