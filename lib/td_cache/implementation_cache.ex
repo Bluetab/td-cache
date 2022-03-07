@@ -27,6 +27,14 @@ defmodule TdCache.ImplementationCache do
   end
 
   @doc """
+  Reads implementation domain_id relating to a given implementation id.
+  """
+  def get_domain_id(id) do
+    {:ok, domain_id} = Redix.command(["HGET", "implementation:#{id}", "domain_id"])
+    domain_id
+  end
+
+  @doc """
   Deletes cache entries relating to a given implementation id.
   """
   def delete(id) do
@@ -123,7 +131,7 @@ defmodule TdCache.ImplementationCache do
           "implementation:#{id}:execution_result_info"
           |> Redix.read_map()
           # TdCache github runner doesn't have Elixir 13
-          #|> then(fn {:ok, result} -> result end)
+          # |> then(fn {:ok, result} -> result end)
           |> case do
             {:ok, result} -> result
           end
