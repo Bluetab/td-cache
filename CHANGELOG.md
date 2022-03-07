@@ -10,6 +10,8 @@
   `Permissions.has_permission?/2` and `Permissions.has_permission?/4` functions
   now also considers global permissions (the permissions of the default role)
   before querying session-specific permissions.
+- `CacheCleaner` is no longer a `GenServer`. Instead, use `CacheCleaner.clean/1`
+  (e.g. from a scheduled task)
 
 ### Removed
 
