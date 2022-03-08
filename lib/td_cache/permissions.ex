@@ -57,8 +57,8 @@ defmodule TdCache.Permissions do
     |> (&has_permission?(session_id, permission, "domain", &1)).()
   end
 
-  def has_permission?(session_id, permission, "implementation", ingest_id) do
-    ingest_id
+  def has_permission?(session_id, permission, "implementation", implementation_id) do
+    implementation_id
     |> ImplementationCache.get_domain_id()
     |> (&has_permission?(session_id, permission, "domain", &1)).()
   end
