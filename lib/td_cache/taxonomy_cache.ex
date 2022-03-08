@@ -139,7 +139,6 @@ defmodule TdCache.TaxonomyCache do
         domain
         |> Map.put(:parent_id, Enum.at(parent_ids, 0))
         |> Map.put(:parent_ids, parent_ids)
-        |> Map.put(:descendent_ids, do_get_reachable_ids(id, tree))
     end
   end
 

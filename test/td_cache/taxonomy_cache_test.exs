@@ -1,7 +1,6 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
 
-  import Assertions
   import TdCache.Factory
 
   alias TdCache.CacheHelpers
@@ -139,27 +138,23 @@ defmodule TdCache.TaxonomyCacheTest do
     assert %{
              id: ^id1,
              parent_ids: [],
-             descendent_ids: descendent_ids,
+             parent_id: nil,
              external_id: _,
              name: _
            } = map[id1]
 
-    assert_lists_equal(descendent_ids, [id1, id2, id3])
-
     assert %{
              id: ^id2,
              parent_ids: [^id1],
-             descendent_ids: descendent_ids,
+             parent_id: ^id1,
              external_id: _,
              name: _
            } = map[id2]
 
-    assert_lists_equal(descendent_ids, [id2, id3])
-
     assert %{
              id: ^id3,
              parent_ids: [^id2, ^id1],
-             descendent_ids: [^id3],
+             parent_id: ^id2,
              external_id: _,
              name: _
            } = map[id3]
