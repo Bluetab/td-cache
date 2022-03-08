@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Renamed `Permissions.has_any_permission_on_resource_type?/2` to
+  `has_any_permission?/2`
+
 ## [4.40.0] 2022-03-07
 
 ### Changed
