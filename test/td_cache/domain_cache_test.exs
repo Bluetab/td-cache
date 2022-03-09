@@ -97,7 +97,7 @@ defmodule TdCache.DomainCacheTest do
       children = Enum.flat_map(domains, fn %{id: id} -> build_many(3, parent_id: id) end)
 
       for domain <- children ++ domains ++ parents do
-        DomainCache.put(domain, publish: false)
+        DomainCache.put(domain)
       end
 
       [parents: parents, domains: domains, children: children]
