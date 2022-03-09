@@ -57,7 +57,7 @@ defmodule TdCache.Permissions do
   end
 
   defp do_has_permission?(session_id, permission, "implementation", implementation_id) do
-    {:ok, domain_id} = ImplementationCache.get_domain_id(implementation_id)
+    domain_id = ImplementationCache.get_domain_id(implementation_id)
     has_permission?(session_id, permission, "domain", domain_id)
   end
 

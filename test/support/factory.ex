@@ -33,6 +33,14 @@ defmodule TdCache.Factory do
     }
   end
 
+  def implementation_factory do
+    %{
+      id: unique_id(),
+      implementation_key: "impl_key_#{unique_id()}",
+      updated_at: DateTime.utc_now()
+    }
+  end
+
   def content_factory do
     %{
       "data_owner" => sequence("data_owner"),

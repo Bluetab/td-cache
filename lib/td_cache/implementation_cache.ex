@@ -30,8 +30,7 @@ defmodule TdCache.ImplementationCache do
   Reads implementation domain_id relating to a given implementation id.
   """
   def get_domain_id(id) do
-    {:ok, domain_id} = Redix.command(["HGET", "implementation:#{id}", "domain_id"])
-    domain_id
+    Redix.command!(["HGET", "implementation:#{id}", "domain_id"])
   end
 
   @doc """
