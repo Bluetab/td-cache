@@ -22,11 +22,11 @@ defmodule TdCache.TaxonomyCacheTest do
   end
 
   test "put_domain returns OK", %{domain: domain} do
-    assert {:ok, [3, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [4, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
   end
 
   test "put_domain forces refresh if specified", %{domain: domain} do
-    assert {:ok, [3, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [4, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, []} = TaxonomyCache.put_domain(domain)
     assert {:ok, [0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
   end
@@ -44,8 +44,8 @@ defmodule TdCache.TaxonomyCacheTest do
     root: root
   } do
     Enum.each([root, parent, domain], &CacheHelpers.put_domain/1)
-    parent_ids = TaxonomyCache.reaching_domain_ids(domain.id)
-    assert parent_ids == [domain.id, parent.id, root.id]
+    ids = TaxonomyCache.reaching_domain_ids(domain.id)
+    assert ids == [domain.id, parent.id, root.id]
   end
 
   test "domain_count returns count of cached domains", %{

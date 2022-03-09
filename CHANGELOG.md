@@ -12,7 +12,9 @@
 
 - Renamed `Permissions.has_any_permission_on_resource_type?/2` to
   `has_any_permission?/2`
-- Cached domain entries no longer include the unused `descendent_ids` prop
+- Cached domain entries now include the `parent_id` prop
+- `TaxonomyCache.get_domain/1` no longer includes `parent_ids` and
+  `descendent_ids`
 
 ## [4.40.0] 2022-03-07
 

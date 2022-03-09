@@ -90,7 +90,7 @@ defmodule TdCache.ConceptCacheTest do
       assert c.domain
       assert c.domain.id == domain.id
       assert c.domain.name == domain.name
-      assert c.domain.parent_ids == domain.parent_ids
+      assert c.domain.parent_id == domain.parent_id
     end
 
     test "reads the content property of a concept", %{concept: %{content: content} = concept} do

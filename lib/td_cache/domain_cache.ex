@@ -5,7 +5,7 @@ defmodule TdCache.DomainCache do
 
   alias TdCache.Redix
 
-  @props [:name, :external_id, :updated_at]
+  @props [:name, :external_id, :updated_at, :parent_id]
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
   @graph_key "domains:graph"
@@ -21,7 +21,7 @@ defmodule TdCache.DomainCache do
   def tree do
     ["HGETALL", @graph_key]
     |> Redix.command!()
-    |> Enum.map(&to_integer/1)
+    |> Enum.map(&to_id/1)
     |> create_graph()
   end
 
@@ -105,8 +105,13 @@ defmodule TdCache.DomainCache do
   @spec read_domain(integer | binary) :: nil | map
   defp read_domain(id) do
     case Redix.read_map("domain:#{id}") do
-      {:ok, nil} -> nil
-      {:ok, domain} -> Map.put(domain, :id, to_integer(id))
+      {:ok, nil} ->
+        nil
+
+      {:ok, domain} ->
+        domain
+        |> Map.put(:id, to_id(id))
+        |> Map.update(:parent_id, nil, &to_id/1)
     end
   end
 
@@ -200,8 +205,9 @@ defmodule TdCache.DomainCache do
     end
   end
 
-  defp to_integer(id) when is_integer(id), do: id
-  defp to_integer(id) when is_binary(id), do: String.to_integer(id)
+  defp to_id(id) when is_integer(id), do: id
+  defp to_id(""), do: nil
+  defp to_id(id) when is_binary(id), do: String.to_integer(id)
 
   defp create_graph(entries) do
     create_graph(Graph.new([], acyclic: true), entries)

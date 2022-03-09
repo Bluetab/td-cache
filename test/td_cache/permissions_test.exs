@@ -12,7 +12,7 @@ defmodule TdCache.PermissionsTest do
 
   setup do
     parent = build(:domain)
-    domain = build(:domain, parent_ids: [parent.id])
+    domain = build(:domain, parent_id: parent.id)
 
     CacheHelpers.put_domain(parent)
     CacheHelpers.put_domain(domain)
