@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Removed
+
+- Removed deprecated function `TaxonomyCache.domain_map/0`
+
 ### Changed
 
 - Renamed `Permissions.has_any_permission_on_resource_type?/2` to

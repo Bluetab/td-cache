@@ -23,10 +23,6 @@ defmodule TdCache.TaxonomyCache do
     GenServer.call(__MODULE__, {:get_by, external_id})
   end
 
-  def domain_map do
-    GenServer.call(__MODULE__, :domain_map)
-  end
-
   def domain_count do
     GenServer.call(__MODULE__, :count)
   end
@@ -65,19 +61,6 @@ defmodule TdCache.TaxonomyCache do
       :error -> {:reply, nil, state}
       {:ok, id} -> handle_call({:get, id}, from, state)
     end
-  end
-
-  @impl true
-  def handle_call(:domain_map, _from, state) do
-    tree = get_cache(:tree, fn -> DomainCache.tree() end)
-    {:ok, domain_ids} = DomainCache.domains()
-
-    reply =
-      domain_ids
-      |> Enum.map(&do_get_domain(&1, tree))
-      |> Map.new(fn %{id: id} = domain -> {id, domain} end)
-
-    {:reply, reply, state}
   end
 
   @impl true
