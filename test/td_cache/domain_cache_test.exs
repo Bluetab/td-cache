@@ -24,18 +24,18 @@ defmodule TdCache.DomainCacheTest do
 
   describe "DomainCache" do
     test "writes a domain entry in redis and reads it back", %{domain: %{id: id} = domain} do
-      {:ok, [4, 1, 1, 1, 1, 0]} = DomainCache.put(domain)
+      {:ok, [0, 4, 1, 1, 1, 1, 0]} = DomainCache.put(domain)
       {:ok, d} = DomainCache.get(id)
       assert_structs_equal(d, domain, [:id, :name, :external_id, :parent_id])
     end
 
     test "updates a domain entry only if changed", %{domain: domain} do
-      assert {:ok, [4, 1, 1, 1, 1, 0]} = DomainCache.put(domain)
+      assert {:ok, [0, 4, 1, 1, 1, 1, 0]} = DomainCache.put(domain)
       assert {:ok, []} = DomainCache.put(domain)
 
       updated = %{domain | name: "updated name", updated_at: DateTime.utc_now()}
 
-      assert {:ok, [0, 0, 0, 0, 0, 0]} = DomainCache.put(updated)
+      assert {:ok, [1, 4, 0, 0, 0, 0, 0]} = DomainCache.put(updated)
       assert {:ok, %{name: "updated name"}} = DomainCache.get(domain.id)
     end
 
@@ -97,7 +97,7 @@ defmodule TdCache.DomainCacheTest do
       children = Enum.flat_map(domains, fn %{id: id} -> build_many(3, parent_id: id) end)
 
       for domain <- children ++ domains ++ parents do
-        DomainCache.put(domain, publish: false)
+        DomainCache.put(domain)
       end
 
       [parents: parents, domains: domains, children: children]
