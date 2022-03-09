@@ -22,13 +22,13 @@ defmodule TdCache.TaxonomyCacheTest do
   end
 
   test "put_domain returns OK", %{domain: domain} do
-    assert {:ok, [4, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [0, 4, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
   end
 
   test "put_domain forces refresh if specified", %{domain: domain} do
-    assert {:ok, [4, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [0, 4, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, []} = TaxonomyCache.put_domain(domain)
-    assert {:ok, [0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
+    assert {:ok, [1, 4, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
   end
 
   test "put_domain invalidates local cache", %{domain: domain} do

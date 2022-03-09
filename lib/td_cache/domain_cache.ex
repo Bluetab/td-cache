@@ -185,6 +185,7 @@ defmodule TdCache.DomainCache do
       end
 
     commands = [
+      ["DEL", "domain:#{id}"],
       ["HSET", "domain:#{id}", Map.take(domain, @props)],
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", @domain_keys, "domain:#{id}"],
