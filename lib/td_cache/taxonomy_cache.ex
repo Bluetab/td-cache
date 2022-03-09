@@ -23,10 +23,6 @@ defmodule TdCache.TaxonomyCache do
     GenServer.call(__MODULE__, {:get_by, external_id})
   end
 
-  def domain_map do
-    GenServer.call(__MODULE__, :domain_map)
-  end
-
   def domain_count do
     GenServer.call(__MODULE__, :count)
   end
@@ -52,8 +48,7 @@ defmodule TdCache.TaxonomyCache do
 
   @impl true
   def handle_call({:get, id}, _from, state) do
-    tree = get_cache(:tree, fn -> DomainCache.tree() end)
-    domain = get_cache({:id, id, tree}, fn -> do_get_domain(id, tree) end)
+    domain = get_cache({:id, id}, fn -> do_get_domain(id) end)
     {:reply, domain, state}
   end
 
@@ -65,19 +60,6 @@ defmodule TdCache.TaxonomyCache do
       :error -> {:reply, nil, state}
       {:ok, id} -> handle_call({:get, id}, from, state)
     end
-  end
-
-  @impl true
-  def handle_call(:domain_map, _from, state) do
-    tree = get_cache(:tree, fn -> DomainCache.tree() end)
-    {:ok, domain_ids} = DomainCache.domains()
-
-    reply =
-      domain_ids
-      |> Enum.map(&do_get_domain(&1, tree))
-      |> Map.new(fn %{id: id} = domain -> {id, domain} end)
-
-    {:reply, reply, state}
   end
 
   @impl true
@@ -124,22 +106,10 @@ defmodule TdCache.TaxonomyCache do
     ConCache.get_or_store(:taxonomy, key, fn -> fun.() end)
   end
 
-  defp do_get_domain(domain_id, tree) do
+  defp do_get_domain(domain_id) do
     case DomainCache.get(domain_id) do
-      {:ok, nil} ->
-        nil
-
-      {:ok, %{id: id} = domain} ->
-        parent_ids =
-          case do_get_reaching_ids(id, tree) do
-            [_ | ids] -> ids
-            _ -> []
-          end
-
-        domain
-        |> Map.put(:parent_id, Enum.at(parent_ids, 0))
-        |> Map.put(:parent_ids, parent_ids)
-        |> Map.put(:descendent_ids, do_get_reachable_ids(id, tree))
+      {:ok, nil} -> nil
+      {:ok, domain} -> domain
     end
   end
 
@@ -198,17 +168,6 @@ defmodule TdCache.TaxonomyCache do
 
   @doc """
   Obtain the set of domain ids.
-
-    ## Examples
-
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, name: "D1", updated_at: DateTime.utc_now()})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 43, name: "D2", updated_at: DateTime.utc_now()})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 44, parent_ids: [1], name: "D3", updated_at: DateTime.utc_now()})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 45, name: "D3", updated_at: DateTime.utc_now()})
-      iex> domain_ids = TaxonomyCache.get_domain_ids()
-      iex> [42,43,44,45] |> Enum.map(&(Enum.member?(domain_ids, &1)))
-      [true, true, true, true]
-
   """
   def get_domain_ids do
     {:ok, domains} = DomainCache.domains()
@@ -217,17 +176,6 @@ defmodule TdCache.TaxonomyCache do
 
   @doc """
   Obtain the set of deleted domain ids.
-
-    ## Examples
-
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, name: "D1", updated_at: DateTime.utc_now()})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 43, name: "D2", updated_at: DateTime.utc_now()})
-      iex> {:ok, _} = TaxonomyCache.delete_domain(42)
-      iex> {:ok, _} = TaxonomyCache.delete_domain(43)
-      iex> domain_ids = TaxonomyCache.get_deleted_domain_ids() |> MapSet.new()
-      iex> [42, 43] |> Enum.map(&(MapSet.member?(domain_ids, &1)))
-      [true, true]
-
   """
   def get_deleted_domain_ids do
     {:ok, domains} = DomainCache.deleted_domains()

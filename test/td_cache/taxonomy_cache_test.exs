@@ -1,12 +1,10 @@
 defmodule TdCache.TaxonomyCacheTest do
   use ExUnit.Case
 
-  import Assertions
   import TdCache.Factory
 
   alias TdCache.CacheHelpers
   alias TdCache.Redix
-  alias TdCache.Redix.Stream
   alias TdCache.TaxonomyCache
 
   @role "test_role"
@@ -24,13 +22,11 @@ defmodule TdCache.TaxonomyCacheTest do
   end
 
   test "put_domain returns OK", %{domain: domain} do
-    assert {:ok, [3, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
-    assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
-    assert [%{event: "domain_created"}] = events
+    assert {:ok, [4, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
   end
 
   test "put_domain forces refresh if specified", %{domain: domain} do
-    assert {:ok, [3, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
+    assert {:ok, [4, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
     assert {:ok, []} = TaxonomyCache.put_domain(domain)
     assert {:ok, [0, 0, 0, 0, 0, 0]} = TaxonomyCache.put_domain(domain, force: true)
   end
@@ -48,8 +44,8 @@ defmodule TdCache.TaxonomyCacheTest do
     root: root
   } do
     Enum.each([root, parent, domain], &CacheHelpers.put_domain/1)
-    parent_ids = TaxonomyCache.reaching_domain_ids(domain.id)
-    assert parent_ids == [domain.id, parent.id, root.id]
+    ids = TaxonomyCache.reaching_domain_ids(domain.id)
+    assert ids == [domain.id, parent.id, root.id]
   end
 
   test "domain_count returns count of cached domains", %{
@@ -125,44 +121,6 @@ defmodule TdCache.TaxonomyCacheTest do
     Enum.each(deleted, fn %{id: id} -> TaxonomyCache.delete_domain(id) end)
 
     assert Enum.sort(TaxonomyCache.get_deleted_domain_ids()) == ids
-  end
-
-  test "domain_map/0 returns a map of domains", %{
-    root: %{id: id1} = root,
-    parent: %{id: id2} = parent,
-    domain: %{id: id3} = domain
-  } do
-    Enum.map([root, parent, domain], &TaxonomyCache.put_domain/1)
-
-    assert %{} = map = TaxonomyCache.domain_map()
-
-    assert %{
-             id: ^id1,
-             parent_ids: [],
-             descendent_ids: descendent_ids,
-             external_id: _,
-             name: _
-           } = map[id1]
-
-    assert_lists_equal(descendent_ids, [id1, id2, id3])
-
-    assert %{
-             id: ^id2,
-             parent_ids: [^id1],
-             descendent_ids: descendent_ids,
-             external_id: _,
-             name: _
-           } = map[id2]
-
-    assert_lists_equal(descendent_ids, [id2, id3])
-
-    assert %{
-             id: ^id3,
-             parent_ids: [^id2, ^id1],
-             descendent_ids: [^id3],
-             external_id: _,
-             name: _
-           } = map[id3]
   end
 
   describe "has_role?/4" do
