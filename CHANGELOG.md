@@ -4,6 +4,8 @@
 
 ### Removed
 
+- `DomainCache.put_domain/2` no longer publishes `domain_updated` and
+  `domain_created` events to the `domain:events` stream
 - Removed deprecated function `TaxonomyCache.domain_map/0`
 
 ### Changed

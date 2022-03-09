@@ -5,7 +5,6 @@ defmodule TdCache.TaxonomyCacheTest do
 
   alias TdCache.CacheHelpers
   alias TdCache.Redix
-  alias TdCache.Redix.Stream
   alias TdCache.TaxonomyCache
 
   @role "test_role"
@@ -24,8 +23,6 @@ defmodule TdCache.TaxonomyCacheTest do
 
   test "put_domain returns OK", %{domain: domain} do
     assert {:ok, [3, 1, 1, 1, 1, 0]} = TaxonomyCache.put_domain(domain)
-    assert {:ok, events} = Stream.read(:redix, ["domain:events"], transform: true)
-    assert [%{event: "domain_created"}] = events
   end
 
   test "put_domain forces refresh if specified", %{domain: domain} do

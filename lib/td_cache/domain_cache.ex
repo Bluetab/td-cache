@@ -3,7 +3,6 @@ defmodule TdCache.DomainCache do
   Shared cache for domains.
   """
 
-  alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
   @props [:name, :external_id, :updated_at]
@@ -160,16 +159,16 @@ defmodule TdCache.DomainCache do
 
     domain
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_domain(last_updated, opts[:force], Keyword.get(opts, :publish, true))
+    |> put_domain(last_updated, opts[:force])
   end
 
   defp put_domain(_, _), do: {:error, :invalid}
 
-  defp put_domain(%{updated_at: ts}, ts, false, _), do: {:ok, []}
+  defp put_domain(%{updated_at: ts}, ts, false), do: {:ok, []}
 
-  defp put_domain(%{updated_at: ts}, ts, nil, _), do: {:ok, []}
+  defp put_domain(%{updated_at: ts}, ts, nil), do: {:ok, []}
 
-  defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish)
+  defp put_domain(%{id: id, name: name} = domain, _ts, _force)
        when is_integer(id) and id != @root_id do
     parent_id = Map.get(domain, :parent_id) || @root_id
     external_id = Map.get(domain, :external_id)
@@ -189,21 +188,10 @@ defmodule TdCache.DomainCache do
       ["SREM", @deleted_ids, id]
     ]
 
-    {:ok, [_, _, added, _, _, _] = results} = Redix.transaction_pipeline(commands)
-
-    if publish do
-      event = %{
-        event: if(added == 0, do: "domain_updated", else: "domain_created"),
-        domain: "domain:#{id}"
-      }
-
-      {:ok, _event_id} = Publisher.publish(event, "domain:events")
-    end
-
-    {:ok, results}
+    Redix.transaction_pipeline(commands)
   end
 
-  defp put_domain(_, _, _, _), do: {:error, :invalid}
+  defp put_domain(_, _, _), do: {:error, :invalid}
 
   defp read_map(collection) do
     case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do
