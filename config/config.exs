@@ -24,13 +24,6 @@ config :td_cache,
   redis_host: System.get_env("REDIS_HOST", "redis"),
   port: String.to_integer(System.get_env("REDIS_PORT", "6380"))
 
-config :td_cache, :cache_cleaner,
-  clean_on_startup: false,
-  patterns: [
-    "TD_CACHE_TEST:DELETE:*",
-    "TD_CACHE_TEST:REMOVE:*"
-  ]
-
 config :td_cache, :audit,
   service: "td-cache",
   stream: "audit:events:test"

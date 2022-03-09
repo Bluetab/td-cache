@@ -4,7 +4,7 @@ defmodule TdCache.MixProject do
   def project do
     [
       app: :td_cache,
-      version: "4.38.1",
+      version: "4.40.0",
       elixir: "~> 1.11",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -26,11 +26,15 @@ defmodule TdCache.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:assertions, "~> 0.19", only: :test},
       {:con_cache, "~> 1.0"},
       {:decimal, "~> 1.6 or ~> 2.0"},
-      {:redix, "~> 1.0"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:jason, "~> 1.1"}
+      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
+      {:ex_machina, "~> 2.4", only: :test},
+      {:graph, git: "https://github.com/Bluetab/graph.git", tag: "1.2.0"},
+      {:jason, "~> 1.1"},
+      {:redix, "~> 1.0"}
     ]
   end
 end

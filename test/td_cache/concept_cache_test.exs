@@ -1,8 +1,10 @@
 defmodule TdCache.ConceptCacheTest do
   use ExUnit.Case
 
+  import TdCache.Factory
+
+  alias TdCache.CacheHelpers
   alias TdCache.ConceptCache
-  alias TdCache.DomainCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
 
@@ -11,37 +13,18 @@ defmodule TdCache.ConceptCacheTest do
   @stream "business_concept:events"
 
   setup do
-    domain = %{
-      id: random_id(),
-      name: "foo",
-      parent_ids: [random_id(), random_id()],
-      updated_at: DateTime.utc_now()
-    }
+    root = build(:domain)
+    parent = build(:domain, parent_id: root.id)
+    domain = build(:domain, parent_id: parent.id, parent_ids: [parent.id, root.id])
+    shared_to = build(:domain, parent_id: parent.id)
+    concept = build(:concept)
 
-    shared_to = %{
-      id: random_id(),
-      name: "bar",
-      parent_ids: [random_id(), random_id()],
-      updated_at: DateTime.utc_now()
-    }
-
-    concept = %{
-      id: random_id(),
-      type: "mytemp",
-      business_concept_version_id: random_id(),
-      name: "foo",
-      content: %{"data_owner" => "pepito diaz", "foo" => ["bar", "baz"]}
-    }
-
-    {:ok, _} = DomainCache.put(domain)
-    {:ok, _} = DomainCache.put(shared_to)
+    Enum.each([root, parent, domain, shared_to], &CacheHelpers.put_domain/1)
 
     Redix.command(["DEL", @stream, "business_concept:ids:active", "business_concept:ids:inactive"])
 
     on_exit(fn ->
       ConceptCache.delete(concept.id)
-      DomainCache.delete(domain.id)
-      DomainCache.delete(shared_to.id)
 
       Redix.command([
         "DEL",
@@ -54,7 +37,7 @@ defmodule TdCache.ConceptCacheTest do
       ])
     end)
 
-    {:ok, concept: concept, domain: domain, shared_to: shared_to}
+    [concept: concept, domain: domain, shared_to: shared_to]
   end
 
   describe "ConceptCache" do
@@ -66,7 +49,7 @@ defmodule TdCache.ConceptCacheTest do
       concept = context[:concept]
       {:ok, [4, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
-      assert not is_nil(c)
+      assert c
       assert c.id == concept.id
       assert c.name == concept.name
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
@@ -83,33 +66,32 @@ defmodule TdCache.ConceptCacheTest do
       assert is_nil(ConCache.get(:concepts, concept.id))
 
       {:ok, _} = ConceptCache.get(concept.id)
-      assert not is_nil(ConCache.get(:concepts, concept.id))
+      refute is_nil(ConCache.get(:concepts, concept.id))
 
       {:ok, _} = ConceptCache.put(concept)
       assert is_nil(ConCache.get(:concepts, concept.id))
     end
 
-    test "writes a concept entry with domain in redis and reads it back", context do
-      domain = context[:domain]
-
-      concept =
-        context[:concept]
-        |> Map.put(:domain_id, domain.id)
+    test "writes a concept entry with domain in redis and reads it back", %{
+      domain: domain,
+      concept: concept
+    } do
+      concept = Map.put(concept, :domain_id, domain.id)
 
       {:ok, [5, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
-      assert not is_nil(c)
+      assert c
       assert c.id == concept.id
       assert c.name == concept.name
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
       assert c.link_count == 0
       assert c.rule_count == 0
       assert c.concept_count == 0
-      assert c.domain_id == "#{domain.id}"
-      assert not is_nil(c.domain)
+      assert c.domain_id == domain.id
+      assert c.domain
       assert c.domain.id == domain.id
       assert c.domain.name == domain.name
-      assert c.domain.parent_ids == Enum.join(domain.parent_ids, ",")
+      assert c.domain.parent_ids == domain.parent_ids
     end
 
     test "reads the content property of a concept", %{concept: %{content: content} = concept} do
@@ -117,16 +99,12 @@ defmodule TdCache.ConceptCacheTest do
       assert {:ok, ^content} = ConceptCache.get(concept.id, :content)
     end
 
-    test "reads the domain_ids property of a concept", context do
-      domain = context[:domain]
-
-      concept =
-        context[:concept]
-        |> Map.put(:domain_id, domain.id)
+    test "reads the domain_ids property of a concept", %{domain: domain, concept: concept} do
+      concept = Map.put(concept, :domain_id, domain.id)
 
       {:ok, _} = ConceptCache.put(concept)
       {:ok, domain_ids} = ConceptCache.get(concept.id, :domain_ids)
-      assert domain_ids == [domain.id] ++ domain.parent_ids
+      assert domain_ids == [domain.id | domain.parent_ids]
     end
 
     test "deletes an entry in redis", context do
@@ -146,6 +124,13 @@ defmodule TdCache.ConceptCacheTest do
       assert e.ids == "#{concept.id}"
     end
 
+    test "doesn't publish an event when an entry is removed if publish is false", context do
+      concept = context[:concept]
+      Redix.command!(["SADD", "business_concept:ids:active", concept.id])
+      {:ok, _} = ConceptCache.delete(concept.id, publish: false)
+      assert {:ok, []} = Stream.read(:redix, [@stream], transform: true)
+    end
+
     test "publishes an event when an entry is restored", context do
       concept = context[:concept]
       Redix.command!(["SADD", "business_concept:ids:inactive", concept.id])
@@ -154,6 +139,14 @@ defmodule TdCache.ConceptCacheTest do
       {:ok, [e]} = Stream.read(:redix, [@stream], transform: true)
       assert e.event == "restore_concepts"
       assert e.ids == "#{concept.id}"
+    end
+
+    test "doesn't publish an event when an entry is restored if publish is false", context do
+      concept = context[:concept]
+      Redix.command!(["SADD", "business_concept:ids:inactive", concept.id])
+      {:ok, _} = ConceptCache.put(concept, publish: false)
+
+      assert {:ok, []} = Stream.read(:redix, [@stream], transform: true)
     end
 
     test "updates active and inactive ids, publishes events identifying removed and restored ids" do
@@ -216,18 +209,19 @@ defmodule TdCache.ConceptCacheTest do
              |> Enum.all?(fn ci -> Enum.any?(next_ids, &(&1 == ci)) end)
     end
 
-    test "writes a concept with user info in redis and reads it back", context do
+    test "writes a concept with content and reads it back", context do
       concept = context[:concept]
       {:ok, [4, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
-      assert not is_nil(c)
+      assert c
       assert c.id == concept.id
       assert c.name == concept.name
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
       assert c.link_count == 0
       assert c.rule_count == 0
       assert c.concept_count == 0
-      assert %{"data_owner" => "pepito diaz"} = c.content
+      assert c.content == concept.content
+      assert %{"data_owner" => _} = c.content
     end
   end
 

@@ -6,7 +6,6 @@ defmodule TdCache.TaxonomyCache do
 
   alias TdCache.AclCache
   alias TdCache.DomainCache
-  alias TdCache.Redix
 
   ## Client API
 
@@ -14,28 +13,34 @@ defmodule TdCache.TaxonomyCache do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
+  @spec get_domain(binary | integer) :: map | nil
   def get_domain(id) do
-    GenServer.call(__MODULE__, {:get, id})
+    GenServer.call(__MODULE__, {:get, to_integer(id)})
+  end
+
+  @spec get_by_external_id(binary) :: map | nil
+  def get_by_external_id(external_id) do
+    GenServer.call(__MODULE__, {:get_by, external_id})
   end
 
   def domain_map do
     GenServer.call(__MODULE__, :domain_map)
   end
 
-  def get_parent_ids(domain_id, with_self \\ true, opts \\ [])
-
-  def get_parent_ids(id, with_self, opts) do
-    GenServer.call(__MODULE__, {:parent_ids, id, with_self, opts})
+  def domain_count do
+    GenServer.call(__MODULE__, :count)
   end
 
-  def has_role?(domain_id, role, user_id, opts \\ []) do
-    GenServer.call(__MODULE__, {:has_role, domain_id, role, user_id, opts})
+  def reachable_domain_ids(id_or_ids) when is_integer(id_or_ids) or is_list(id_or_ids) do
+    GenServer.call(__MODULE__, {:reachable, id_or_ids})
   end
 
-  def get_descendent_ids(domain_id, with_self \\ true, opts \\ [])
+  def reaching_domain_ids(id_or_ids) when is_integer(id_or_ids) or is_list(id_or_ids) do
+    GenServer.call(__MODULE__, {:reaching, id_or_ids})
+  end
 
-  def get_descendent_ids(id, with_self, opts) do
-    GenServer.call(__MODULE__, {:descendent_ids, id, with_self, opts})
+  def has_role?(domain_id, role, user_id \\ []) do
+    GenServer.call(__MODULE__, {:has_role, to_integer(domain_id), role, user_id})
   end
 
   ## Callbacks
@@ -47,64 +52,67 @@ defmodule TdCache.TaxonomyCache do
 
   @impl true
   def handle_call({:get, id}, _from, state) do
-    domain = get_cache({:id, id}, fn -> do_get_domain(id) end)
+    tree = get_cache(:tree, fn -> DomainCache.tree() end)
+    domain = get_cache({:id, id, tree}, fn -> do_get_domain(id, tree) end)
     {:reply, domain, state}
   end
 
   @impl true
+  def handle_call({:get_by, external_id}, from, state) do
+    case get_cache({:external_id, external_id}, fn ->
+           DomainCache.external_id_to_id(external_id)
+         end) do
+      :error -> {:reply, nil, state}
+      {:ok, id} -> handle_call({:get, id}, from, state)
+    end
+  end
+
+  @impl true
   def handle_call(:domain_map, _from, state) do
+    tree = get_cache(:tree, fn -> DomainCache.tree() end)
     {:ok, domain_ids} = DomainCache.domains()
 
     reply =
       domain_ids
-      |> Enum.map(&do_get_domain/1)
-      |> Enum.map(fn %{id: id, parent_ids: parent_ids, descendent_ids: descendent_ids} = domain ->
-        domain =
-          domain
-          |> Map.put(:parent_ids, [id | parent_ids])
-          |> Map.put(:descendent_ids, [id | descendent_ids])
-
-        {id, domain}
-      end)
-      |> Map.new()
+      |> Enum.map(&do_get_domain(&1, tree))
+      |> Map.new(fn %{id: id} = domain -> {id, domain} end)
 
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:parent_ids, id, with_self, opts}, _from, state) do
-    reply = get_cache({:parent, id}, fn -> do_get_parent_ids(id, with_self) end, opts[:refresh])
+  def handle_call(:count, _from, state) do
+    count = get_cache(:count, fn -> DomainCache.count!() end)
+    {:reply, count, state}
+  end
+
+  @impl true
+  def handle_call({:reaching, id}, _from, state) do
+    tree = get_cache(:tree, fn -> DomainCache.tree() end)
+    reply = do_get_reaching_ids(id, tree)
+
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:has_role, domain_id, role, user_id, opts}, _from, state) do
-    parent_ids =
-      get_cache(
-        {:parent, domain_id},
-        fn -> do_get_parent_ids(domain_id, true) end,
-        opts[:refresh]
-      )
+  def handle_call({:reachable, ids}, _from, state) do
+    tree = get_cache(:tree, fn -> DomainCache.tree() end)
+    reply = do_get_reachable_ids(ids, tree)
+
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:has_role, domain_id, role, user_id}, _from, state) do
+    tree = get_cache(:tree, fn -> DomainCache.tree() end)
+    parent_ids = do_get_reaching_ids(domain_id, tree)
 
     reply =
       get_cache(
         {:has_role, parent_ids, role, user_id},
         fn ->
           Enum.any?(parent_ids, &AclCache.has_role?("domain", &1, role, user_id))
-        end,
-        opts[:refresh]
-      )
-
-    {:reply, reply, state}
-  end
-
-  @impl true
-  def handle_call({:descendent_ids, id, with_self, opts}, _from, state) do
-    reply =
-      get_cache(
-        {:descendents, id},
-        fn -> do_get_descendent_ids(id, with_self) end,
-        opts[:refresh]
+        end
       )
 
     {:reply, reply, state}
@@ -112,134 +120,80 @@ defmodule TdCache.TaxonomyCache do
 
   ## Private functions
 
-  defp get_cache(key, fun, refresh \\ false)
-
-  defp get_cache(key, fun, true) do
-    cached = fun.()
-    ConCache.put(:taxonomy, key, cached)
-    cached
-  end
-
-  defp get_cache(key, fun, _refresh) do
+  defp get_cache(key, fun) do
     ConCache.get_or_store(:taxonomy, key, fn -> fun.() end)
   end
 
-  defp do_get_domain(domain_id) do
+  defp do_get_domain(domain_id, tree) do
     case DomainCache.get(domain_id) do
       {:ok, nil} ->
         nil
 
-      {:ok, domain} ->
+      {:ok, %{id: id} = domain} ->
         parent_ids =
-          domain
-          |> Map.get(:parent_ids)
-          |> Redix.to_integer_list!()
-
-        descendent_ids =
-          domain
-          |> Map.get(:descendent_ids)
-          |> Redix.to_integer_list!()
+          case do_get_reaching_ids(id, tree) do
+            [_ | ids] -> ids
+            _ -> []
+          end
 
         domain
+        |> Map.put(:parent_id, Enum.at(parent_ids, 0))
         |> Map.put(:parent_ids, parent_ids)
-        |> Map.put(:descendent_ids, descendent_ids)
+        |> Map.put(:descendent_ids, do_get_reachable_ids(id, tree))
     end
   end
 
-  defp do_get_parent_ids(domain_id, false) do
-    case DomainCache.prop(domain_id, :parent_ids) do
-      {:ok, ""} -> []
-      {:ok, ids} -> Redix.to_integer_list!(ids)
-    end
+  defp do_get_reaching_ids(domain_id, tree) do
+    get_cache(
+      {:reaching, domain_id, tree},
+      fn ->
+        domain_id
+        |> List.wrap()
+        |> Enum.filter(&Graph.has_vertex?(tree, &1))
+        |> Graph.Traversal.reaching(tree)
+        |> Enum.reject(&(&1 == 0))
+        |> Enum.reverse()
+      end
+    )
   end
 
-  defp do_get_parent_ids(domain_id, true) do
-    [domain_id | do_get_parent_ids(domain_id, false)]
+  defp do_get_reachable_ids(domain_id, tree) do
+    get_cache(
+      {:reachable, domain_id, tree},
+      fn ->
+        domain_id
+        |> List.wrap()
+        |> Enum.filter(&Graph.has_vertex?(tree, &1))
+        |> Graph.Traversal.reachable(tree)
+      end
+    )
   end
 
-  defp do_get_descendent_ids(domain_id, false) do
-    case DomainCache.prop(domain_id, :descendent_ids) do
-      {:ok, ""} -> []
-      {:ok, ids} -> Redix.to_integer_list!(ids)
-    end
-  end
-
-  defp do_get_descendent_ids(domain_id, true) do
-    [domain_id | do_get_descendent_ids(domain_id, false)]
-  end
-
-  def get_name(domain_id) do
-    {:ok, name} = DomainCache.prop(domain_id, :name)
-    name
-  end
+  defp to_integer(id) when is_integer(id), do: id
+  defp to_integer(id) when is_binary(id), do: String.to_integer(id)
 
   def put_domain(%{} = domain, opts \\ []) do
-    delete_local_cache(Map.get(domain, :id))
+    ids = get_ids(domain)
+    delete_local_cache(ids, Map.get(domain, :external_id))
+
     DomainCache.put(domain, opts)
   end
 
-  def delete_domain(domain_id) do
+  def delete_domain(domain_id, opts \\ []) do
     delete_local_cache(domain_id)
-    DomainCache.delete(domain_id)
+    DomainCache.delete(domain_id, opts)
   end
 
-  defp delete_local_cache(id) do
-    ConCache.delete(:taxonomy, {:descendents, id})
-    ConCache.delete(:taxonomy, {:parent, id})
-    ConCache.delete(:taxonomy, {:id, id})
-  end
+  defp delete_local_cache(id_or_ids, external_id \\ nil) do
+    tree = ConCache.get(:taxonomy, :tree)
+    ConCache.delete(:taxonomy, :tree)
+    ConCache.delete(:taxonomy, {:external_id, external_id})
 
-  @doc """
-  Obtain a map of domain names and the corresponding id.
-
-    ## Examples
-
-      iex> domain = %{id: 42, name: "Some domain", updated_at: DateTime.utc_now()}
-      iex> {:ok, _} = TaxonomyCache.put_domain(domain)
-      iex> TaxonomyCache.get_domain_name_to_id_map() |> Map.get("Some domain")
-      42
-
-  """
-  @doc since: "2.8.0"
-  def get_domain_name_to_id_map do
-    {:ok, map} = DomainCache.name_to_id_map()
-    map
-  end
-
-  @doc """
-  Obtain a map of domain external ids and the corresponding id.
-
-    ## Examples
-
-      iex> domain = %{id: 42, name: "Some domain", external_id: "External id", updated_at: DateTime.utc_now()}
-      iex> {:ok, _} = TaxonomyCache.put_domain(domain)
-      iex> TaxonomyCache.get_domain_external_id_to_id_map() |> Map.get("External id")
-      42
-
-  """
-  def get_domain_external_id_to_id_map do
-    {:ok, map} = DomainCache.external_id_to_id_map()
-    map
-  end
-
-  @doc """
-  Obtain the set of root domain ids.
-
-    ## Examples
-
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 42, name: "D1", updated_at: DateTime.utc_now()})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 43, name: "D2", updated_at: DateTime.utc_now()})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 44, parent_ids: [1], name: "D3", updated_at: DateTime.utc_now()})
-      iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 45, name: "D3", updated_at: DateTime.utc_now()})
-      iex> root_domain_ids = TaxonomyCache.get_root_domain_ids() |> MapSet.new()
-      iex> [42,43,44,45] |> Enum.map(&(MapSet.member?(root_domain_ids, &1)))
-      [true, true, false, true]
-
-  """
-  @doc since: "2.8.1"
-  def get_root_domain_ids do
-    {:ok, roots} = DomainCache.roots()
-    roots
+    for id <- List.wrap(id_or_ids) do
+      ConCache.delete(:taxonomy, {:id, id, tree})
+      ConCache.delete(:taxonomy, {:reaching, id, tree})
+      ConCache.delete(:taxonomy, {:reachable, id, tree})
+    end
   end
 
   @doc """
@@ -251,8 +205,8 @@ defmodule TdCache.TaxonomyCache do
       iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 43, name: "D2", updated_at: DateTime.utc_now()})
       iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 44, parent_ids: [1], name: "D3", updated_at: DateTime.utc_now()})
       iex> {:ok, _} = TaxonomyCache.put_domain(%{id: 45, name: "D3", updated_at: DateTime.utc_now()})
-      iex> domain_ids = TaxonomyCache.get_domain_ids() |> MapSet.new()
-      iex> [42,43,44,45] |> Enum.map(&(MapSet.member?(domain_ids, &1)))
+      iex> domain_ids = TaxonomyCache.get_domain_ids()
+      iex> [42,43,44,45] |> Enum.map(&(Enum.member?(domain_ids, &1)))
       [true, true, true, true]
 
   """
@@ -278,5 +232,12 @@ defmodule TdCache.TaxonomyCache do
   def get_deleted_domain_ids do
     {:ok, domains} = DomainCache.deleted_domains()
     domains
+  end
+
+  defp get_ids(%{} = domain) do
+    domain
+    |> Map.take([:id, :parent_id])
+    |> Map.values()
+    |> Enum.reject(&is_nil/1)
   end
 end
