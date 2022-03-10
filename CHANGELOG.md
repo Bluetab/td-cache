@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- [TD-4500] Structure cache entries now have `domain_ids` instead of `domain_id`
+
 ## [4.40.2] 2022-03-09
 
 ### Removed
