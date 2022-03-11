@@ -1,6 +1,8 @@
 defmodule TdCache.StructureCacheTest do
   use ExUnit.Case
 
+  import Assertions
+
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.StructureCache
@@ -21,6 +23,7 @@ defmodule TdCache.StructureCacheTest do
       updated_at: DateTime.utc_now(),
       metadata: %{"alias" => "source_alias"},
       system_id: system.id,
+      domain_ids: [1, 2],
       deleted_at: DateTime.utc_now()
     }
 
@@ -32,22 +35,26 @@ defmodule TdCache.StructureCacheTest do
       Redix.command(["SREM", "data_structure:deleted_ids", structure.id])
     end)
 
-    {:ok, structure: structure, system: system}
+    [structure: structure, system: system]
   end
 
   describe "StructureCache" do
     test "writes a structure entry in redis and reads it back", %{structure: structure} do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
-      assert s
-      assert s.id == structure.id
-      assert s.name == structure.name
-      assert s.external_id == structure.external_id
-      assert s.group == structure.group
-      assert s.path == structure.path
-      assert s.type == structure.type
-      assert s.metadata == structure.metadata
-      assert s.deleted_at
+
+      assert_structs_equal(s, structure, [
+        :domain_ids,
+        :external_id,
+        :group,
+        :id,
+        :metadata,
+        :name,
+        :path,
+        :type
+      ])
+
+      assert s.deleted_at == "#{structure.deleted_at}"
     end
 
     test "writes a structure entry with system in redis and reads it back", %{
@@ -56,14 +63,7 @@ defmodule TdCache.StructureCacheTest do
     } do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
-      assert s
-      assert s.id == structure.id
-      assert s.name == structure.name
-      assert s.external_id == structure.external_id
-      assert s.group == structure.group
-      assert s.path == structure.path
-      assert s.type == structure.type
-      assert s.metadata == structure.metadata
+
       assert s.system_id == "#{system.id}"
       assert s.system == system
     end
@@ -117,8 +117,21 @@ defmodule TdCache.StructureCacheTest do
       assert Map.get(s, :deleted_at) == ""
     end
 
+    test "updates a structure already cached in redis when domain_ids has changed", %{
+      structure: structure
+    } do
+      assert {:ok, _} = StructureCache.put(structure)
+      assert {:ok, []} = StructureCache.put(structure)
+
+      Redix.command!(["HDEL", "data_structure:#{structure.id}", "domain_ids"])
+      assert {:ok, [1, 9, 0, 0, 1, 2]} = StructureCache.put(structure)
+
+      assert {:ok, s} = StructureCache.get(structure.id)
+      assert_structs_equal(structure, s, [:domain_ids])
+    end
+
     test "deletes an entry in redis", %{structure: structure} do
-      assert {:ok, [8, 1, 1, 0, 2]} = StructureCache.put(structure)
+      assert {:ok, [0, 9, 1, 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1, 0]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
     end
