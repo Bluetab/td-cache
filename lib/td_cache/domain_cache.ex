@@ -3,10 +3,9 @@ defmodule TdCache.DomainCache do
   Shared cache for domains.
   """
 
-  alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
-  @props [:name, :external_id, :updated_at]
+  @props [:name, :external_id, :updated_at, :parent_id]
   @ids_to_names_key "domains:ids_to_names"
   @ids_to_external_ids_key "domains:ids_to_external_ids"
   @graph_key "domains:graph"
@@ -22,7 +21,7 @@ defmodule TdCache.DomainCache do
   def tree do
     ["HGETALL", @graph_key]
     |> Redix.command!()
-    |> Enum.map(&to_integer/1)
+    |> Enum.map(&to_id/1)
     |> create_graph()
   end
 
@@ -106,8 +105,13 @@ defmodule TdCache.DomainCache do
   @spec read_domain(integer | binary) :: nil | map
   defp read_domain(id) do
     case Redix.read_map("domain:#{id}") do
-      {:ok, nil} -> nil
-      {:ok, domain} -> Map.put(domain, :id, to_integer(id))
+      {:ok, nil} ->
+        nil
+
+      {:ok, domain} ->
+        domain
+        |> Map.put(:id, to_id(id))
+        |> Map.update(:parent_id, nil, &to_id/1)
     end
   end
 
@@ -160,16 +164,16 @@ defmodule TdCache.DomainCache do
 
     domain
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_domain(last_updated, opts[:force], Keyword.get(opts, :publish, true))
+    |> put_domain(last_updated, opts[:force])
   end
 
   defp put_domain(_, _), do: {:error, :invalid}
 
-  defp put_domain(%{updated_at: ts}, ts, false, _), do: {:ok, []}
+  defp put_domain(%{updated_at: ts}, ts, false), do: {:ok, []}
 
-  defp put_domain(%{updated_at: ts}, ts, nil, _), do: {:ok, []}
+  defp put_domain(%{updated_at: ts}, ts, nil), do: {:ok, []}
 
-  defp put_domain(%{id: id, name: name} = domain, _ts, _force, publish)
+  defp put_domain(%{id: id, name: name} = domain, _ts, _force)
        when is_integer(id) and id != @root_id do
     parent_id = Map.get(domain, :parent_id) || @root_id
     external_id = Map.get(domain, :external_id)
@@ -181,6 +185,7 @@ defmodule TdCache.DomainCache do
       end
 
     commands = [
+      ["DEL", "domain:#{id}"],
       ["HSET", "domain:#{id}", Map.take(domain, @props)],
       ["HSET", @ids_to_names_key, id, name],
       ["SADD", @domain_keys, "domain:#{id}"],
@@ -189,21 +194,10 @@ defmodule TdCache.DomainCache do
       ["SREM", @deleted_ids, id]
     ]
 
-    {:ok, [_, _, added, _, _, _] = results} = Redix.transaction_pipeline(commands)
-
-    if publish do
-      event = %{
-        event: if(added == 0, do: "domain_updated", else: "domain_created"),
-        domain: "domain:#{id}"
-      }
-
-      {:ok, _event_id} = Publisher.publish(event, "domain:events")
-    end
-
-    {:ok, results}
+    Redix.transaction_pipeline(commands)
   end
 
-  defp put_domain(_, _, _, _), do: {:error, :invalid}
+  defp put_domain(_, _, _), do: {:error, :invalid}
 
   defp read_map(collection) do
     case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do
@@ -212,8 +206,9 @@ defmodule TdCache.DomainCache do
     end
   end
 
-  defp to_integer(id) when is_integer(id), do: id
-  defp to_integer(id) when is_binary(id), do: String.to_integer(id)
+  defp to_id(id) when is_integer(id), do: id
+  defp to_id(""), do: nil
+  defp to_id(id) when is_binary(id), do: String.to_integer(id)
 
   defp create_graph(entries) do
     create_graph(Graph.new([], acyclic: true), entries)

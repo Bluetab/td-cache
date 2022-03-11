@@ -8,6 +8,22 @@
   - New permission `link_implementation_business_concept`
   - Support for `ImplementationCache`
 
+## [4.40.2] 2022-03-09
+
+### Removed
+
+- `DomainCache.put_domain/2` no longer publishes `domain_updated` and
+  `domain_created` events to the `domain:events` stream
+- Removed deprecated function `TaxonomyCache.domain_map/0`
+
+### Changed
+
+- Renamed `Permissions.has_any_permission_on_resource_type?/2` to
+  `has_any_permission?/2`
+- Cached domain entries now include the `parent_id` prop
+- `TaxonomyCache.get_domain/1` no longer includes `parent_ids` and
+  `descendent_ids`
+
 ## [4.40.0] 2022-03-07
 
 ### Changed

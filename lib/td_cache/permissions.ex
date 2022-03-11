@@ -74,7 +74,7 @@ defmodule TdCache.Permissions do
     Enum.any?(permissions, &has_permission?(session_id, &1, resource_type, resource_id))
   end
 
-  def has_any_permission_on_resource_type?(session_id, permissions, "domain") do
+  def has_any_permission?(session_id, permissions) when is_list(permissions) do
     Enum.any?(permissions, &has_permission?(session_id, &1))
   end
 

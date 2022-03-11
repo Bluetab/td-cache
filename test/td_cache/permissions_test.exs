@@ -3,16 +3,16 @@ defmodule TdCache.PermissionsTest do
 
   import Assertions
   import TdCache.Factory
+  import TdCache.Permissions, only: :functions
 
   alias TdCache.CacheHelpers
-  alias TdCache.Permissions
   alias TdCache.Redix
 
   doctest TdCache.Permissions
 
   setup do
     parent = build(:domain)
-    domain = build(:domain, parent_ids: [parent.id])
+    domain = build(:domain, parent_id: parent.id)
 
     CacheHelpers.put_domain(parent)
     CacheHelpers.put_domain(domain)
@@ -56,12 +56,12 @@ defmodule TdCache.PermissionsTest do
   end
 
   test "considers default permissions", %{} do
-    refute Permissions.has_permission?("any_session_id", :foo, "domain", "123")
-    refute Permissions.has_permission?("any_session_id", :foo)
-    Permissions.put_default_permissions(["foo"])
-    assert Permissions.has_permission?("any_session_id", :foo, "domain", "123")
-    assert Permissions.has_permission?("any_session_id", :foo, "any_type", "any_id")
-    assert Permissions.has_permission?("any_session_id", :foo)
+    refute has_permission?("any_session_id", :foo, "domain", "123")
+    refute has_permission?("any_session_id", :foo)
+    put_default_permissions(["foo"])
+    assert has_permission?("any_session_id", :foo, "domain", "123")
+    assert has_permission?("any_session_id", :foo, "any_type", "any_id")
+    assert has_permission?("any_session_id", :foo)
   end
 
   test "resolves cached session permissions", %{
@@ -72,10 +72,8 @@ defmodule TdCache.PermissionsTest do
     parent: parent,
     permissions: permissions
   } do
-    import Permissions, only: :functions
     session_id = "#{unique_id()}"
-    expire_at = DateTime.utc_now() |> DateTime.add(100) |> DateTime.to_unix()
-    cache_session_permissions!(session_id, expire_at, permissions)
+    cache_session_permissions!(session_id, expiry(), permissions)
     assert has_permission?(session_id, :create_business_concept, "domain", domain.id)
     assert has_permission?(session_id, :create_business_concept, "domain", [domain.id, parent.id])
     assert has_permission?(session_id, :create_business_concept, "business_concept", concept.id)
@@ -101,6 +99,21 @@ defmodule TdCache.PermissionsTest do
     refute has_permission?(session_id, :manage_quality_rule)
   end
 
+  describe "has_any_permission?/2" do
+    test "considers default permissions" do
+      put_default_permissions(["spqr", "xyzzy"])
+      refute has_any_permission?("any_session_id", [:foo, :bar])
+      assert has_any_permission?("any_session_id", [:foo, :bar, :xyzzy, :baz])
+    end
+
+    test "considers session permissions" do
+      session_id = "#{unique_id()}"
+      cache_session_permissions!(session_id, expiry(), %{"xyzzy" => [123]})
+      refute has_any_permission?(session_id, [:foo, :bar])
+      assert has_any_permission?(session_id, [:foo, :bar, :xyzzy, :baz])
+    end
+  end
+
   describe "put_permission_roles/1 and get_permission_roles/1" do
     test "writes and reads roles by permission" do
       roles_by_permission = %{
@@ -108,24 +121,24 @@ defmodule TdCache.PermissionsTest do
         "bar" => ["role4", "role3"]
       }
 
-      assert {:ok, [2, 2]} = Permissions.put_permission_roles(roles_by_permission)
-      assert {:ok, roles} = Permissions.get_permission_roles("foo")
+      assert {:ok, [2, 2]} = put_permission_roles(roles_by_permission)
+      assert {:ok, roles} = get_permission_roles("foo")
       assert Enum.sort(roles) == ["role1", "role2"]
-      assert {:ok, roles} = Permissions.get_permission_roles("bar")
+      assert {:ok, roles} = get_permission_roles("bar")
       assert Enum.sort(roles) == ["role3", "role4"]
     end
 
     test "removes existing roles from permissions" do
       roles_by_permission = %{"foo" => ["role1", "role2"]}
 
-      assert {:ok, [2]} = Permissions.put_permission_roles(roles_by_permission)
-      assert {:ok, roles} = Permissions.get_permission_roles("foo")
+      assert {:ok, [2]} = put_permission_roles(roles_by_permission)
+      assert {:ok, roles} = get_permission_roles("foo")
       assert Enum.sort(roles) == ["role1", "role2"]
 
       roles_by_permission = %{"foo" => ["role1"]}
 
-      assert {:ok, [1, 1]} = Permissions.put_permission_roles(roles_by_permission)
-      assert {:ok, roles} = Permissions.get_permission_roles("foo")
+      assert {:ok, [1, 1]} = put_permission_roles(roles_by_permission)
+      assert {:ok, roles} = get_permission_roles("foo")
       assert Enum.sort(roles) == ["role1"]
     end
   end
@@ -141,8 +154,7 @@ defmodule TdCache.PermissionsTest do
       CacheHelpers.put_domain(child)
 
       session_id = "#{unique_id()}"
-      expire_at = DateTime.utc_now() |> DateTime.add(100) |> DateTime.to_unix()
-      Permissions.cache_session_permissions!(session_id, expire_at, %{"foo" => [parent.id]})
+      cache_session_permissions!(session_id, expiry(), %{"foo" => [parent.id]})
 
       [session_id: session_id, parent: parent, domain: domain, child: child]
     end
@@ -153,12 +165,12 @@ defmodule TdCache.PermissionsTest do
       parent: parent,
       child: child
     } do
-      domain_ids = Permissions.permitted_domain_ids(session_id, "foo")
+      domain_ids = permitted_domain_ids(session_id, "foo")
       assert_lists_equal(domain_ids, [parent.id, domain.id, child.id])
     end
 
     test "returns an empty list if no such key exists" do
-      assert Permissions.permitted_domain_ids("invalid_session", "foo") == []
+      assert permitted_domain_ids("invalid_session", "foo") == []
     end
   end
 
@@ -169,23 +181,27 @@ defmodule TdCache.PermissionsTest do
 
     test "replaces the set of default permissions" do
       assert Redix.command!(["SCARD", "permission:defaults"]) == 0
-      assert {:ok, [_, 2]} = Permissions.put_default_permissions(["foo", "bar", "foo"])
+      assert {:ok, [_, 2]} = put_default_permissions(["foo", "bar", "foo"])
       assert Redix.command!(["SCARD", "permission:defaults"]) == 2
-      assert {:ok, 1} = Permissions.put_default_permissions([])
+      assert {:ok, 1} = put_default_permissions([])
       assert Redix.command!(["SCARD", "permission:defaults"]) == 0
     end
   end
 
   describe "is_default_permission?/1" do
     test "returns true iff the permission exists in the default permissions" do
-      Permissions.put_default_permissions([])
-      refute Permissions.is_default_permission?("foo")
-      Permissions.put_default_permissions(["foo", "bar"])
-      assert Permissions.is_default_permission?("foo")
-      assert Permissions.is_default_permission?(:bar)
-      refute Permissions.is_default_permission?("baz")
+      put_default_permissions([])
+      refute is_default_permission?("foo")
+      put_default_permissions(["foo", "bar"])
+      assert is_default_permission?("foo")
+      assert is_default_permission?(:bar)
+      refute is_default_permission?("baz")
     end
   end
 
   defp unique_id, do: System.unique_integer([:positive])
+
+  defp expiry(from_now \\ 100) do
+    DateTime.utc_now() |> DateTime.add(from_now) |> DateTime.to_unix()
+  end
 end
