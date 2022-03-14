@@ -8,6 +8,14 @@
   - New permission `link_implementation_business_concept`
   - Support for `ImplementationCache`
 
+## [4.40.3] 2022-03-11
+
+### Changed
+
+- [TD-4500] Structure cache entries now have `domain_ids` instead of `domain_id`
+- Replaced `SystemCache.external_id_to_id_map/0` with
+  `SystemCache.get_by_external_id/1`
+
 ## [4.40.2] 2022-03-09
 
 ### Removed

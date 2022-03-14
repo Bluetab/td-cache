@@ -61,7 +61,7 @@ defmodule TdCache.StructureCache do
     :external_id,
     :updated_at,
     :deleted_at,
-    :domain_id
+    :domain_ids
   ]
 
   defp read_structure(id) do
@@ -80,6 +80,7 @@ defmodule TdCache.StructureCache do
           end
 
         structure
+        |> Map.update(:domain_ids, [], &Redix.to_integer_list!/1)
         |> put_optional(:path, path)
         |> put_optional(:system, system)
         |> Map.put(:metadata, metadata)
@@ -99,26 +100,30 @@ defmodule TdCache.StructureCache do
   end
 
   defp put_structure(%{id: id, updated_at: updated_at, deleted_at: deleted_at} = structure, opts) do
-    [last_updated, last_deleted] =
-      Redix.command!(["HMGET", "data_structure:#{id}", :updated_at, :deleted_at])
+    [last_updated, last_deleted, last_domain_ids] =
+      Redix.command!(["HMGET", "data_structure:#{id}", :updated_at, :deleted_at, :domain_ids])
 
     structure
     |> Map.put(:updated_at, "#{updated_at}")
     |> Map.put(:deleted_at, "#{deleted_at}")
-    |> put_structure(last_updated, last_deleted, opts[:force])
+    |> Map.update(:domain_ids, "", &Enum.join(&1, ","))
+    |> put_structure(last_updated, last_deleted, last_domain_ids, opts[:force])
   end
 
   defp put_structure(%{} = structure, opts) do
     structure
     |> Map.put_new(:deleted_at, nil)
+    |> Map.put_new(:domain_ids, [])
     |> put_structure(opts)
   end
 
-  defp put_structure(%{updated_at: ts, deleted_at: ds}, ts, ds, false), do: {:ok, []}
+  defp put_structure(%{updated_at: ts, deleted_at: ds, domain_ids: ids}, ts, ds, ids, false),
+    do: {:ok, []}
 
-  defp put_structure(%{updated_at: ts, deleted_at: ds}, ts, ds, nil), do: {:ok, []}
+  defp put_structure(%{updated_at: ts, deleted_at: ds, domain_ids: ids}, ts, ds, ids, nil),
+    do: {:ok, []}
 
-  defp put_structure(structure, _last_updated, _last_deleted, _force) do
+  defp put_structure(structure, _last_updated, _last_deleted, _domain_ids, _force) do
     structure
     |> structure_commands()
     |> Redix.transaction_pipeline()
@@ -131,6 +136,7 @@ defmodule TdCache.StructureCache do
       |> add_metadata(structure)
 
     [
+      ["DEL", "data_structure:#{id}"],
       ["HSET", "data_structure:#{id}", structure_props],
       ["SADD", "data_structure:keys", "data_structure:#{id}"],
       refresh_deleted_ids_command(structure)

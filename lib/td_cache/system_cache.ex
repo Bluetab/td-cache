@@ -25,19 +25,22 @@ defmodule TdCache.SystemCache do
   end
 
   @doc """
+  Reads system information for a given external_id from cache.
+  """
+  def get_by_external_id(external_id) do
+    map = get_system_external_id_to_id_map()
+
+    case Map.get(map, external_id) do
+      nil -> {:error, :not_found}
+      id -> get(id)
+    end
+  end
+
+  @doc """
   Deletes cache entries relating to a given system id.
   """
   def delete(id) do
     delete_system(id)
-  end
-
-  @doc """
-  Reads external ids to id map from cache.
-  """
-  def external_id_to_id_map do
-    map = get_system_external_id_to_id_map()
-
-    {:ok, map}
   end
 
   ## Private functions

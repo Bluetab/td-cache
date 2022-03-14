@@ -23,30 +23,11 @@ defmodule TdCache.SystemCacheTest do
       assert s == system
     end
 
-    test "external_id_to_id_map gets id", context do
-      system = context[:system]
-      prev_external_id = system.external_id
-      {:ok, _} = SystemCache.put(system)
-      {:ok, s} = SystemCache.get(system.id)
-      {:ok, m} = SystemCache.external_id_to_id_map()
-
-      assert s.id == Map.get(m, system.external_id)
+    test "get_by_external_id returns ok/error tuple", %{system: system} do
+      assert {:ok, _} = SystemCache.put(system)
+      assert SystemCache.get_by_external_id("missing") == {:error, :not_found}
+      assert {:ok, s} = SystemCache.get_by_external_id(system.external_id)
       assert s == system
-
-      external_id = "bar"
-      system = Map.put(system, :external_id, external_id)
-
-      {:ok, _} = SystemCache.put(system)
-      {:ok, s} = SystemCache.get(system.id)
-      {:ok, m} = SystemCache.external_id_to_id_map()
-
-      assert s.id == Map.get(m, system.external_id)
-      assert is_nil(Map.get(m, prev_external_id))
-      assert s == system
-
-      {:ok, _} = SystemCache.delete(system.id)
-      {:ok, m} = SystemCache.external_id_to_id_map()
-      assert is_nil(Map.get(m, external_id))
     end
 
     test "deletes an entry in redis", context do
