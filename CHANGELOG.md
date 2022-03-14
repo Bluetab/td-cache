@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.40.4] 2022-03-11
+
+### Added
+
+- [TD-4271]
+  - New permission `link_implementation_business_concept`
+  - Support for `ImplementationCache`
+
 ## [4.40.3] 2022-03-11
 
 ### Changed

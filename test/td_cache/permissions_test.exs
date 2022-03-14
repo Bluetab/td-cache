@@ -23,7 +23,14 @@ defmodule TdCache.PermissionsTest do
     ingest = build(:ingest, domain_id: domain.id)
     CacheHelpers.put_ingest(ingest)
 
-    permissions = %{"create_business_concept" => [domain.id], "create_ingest" => [domain.id]}
+    implementation = build(:implementation, domain_id: domain.id)
+    CacheHelpers.put_implementation(implementation)
+
+    permissions = %{
+      "create_business_concept" => [domain.id],
+      "create_ingest" => [domain.id],
+      "manage_quality_rule_implementations" => [domain.id]
+    }
 
     on_exit(fn ->
       Redix.del!([
@@ -38,7 +45,14 @@ defmodule TdCache.PermissionsTest do
       ])
     end)
 
-    [concept: concept, domain: domain, ingest: ingest, parent: parent, permissions: permissions]
+    [
+      concept: concept,
+      domain: domain,
+      implementation: implementation,
+      ingest: ingest,
+      parent: parent,
+      permissions: permissions
+    ]
   end
 
   test "considers default permissions", %{} do
@@ -53,6 +67,7 @@ defmodule TdCache.PermissionsTest do
   test "resolves cached session permissions", %{
     concept: concept,
     domain: domain,
+    implementation: implementation,
     ingest: ingest,
     parent: parent,
     permissions: permissions
@@ -62,6 +77,14 @@ defmodule TdCache.PermissionsTest do
     assert has_permission?(session_id, :create_business_concept, "domain", domain.id)
     assert has_permission?(session_id, :create_business_concept, "domain", [domain.id, parent.id])
     assert has_permission?(session_id, :create_business_concept, "business_concept", concept.id)
+
+    assert has_permission?(
+             session_id,
+             :manage_quality_rule_implementations,
+             "implementation",
+             implementation.id
+           )
+
     assert has_permission?(session_id, :create_ingest, "ingest", ingest.id)
     assert has_any_permission?(session_id, [:create_business_concept], "domain", domain.id)
 

@@ -4,6 +4,7 @@ defmodule TdCache.Permissions do
   """
 
   alias TdCache.ConceptCache
+  alias TdCache.ImplementationCache
   alias TdCache.IngestCache
   alias TdCache.Redix
   alias TdCache.TaxonomyCache
@@ -52,6 +53,11 @@ defmodule TdCache.Permissions do
 
   defp do_has_permission?(session_id, permission, "ingest", ingest_id) do
     domain_id = IngestCache.get_domain_id(ingest_id)
+    has_permission?(session_id, permission, "domain", domain_id)
+  end
+
+  defp do_has_permission?(session_id, permission, "implementation", implementation_id) do
+    domain_id = ImplementationCache.get_domain_id(implementation_id)
     has_permission?(session_id, permission, "domain", domain_id)
   end
 

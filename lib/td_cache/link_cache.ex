@@ -5,6 +5,7 @@ defmodule TdCache.LinkCache do
 
   alias TdCache.ConceptCache
   alias TdCache.EventStream.Publisher
+  alias TdCache.ImplementationCache
   alias TdCache.IngestCache
   alias TdCache.Link
   alias TdCache.Redix
@@ -425,6 +426,16 @@ defmodule TdCache.LinkCache do
 
       {:ok, ingest} ->
         resource_with_tags(ingest, :ingest, tags, id)
+    end
+  end
+
+  defp read_source({["implementation", implementation_id], tags, id}) do
+    case ImplementationCache.get(implementation_id) do
+      {:ok, nil} ->
+        nil
+
+      {:ok, implementation} ->
+        resource_with_tags(implementation, :implementation, tags, id)
     end
   end
 
