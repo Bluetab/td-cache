@@ -35,7 +35,7 @@ defmodule TdCache.TaxonomyCache do
     GenServer.call(__MODULE__, {:reaching, id_or_ids})
   end
 
-  def has_role?(domain_id_or_ids, role, user_id \\ [])
+  def has_role?(domain_id_or_ids, role, user_id)
       when is_integer(domain_id_or_ids) or is_list(domain_id_or_ids) do
     GenServer.call(__MODULE__, {:has_role, domain_id_or_ids, role, user_id})
   end
