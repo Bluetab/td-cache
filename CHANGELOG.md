@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.40.5] 2022-03-17
+
+### Added
+
+- [TD-4623] Allow multiple domain ids for has_role?/3
+
 ## [4.40.4] 2022-03-11
 
 ### Added
