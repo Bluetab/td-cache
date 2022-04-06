@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Change
+
+- [TD-2026] Update `Graph library`, and change edge call function
+
 ## [4.40.5] 2022-03-17
 
 ### Added
