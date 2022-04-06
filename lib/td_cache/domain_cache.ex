@@ -226,7 +226,7 @@ defmodule TdCache.DomainCache do
     graph
     |> Graph.add_vertex(child_id)
     |> Graph.add_vertex(parent_id)
-    |> Graph.add_edge(parent_id, child_id)
+    |> Graph.add_edge(parent_id, child_id, %{})
     |> create_graph(entries)
   end
 end
