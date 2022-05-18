@@ -3,6 +3,8 @@ defmodule TdCache.CacheHelpers do
   Helper functions for creating and cleaning up cache entries for tests.
   """
 
+  import TdCache.Factory
+
   alias TdCache.AclCache
   alias TdCache.ConceptCache
   alias TdCache.ImplementationCache
@@ -48,5 +50,19 @@ defmodule TdCache.CacheHelpers do
   def put_user(%{id: id} = user) do
     on_exit(fn -> UserCache.delete(id) end)
     UserCache.put(user)
+  end
+
+  def insert_domain do
+    domain = build(:domain)
+    on_exit(fn -> TaxonomyCache.delete_domain(domain.id) end)
+    TaxonomyCache.put_domain(domain)
+    domain
+  end
+
+  def insert_user do
+    user = build(:user)
+    on_exit(fn -> UserCache.delete(user.id) end)
+    UserCache.put(user)
+    user
   end
 end
