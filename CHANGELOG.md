@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- [TD-4230] moved `td-df` template preprocessing logic to `td-cache`
+
 ## [4.40.5] 2022-03-17
 
 ### Added
