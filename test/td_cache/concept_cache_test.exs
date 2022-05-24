@@ -84,6 +84,7 @@ defmodule TdCache.ConceptCacheTest do
       assert c.name == concept.name
       assert c.business_concept_version_id == "#{concept.business_concept_version_id}"
       assert c.link_count == 0
+      assert c.link_tags == []
       assert c.rule_count == 0
       assert c.concept_count == 0
       assert c.domain_id == domain.id

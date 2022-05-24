@@ -1,8 +1,12 @@
 defmodule TdCache.LinkCacheTest do
   use ExUnit.Case
+
+  import Assertions
+
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
+
   doctest TdCache.LinkCache
 
   setup do
@@ -105,6 +109,22 @@ defmodule TdCache.LinkCacheTest do
       assert {:ok, 0} == LinkCache.count(target_key, link.source_type)
     end
 
+    test "returns the tags of the source and target type" do
+      assert {:ok, []} = LinkCache.tags("foo:123", "bar")
+      assert {:ok, []} = LinkCache.tags("bar:456", "foo")
+
+      put_link(%{source_id: "123", tags: ["tag1"], target_id: "456"}, publish: false)
+      put_link(%{source_id: "123", tags: ["tag1", "tag2"]}, publish: false)
+      put_link(%{source_id: "123"}, publish: false)
+      put_link(%{target_id: "456", tags: ["tag3"]}, publish: false)
+
+      assert {:ok, tags} = LinkCache.tags("foo:123", "bar")
+      assert_lists_equal(tags, ["tag1", "tag2"])
+
+      assert {:ok, tags} = LinkCache.tags("bar:456", "foo")
+      assert_lists_equal(tags, ["tag1", "tag3"])
+    end
+
     test "deletes all links of a given resource", context do
       link1 = context[:link]
       link2 = context[:tagged_link]
@@ -164,15 +184,15 @@ defmodule TdCache.LinkCacheTest do
       target_id: System.unique_integer([:positive]),
       updated_at: DateTime.utc_now(),
       source_type: Map.get(params, :source_type, "foo"),
-      target_type: Map.get(params, :source_type, "bar")
+      target_type: Map.get(params, :target_type, "bar")
     }
     |> Map.merge(params)
   end
 
-  defp put_link(params) do
+  defp put_link(params, opts \\ []) do
     link = make_link(params)
     on_exit(fn -> LinkCache.delete(link.id) end)
-    LinkCache.put(link)
+    LinkCache.put(link, opts)
     link
   end
 end

@@ -216,11 +216,13 @@ defmodule TdCache.ConceptCache do
         {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
         {:ok, concept_count} = LinkCache.count(concept_key, "business_concept")
         {:ok, shared_to} = read_shared_to(m)
+        {:ok, tags} = LinkCache.tags(concept_key, "data_structure")
 
         m
         |> Map.put(:id, id)
         |> Map.put(:rule_count, rule_count)
         |> Map.put(:link_count, link_count)
+        |> Map.put(:link_tags, tags)
         |> Map.put(:concept_count, concept_count)
         |> Map.put(:content, content || %{})
         |> Map.put(:shared_to, shared_to)
