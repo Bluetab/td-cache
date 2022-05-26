@@ -72,6 +72,21 @@ defmodule TdCache.LinkCache do
   end
 
   @doc """
+  Reads distinct link tags for a given key and target type.
+  """
+  def tags(key, target_type) do
+    keys =
+      ["SMEMBERS", "#{key}:links:#{target_type}"]
+      |> Redix.command!()
+      |> Enum.map(&(&1 <> ":tags"))
+
+    case keys do
+      [] -> {:ok, []}
+      _ -> Redix.command(["SUNION" | keys])
+    end
+  end
+
+  @doc """
   Deletes cache entries relating to a given link id.
 
   The option `[publish: false]` may be used to prevent events from being published.

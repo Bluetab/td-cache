@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.45.0] 2022-05-26
+
+### Changed
+
+- [TD-4482] `ConceptCache.get/2` includes `link_tags` in response containing the
+  set of tags on links to structures
+
 ## [4.44.0] 2022-05-18
 
 ### Changed
