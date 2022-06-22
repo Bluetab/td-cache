@@ -19,6 +19,16 @@ defmodule TdCache.Templates.FieldFormatter do
     apply_role_meta(field, claims, role_name, user_roles)
   end
 
+  def format(%{"type" => "user_group", "values" => %{"role_groups" => role_name}} = field, ctx) do
+    claims = Map.get(ctx, :claims, nil)
+    user_roles = Map.get(ctx, :user_roles, %{})
+    user_group_roles = Map.get(ctx, :user_group_roles, %{})
+
+    field
+    |> apply_role_meta(claims, role_name, user_roles)
+    |> apply_user_group_meta(role_name, user_group_roles)
+  end
+
   def format(%{} = field, _ctx), do: field
 
   defp is_confidential_field_disabled?(%{claims: nil}), do: true
@@ -50,4 +60,18 @@ defmodule TdCache.Templates.FieldFormatter do
   end
 
   defp apply_role_meta(field, _claims, _role, _user_roles), do: field
+
+  defp apply_user_group_meta(
+         %{"values" => values} = field,
+         role_name,
+         user_group_roles
+       )
+       when not is_nil(role_name) do
+    groups = Map.get(user_group_roles, role_name, [])
+    names = Enum.map(groups, & &1.name)
+    values = Map.put(values, "processed_groups", names)
+    Map.put(field, "values", values)
+  end
+
+  defp apply_user_group_meta(field, _role, _user_roles), do: field
 end

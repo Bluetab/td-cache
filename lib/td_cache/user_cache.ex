@@ -7,6 +7,7 @@ defmodule TdCache.UserCache do
   alias TdCache.Redix
 
   @ids "users:ids"
+  @group_ids "user_groups:ids"
   @props [:user_name, :full_name, :email, :external_id]
   @name_to_id_key "users:name_to_id"
   @user_name_to_id_key "users:user_name_to_id"
@@ -86,6 +87,10 @@ defmodule TdCache.UserCache do
     end
   end
 
+  def get_group(id) do
+    GenServer.call(__MODULE__, {:get_group, id})
+  end
+
   def put(user) do
     GenServer.call(__MODULE__, {:put, user})
   end
@@ -102,8 +107,17 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:delete, id})
   end
 
+  def put_group(group) do
+    GenServer.call(__MODULE__, {:put_group, group})
+  end
+
+  def delete_group(id) do
+    GenServer.call(__MODULE__, {:delete_group, id})
+  end
+
   def ids_key, do: @ids
 
+  def group_ids_key, do: @group_ids
   ## Callbacks
 
   @impl true
@@ -142,6 +156,12 @@ defmodule TdCache.UserCache do
   end
 
   @impl true
+  def handle_call({:get_group, id}, _from, state) do
+    group = read_group(id)
+    {:reply, {:ok, group}, state}
+  end
+
+  @impl true
   def handle_call({:put, user}, _from, state) do
     reply = put_user(user)
     {:reply, reply, state}
@@ -162,6 +182,18 @@ defmodule TdCache.UserCache do
   @impl true
   def handle_call({:delete, id}, _from, state) do
     reply = delete_user(id)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:put_group, group}, _from, state) do
+    reply = do_put_group(group)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:delete_group, id}, _from, state) do
+    reply = do_delete_group(id)
     {:reply, reply, state}
   end
 
@@ -208,6 +240,19 @@ defmodule TdCache.UserCache do
     case Redix.command!(["HGET", @external_id_to_id_key, external_id]) do
       nil -> nil
       id -> read_user(id)
+    end
+  end
+
+  defp read_group(id) when is_binary(id) do
+    id
+    |> String.to_integer()
+    |> read_group()
+  end
+
+  defp read_group(id) do
+    case Redix.read_map("user_group:#{id}") do
+      {:ok, nil} -> nil
+      {:ok, group} -> Map.put(group, :id, id)
     end
   end
 
@@ -293,5 +338,22 @@ defmodule TdCache.UserCache do
     Redix.read_map(key, fn [role, domain_ids] ->
       {role, Redix.to_integer_list!(domain_ids)}
     end)
+  end
+
+  defp do_put_group(%{id: id, name: name}) do
+    [
+      ["DEL", "user_group:#{id}"],
+      ["HSET", "user_group:#{id}", %{name: name}],
+      ["SADD", @group_ids, id]
+    ]
+    |> Redix.transaction_pipeline()
+  end
+
+  defp do_delete_group(id) do
+    Redix.transaction_pipeline([
+      ["DEL", "user_group:#{id}"],
+      ["DEL", "user_group:#{id}:roles"],
+      ["SREM", @group_ids, id]
+    ])
   end
 end

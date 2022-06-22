@@ -65,4 +65,11 @@ defmodule TdCache.CacheHelpers do
     UserCache.put(user)
     user
   end
+
+  def insert_group do
+    group = build(:group)
+    on_exit(fn -> UserCache.delete_group(group.id) end)
+    UserCache.put_group(group)
+    group
+  end
 end
