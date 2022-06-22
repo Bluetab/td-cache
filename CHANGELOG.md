@@ -6,6 +6,12 @@
 
 - [TD-4412] Support for caching user `Groups`
 
+## [4.46.0] 2022-06-20
+
+### Fixed
+
+- [TD-4938] `ImplementationCache.get/1` was failing for ruleless implementations
+
 ## [4.45.0] 2022-05-26
 
 ### Changed

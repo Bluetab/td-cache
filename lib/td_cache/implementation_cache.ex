@@ -7,7 +7,6 @@ defmodule TdCache.ImplementationCache do
   alias TdCache.Redix
   alias TdCache.RuleCache
   alias TdCache.Utils.MapHelpers
-  # alias TdCache.SystemCache
 
   ## Client API
 
@@ -152,8 +151,14 @@ defmodule TdCache.ImplementationCache do
     end
   end
 
-  defp maybe_get_rule(%{rule_id: rule_id}) when not is_nil(rule_id),
-    do: RuleCache.get(String.to_integer(rule_id))
+  defp maybe_get_rule(%{rule_id: ""}), do: {:ok, nil}
+
+  defp maybe_get_rule(%{rule_id: rule_id}) when is_binary(rule_id) do
+    case Integer.parse(rule_id) do
+      {id, ""} -> RuleCache.get(id)
+      _ -> {:ok, nil}
+    end
+  end
 
   defp maybe_get_rule(_), do: {:ok, nil}
 

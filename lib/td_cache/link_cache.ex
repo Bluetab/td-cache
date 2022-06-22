@@ -446,11 +446,8 @@ defmodule TdCache.LinkCache do
 
   defp read_source({["implementation", implementation_id], tags, id}) do
     case ImplementationCache.get(implementation_id) do
-      {:ok, nil} ->
-        nil
-
-      {:ok, implementation} ->
-        resource_with_tags(implementation, :implementation, tags, id)
+      {:ok, nil} -> nil
+      {:ok, implementation} -> resource_with_tags(implementation, :implementation, tags, id)
     end
   end
 

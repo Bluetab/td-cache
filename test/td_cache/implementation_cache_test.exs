@@ -1,6 +1,8 @@
 defmodule TdCache.ImplementationCacheTest do
   use ExUnit.Case
 
+  import Assertions
+
   alias TdCache.ImplementationCache
   alias TdCache.LinkCache
   alias TdCache.Redix
@@ -13,7 +15,8 @@ defmodule TdCache.ImplementationCacheTest do
       goal: 8.0,
       minimum: 5.0,
       updated_at: DateTime.utc_now(),
-      deleted_at: nil
+      deleted_at: nil,
+      rule_id: nil
     }
 
     on_exit(fn ->
@@ -28,16 +31,21 @@ defmodule TdCache.ImplementationCacheTest do
     test "writes an implementation entry in redis and reads it back", %{
       implementation: implementation
     } do
-      {:ok, _} = ImplementationCache.put(implementation)
+      assert {:ok, [8, 0, 1, 0]} = ImplementationCache.put(implementation)
 
       {:ok, impl} = ImplementationCache.get(implementation.id)
 
-      assert not is_nil(impl)
-      assert impl.id == implementation.id
-      assert impl.implementation_key == implementation.implementation_key
-      refute Map.has_key?(impl, :execution_result_info)
+      assert_maps_equal(impl, implementation, [
+        :id,
+        :implementation_key,
+        :domain_id,
+        :deleted_at,
+        :goal,
+        :minimum,
+        :rule_id
+      ])
 
-      assert is_nil(impl.deleted_at)
+      refute Map.has_key?(impl, :execution_result_info)
     end
 
     test "writes an implementation entry in redis and reads it back with execution_result_info",
@@ -131,7 +139,7 @@ defmodule TdCache.ImplementationCacheTest do
     end
 
     test "deletes an entry in redis", %{implementation: implementation} do
-      assert {:ok, [7, 0, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, _} = ImplementationCache.put(implementation)
       assert {:ok, [1, 1, 1]} = ImplementationCache.delete(implementation.id)
       assert {:ok, nil} = ImplementationCache.get(implementation.id)
     end
@@ -143,7 +151,7 @@ defmodule TdCache.ImplementationCacheTest do
           records: 2
         })
 
-      assert {:ok, [7, 2, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, _} = ImplementationCache.put(implementation)
       assert {:ok, [2, 1, 1]} = ImplementationCache.delete(implementation.id)
       assert {:ok, nil} = ImplementationCache.get(implementation.id)
     end
