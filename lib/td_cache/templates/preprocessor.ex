@@ -9,8 +9,11 @@ defmodule TdCache.Templates.Preprocessor do
   def preprocess_template(template, %{domain_ids: [domain_id | _] = domain_ids} = context)
       when is_integer(domain_id) do
     user_roles = AclLoader.get_roles_and_users(domain_ids)
+    user_group_roles = AclLoader.get_roles_and_groups(domain_ids)
 
-    context = Map.put(context, :user_roles, user_roles)
+    context = context
+    |> Map.put(:user_roles, user_roles)
+    |> Map.put(:user_group_roles, user_group_roles)
 
     preprocess_template_content(template, context)
   end

@@ -58,5 +58,13 @@ defmodule TdCache.Factory do
     }
   end
 
+  def group_factory do
+    %{
+      id: unique_id(),
+      name: sequence("group_name"),
+      description: sequence("group_description"),
+    }
+  end
+
   defp unique_id, do: System.unique_integer([:positive])
 end

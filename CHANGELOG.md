@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.47.0] 2022-06-27
+
+### Added
+
+- [TD-4412] Support for caching user `Groups`
+
 ## [4.46.0] 2022-06-20
 
 ### Fixed
