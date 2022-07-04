@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3614] `SessionCache` module providing support for caching and checking
+  existence of active sessions in distributed cache
+
 ## [4.47.0] 2022-06-27
 
 ### Added

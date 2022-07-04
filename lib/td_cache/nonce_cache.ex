@@ -3,13 +3,14 @@ defmodule TdCache.NonceCache do
   Shared cache for nonces.
   """
 
+  alias TdCache.Nonce
   alias TdCache.Redix
 
   @doc """
   Create a nonce with a specified length and expiry.
   """
   def create_nonce(value \\ "", length \\ 16, expiry_seconds \\ 3600) do
-    nonce = generate_random_string(length)
+    nonce = Nonce.new(length)
     key = create_key(nonce)
     "OK" = Redix.command!(["SETEX", key, expiry_seconds, value])
     nonce
@@ -37,13 +38,6 @@ defmodule TdCache.NonceCache do
       ])
 
     nonce
-  end
-
-  defp generate_random_string(length) do
-    length
-    |> :crypto.strong_rand_bytes()
-    |> Base.url_encode64()
-    |> binary_part(0, length)
   end
 
   defp create_key(nonce) do
