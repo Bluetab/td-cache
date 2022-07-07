@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- [TD-5011] `TemplateCache.put/2` was leaving stale keys in
+  `templates:name_to_id` hash
+
 ## [4.47.0] 2022-06-27
 
 ### Added

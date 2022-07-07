@@ -160,7 +160,7 @@ defmodule TdCache.TemplateCache do
   defp read_template(id) when is_binary(id) do
     id
     |> String.to_integer()
-    |> read_template
+    |> read_template()
   end
 
   defp read_template(id) do
@@ -192,16 +192,19 @@ defmodule TdCache.TemplateCache do
   defp put_template(%{id: id, updated_at: updated_at} = template, opts) do
     last_updated = Redix.command!(["HGET", "template:#{id}", :updated_at])
 
+    {force, opts} = Keyword.pop(opts, :force, false)
+
     template
     |> Map.put(:updated_at, "#{updated_at}")
-    |> put_template(last_updated, opts)
+    |> put_template(last_updated, force, opts)
   end
 
-  defp put_template(%{updated_at: ts}, ts, _opts), do: {:ok, []}
+  defp put_template(%{updated_at: ts}, ts, false, _opts), do: {:ok, []}
 
   defp put_template(
          %{id: id, name: name, content: content, scope: scope} = template,
          _last_updated,
+         _force,
          opts
        ) do
     template =
@@ -209,7 +212,12 @@ defmodule TdCache.TemplateCache do
       |> Map.take(@props)
       |> Map.put(:content, Jason.encode!(content))
 
-    commands = [
+    commands = case prev_names(id, name) do
+      [_ | _] = names -> [["HDEL", @name_to_id_key | names]]
+      _ -> []
+    end
+
+    commands = commands ++ [
       ["HSET", "template:#{id}", template],
       ["HSET", @name_to_id_key, name, id],
       ["SADD", "template:keys", "template:#{id}"]
@@ -238,8 +246,22 @@ defmodule TdCache.TemplateCache do
       {:ok, map} ->
         map
         |> Map.values()
+        |> Enum.uniq()
         |> Enum.map(&read_template/1)
         |> Enum.filter(& &1)
+    end
+  end
+
+  defp prev_names(id, name) do
+    id = to_string(id)
+    case Redix.read_map(@name_to_id_key) do
+      {:ok, nil} ->
+        []
+
+      {:ok, map} ->
+        map
+        |> Enum.filter(fn {k, v} -> v == id and k != name end)
+        |> Enum.map(fn {k, _id} -> k end)
     end
   end
 
