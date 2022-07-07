@@ -54,7 +54,7 @@ defmodule TdCache.CacheHelpers do
 
   def insert_domain do
     domain = build(:domain)
-    on_exit(fn -> TaxonomyCache.delete_domain(domain.id) end)
+    on_exit(fn -> TaxonomyCache.delete_domain(domain.id, clean: true) end)
     TaxonomyCache.put_domain(domain)
     domain
   end

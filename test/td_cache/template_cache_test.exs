@@ -53,9 +53,11 @@ defmodule TdCache.TemplateCacheTest do
   test "put/1 deletes previous names in name_to_id_map", %{templates: templates} do
     [%{id: id, name: name} = template | _] = templates
     id = to_string(id)
+
     for name <- ["foo", "bar", "baz"] do
       assert {:ok, 1} = Redix.command(["HSET", @name_to_id_key, name, id])
     end
+
     assert {:ok, [3, _, _, _]} = TemplateCache.put(template)
     assert {:ok, [^name, ^id]} = Redix.command(["HGETALL", @name_to_id_key])
   end

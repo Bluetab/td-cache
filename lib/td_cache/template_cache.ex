@@ -212,16 +212,19 @@ defmodule TdCache.TemplateCache do
       |> Map.take(@props)
       |> Map.put(:content, Jason.encode!(content))
 
-    commands = case prev_names(id, name) do
-      [_ | _] = names -> [["HDEL", @name_to_id_key | names]]
-      _ -> []
-    end
+    commands =
+      case prev_names(id, name) do
+        [_ | _] = names -> [["HDEL", @name_to_id_key | names]]
+        _ -> []
+      end
 
-    commands = commands ++ [
-      ["HSET", "template:#{id}", template],
-      ["HSET", @name_to_id_key, name, id],
-      ["SADD", "template:keys", "template:#{id}"]
-    ]
+    commands =
+      commands ++
+        [
+          ["HSET", "template:#{id}", template],
+          ["HSET", @name_to_id_key, name, id],
+          ["SADD", "template:keys", "template:#{id}"]
+        ]
 
     {:ok, results} = Redix.transaction_pipeline(commands)
 
@@ -254,6 +257,7 @@ defmodule TdCache.TemplateCache do
 
   defp prev_names(id, name) do
     id = to_string(id)
+
     case Redix.read_map(@name_to_id_key) do
       {:ok, nil} ->
         []

@@ -109,6 +109,8 @@ defmodule TdCache.TaxonomyCacheTest do
 
   test "get_deleted_domain_ids returns a list with all deleted domain ids",
        %{root: root, parent: parent, domain: domain} do
+    Redix.del!("domain:deleted_ids")
+
     domains = [root, parent]
     deleted = [domain]
 
