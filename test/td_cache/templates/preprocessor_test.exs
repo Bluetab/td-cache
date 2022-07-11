@@ -62,7 +62,11 @@ defmodule TdCache.Templates.PreprocessorTest do
       ctx = %{domain_ids: [domain_id], claims: %{user_id: user_id}}
 
       fields = [
-        %{"name" => "user_group_field", "type" => "user_group", "values" => %{"role_groups" => @role_name}},
+        %{
+          "name" => "user_group_field",
+          "type" => "user_group",
+          "values" => %{"role_groups" => @role_name}
+        },
         %{"foo" => "bar"}
       ]
 
@@ -77,10 +81,10 @@ defmodule TdCache.Templates.PreprocessorTest do
                "name" => "user_group_field",
                "type" => "user_group",
                "values" => %{
-                  "role_groups" => @role_name,
-                  "processed_users" => [full_name],
-                  "processed_groups" => [group_name],
-                }
+                 "role_groups" => @role_name,
+                 "processed_users" => [full_name],
+                 "processed_groups" => [group_name]
+               }
              }
 
       assert unchanged_field == %{"foo" => "bar"}

@@ -62,7 +62,7 @@ defmodule TdCache.Factory do
     %{
       id: unique_id(),
       name: sequence("group_name"),
-      description: sequence("group_description"),
+      description: sequence("group_description")
     }
   end
 

@@ -110,7 +110,8 @@ defmodule TdCache.AclCache do
     end
   end
 
-  def set_acl_role_groups(resource_type, resource_id, role, user_group_ids) when is_list(user_group_ids) do
+  def set_acl_role_groups(resource_type, resource_id, role, user_group_ids)
+      when is_list(user_group_ids) do
     key = Keys.acl_role_groups_key(resource_type, resource_id, role)
 
     case user_group_ids do
