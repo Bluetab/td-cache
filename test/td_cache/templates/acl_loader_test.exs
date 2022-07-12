@@ -3,15 +3,13 @@ defmodule TdCache.Templates.AclLoaderTest do
 
   alias TdCache.AclCache
   alias TdCache.CacheHelpers
-  alias TdCache.Redix
   alias TdCache.Templates.AclLoader
 
-  describe "get_roles_and_users/1" do
-    setup do
-      on_exit(fn -> Redix.del!(["*"]) end)
-      :ok
-    end
+  setup do
+    on_exit(fn -> TdCache.Redix.del!("acl_*") end)
+  end
 
+  describe "get_roles_and_users/1" do
     test "returns list of users in role" do
       domain1 = CacheHelpers.insert_domain()
       domain2 = CacheHelpers.insert_domain()
@@ -42,11 +40,6 @@ defmodule TdCache.Templates.AclLoaderTest do
   end
 
   describe "get_roles_and_groups/1" do
-    setup do
-      on_exit(fn -> Redix.del!(["*"]) end)
-      :ok
-    end
-
     test "returns list of groups in role" do
       domain1 = CacheHelpers.insert_domain()
       domain2 = CacheHelpers.insert_domain()
@@ -72,9 +65,11 @@ defmodule TdCache.Templates.AclLoaderTest do
 
       assert %{
                "role1" => [%{id: ^group_id_1}],
-               "role2" => [%{id: ^group_id_1}, %{id: ^group_id_2}],
+               "role2" => [%{id: id1}, %{id: id2}],
                "role3" => [%{id: ^group_id_3}]
              } = AclLoader.get_roles_and_groups([domain1.id, domain2.id])
+
+      assert Enum.sort([id1, id2]) == Enum.sort([group_id_1, group_id_2])
     end
   end
 end

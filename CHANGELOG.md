@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.48.1] 2022-07-12
+
+### Fixed
+
+- [TD-5011] `TemplateCache.put/2` was leaving stale keys in
+  `templates:name_to_id` hash and `TemplateCache.list/0` was returning
+  duplicates
+
 ## [4.48.0] 2022-07-11
 
 ### Added

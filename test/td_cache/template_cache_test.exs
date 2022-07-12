@@ -5,6 +5,8 @@ defmodule TdCache.TemplateCacheTest do
   alias TdCache.Redix.Stream
   alias TdCache.TemplateCache
 
+  @name_to_id_key "templates:name_to_id"
+
   doctest TdCache.TemplateCache
 
   setup do
@@ -20,7 +22,7 @@ defmodule TdCache.TemplateCacheTest do
       Redix.del!("template:events")
     end)
 
-    {:ok, templates: templates}
+    [templates: templates]
   end
 
   test "put/1 returns Ok", context do
@@ -46,6 +48,18 @@ defmodule TdCache.TemplateCacheTest do
   test "put/2 suppresses events if publish option is false", context do
     [template | _] = context[:templates]
     assert {:ok, [5, 1, 1]} == TemplateCache.put(template, publish: false)
+  end
+
+  test "put/1 deletes previous names in name_to_id_map", %{templates: templates} do
+    [%{id: id, name: name} = template | _] = templates
+    id = to_string(id)
+
+    for name <- ["foo", "bar", "baz"] do
+      assert {:ok, 1} = Redix.command(["HSET", @name_to_id_key, name, id])
+    end
+
+    assert {:ok, [3, _, _, _]} = TemplateCache.put(template)
+    assert {:ok, [^name, ^id]} = Redix.command(["HGETALL", @name_to_id_key])
   end
 
   test "get/1 gets content", context do
