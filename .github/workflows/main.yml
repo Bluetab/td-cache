@@ -7,7 +7,7 @@ jobs:
 
     services:
       redis:
-        image: library/redis:5.0-alpine
+        image: library/redis:6.2-alpine
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s

@@ -8,6 +8,13 @@
   `templates:name_to_id` hash and `TemplateCache.list/0` was returning
   duplicates
 
+## [4.48.0] 2022-07-11
+
+### Added
+
+- [TD-3614] `SessionCache` module providing support for caching and checking
+  existence of active sessions in distributed cache
+
 ## [4.47.0] 2022-06-27
 
 ### Added
