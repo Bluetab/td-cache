@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- [TD-4945] Get domains_id for more than one permission
+
 ## [4.48.1] 2022-07-12
 
 ### Fixed
