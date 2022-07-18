@@ -16,7 +16,8 @@ defmodule TdCache.ImplementationCacheTest do
       minimum: 5.0,
       updated_at: DateTime.utc_now(),
       deleted_at: nil,
-      rule_id: nil
+      rule_id: nil,
+      status: "published"
     }
 
     on_exit(fn ->
@@ -31,7 +32,7 @@ defmodule TdCache.ImplementationCacheTest do
     test "writes an implementation entry in redis and reads it back", %{
       implementation: implementation
     } do
-      assert {:ok, [8, 0, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [9, 0, 1, 0]} = ImplementationCache.put(implementation)
 
       {:ok, impl} = ImplementationCache.get(implementation.id)
 
@@ -42,7 +43,8 @@ defmodule TdCache.ImplementationCacheTest do
         :deleted_at,
         :goal,
         :minimum,
-        :rule_id
+        :rule_id,
+        :status
       ])
 
       refute Map.has_key?(impl, :execution_result_info)
@@ -156,7 +158,7 @@ defmodule TdCache.ImplementationCacheTest do
       assert {:ok, nil} = ImplementationCache.get(implementation.id)
     end
 
-    test "lists structure ids referenced in linkss", %{implementation: %{id: id}} do
+    test "lists structure ids referenced in links", %{implementation: %{id: id}} do
       create_link(id)
       assert ImplementationCache.referenced_ids() == [id]
     end
