@@ -118,7 +118,7 @@ defmodule TdCache.Permissions do
 
   def permitted_domain_ids(_session_id, []), do: [[]]
 
-  def permitted_domain_ids(session_id, [_|_] = permissions) do
+  def permitted_domain_ids(session_id, [_ | _] = permissions) do
     key = session_permissions_key(session_id)
 
     (["HMGET", key] ++ permissions)
