@@ -132,11 +132,12 @@ defmodule TdCache.Permissions do
           |> TaxonomyCache.reachable_domain_ids()
       end
     end)
-    |> Enum.reduce(fn domain_ids, acc -> domain_ids -- domain_ids -- acc end)
   end
 
-  def permitted_domain_ids(session_id, permission),
-    do: permitted_domain_ids(session_id, [permission])
+  def permitted_domain_ids(session_id, permission) do
+    [domain_ids] = permitted_domain_ids(session_id, [permission])
+    domain_ids
+  end
 
   def put_permission_roles(roles_by_permission) do
     deletes =

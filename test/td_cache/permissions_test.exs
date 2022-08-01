@@ -175,10 +175,15 @@ defmodule TdCache.PermissionsTest do
 
     test "returns all permitted domain_ids, including descendents for a set of permissions", %{
       session_id: session_id,
+      domain: domain,
+      parent: parent,
       child: child
     } do
-      domain_ids = permitted_domain_ids(session_id, ["foo", "bar"])
-      assert_lists_equal(domain_ids, [child.id])
+      [foo_domain_ids, bar_domain_ids] =
+        _domain_ids = permitted_domain_ids(session_id, ["foo", "bar"])
+
+      assert_lists_equal(foo_domain_ids, [parent.id, domain.id, child.id])
+      assert_lists_equal(bar_domain_ids, [child.id])
     end
 
     test "returns an empty list if no such key exists" do
