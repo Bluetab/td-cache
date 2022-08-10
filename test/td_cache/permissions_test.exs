@@ -154,7 +154,11 @@ defmodule TdCache.PermissionsTest do
       CacheHelpers.put_domain(child)
 
       session_id = "#{unique_id()}"
-      cache_session_permissions!(session_id, expiry(), %{"foo" => [parent.id]})
+
+      cache_session_permissions!(session_id, expiry(), %{
+        "foo" => [parent.id],
+        "bar" => [child.id]
+      })
 
       [session_id: session_id, parent: parent, domain: domain, child: child]
     end
@@ -167,6 +171,19 @@ defmodule TdCache.PermissionsTest do
     } do
       domain_ids = permitted_domain_ids(session_id, "foo")
       assert_lists_equal(domain_ids, [parent.id, domain.id, child.id])
+    end
+
+    test "returns all permitted domain_ids, including descendents for a set of permissions", %{
+      session_id: session_id,
+      domain: domain,
+      parent: parent,
+      child: child
+    } do
+      [foo_domain_ids, bar_domain_ids] =
+        _domain_ids = permitted_domain_ids(session_id, ["foo", "bar"])
+
+      assert_lists_equal(foo_domain_ids, [parent.id, domain.id, child.id])
+      assert_lists_equal(bar_domain_ids, [child.id])
     end
 
     test "returns an empty list if no such key exists" do

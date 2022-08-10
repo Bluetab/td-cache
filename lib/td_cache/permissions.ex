@@ -116,18 +116,29 @@ defmodule TdCache.Permissions do
 
   defp session_permissions_key(session_id), do: "session:" <> session_id <> ":permissions"
 
-  def permitted_domain_ids(session_id, permission) do
+  def permitted_domain_ids(_session_id, []), do: [[]]
+
+  def permitted_domain_ids(session_id, [_ | _] = permissions) do
     key = session_permissions_key(session_id)
 
-    case Redix.command!(["HGET", key, permission]) do
-      nil ->
-        []
+    (["HMGET", key] ++ permissions)
+    |> Redix.command!()
+    |> Enum.map(fn domain_ids_by_permission ->
+      case domain_ids_by_permission do
+        nil ->
+          []
 
-      joined_domain_ids ->
-        joined_domain_ids
-        |> Redix.to_integer_list!()
-        |> TaxonomyCache.reachable_domain_ids()
-    end
+        domain_ids ->
+          domain_ids
+          |> Redix.to_integer_list!()
+          |> TaxonomyCache.reachable_domain_ids()
+      end
+    end)
+  end
+
+  def permitted_domain_ids(session_id, permission) do
+    [domain_ids] = permitted_domain_ids(session_id, [permission])
+    domain_ids
   end
 
   def put_permission_roles(roles_by_permission) do
