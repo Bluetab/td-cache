@@ -4,6 +4,12 @@
 
 - [TD-4945] Get domains_id for more than one permission
 
+## [4.48.2] 2022-07-18
+
+### Added
+
+- [TD-4922] Workflow status for implementations
+
 ## [4.48.1] 2022-07-12
 
 ### Fixed

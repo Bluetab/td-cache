@@ -103,7 +103,8 @@ defmodule TdCache.ImplementationCache do
     {:implementation_key, :string},
     {:minimum, :float},
     {:result_type, :string},
-    {:updated_at, :datetime}
+    {:updated_at, :datetime},
+    {:status, :string}
   ]
 
   @rule_props [
