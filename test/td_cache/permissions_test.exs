@@ -186,6 +186,10 @@ defmodule TdCache.PermissionsTest do
       assert_lists_equal(bar_domain_ids, [child.id])
     end
 
+    test "returns an empty list if no permissions are requested", %{session_id: session_id} do
+      assert permitted_domain_ids(session_id, []) == []
+    end
+
     test "returns an empty list if no such key exists" do
       assert permitted_domain_ids("invalid_session", "foo") == []
     end
