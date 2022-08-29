@@ -1,6 +1,17 @@
 # Changelog
 
+## [4.50.0] 2022-08-29
+
+### Changed
+
+- [TD-5091] `Permissions.permitted_domain_ids([])` now returns and empty list
+  (`[]`) instead of a list containing an empty list (`[[]]`). Also optimized
+  `TaxonomyCache.reaching_domain_ids` and `TaxonomyCache.reachable_domain_ids`
+  when argument is an empty list.
+
 ## [4.49.0] 2022-08-10
+
+### Changed
 
 - [TD-4945] Get domains_id for more than one permission
 

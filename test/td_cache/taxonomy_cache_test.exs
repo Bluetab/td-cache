@@ -48,6 +48,20 @@ defmodule TdCache.TaxonomyCacheTest do
     assert ids == [domain.id, parent.id, root.id]
   end
 
+  test "reaching_domain_ids accepts a list of ids", %{domain: domain, parent: parent, root: root} do
+    Enum.each([root, parent, domain], &CacheHelpers.put_domain/1)
+    ids = TaxonomyCache.reaching_domain_ids([domain.id])
+    assert ids == [domain.id, parent.id, root.id]
+  end
+
+  test "reaching_domain_ids returns empty list if ids is empty", %{} do
+    assert TaxonomyCache.reaching_domain_ids([]) == []
+  end
+
+  test "reachable_domain_ids returns empty list if ids is empty", %{} do
+    assert TaxonomyCache.reachable_domain_ids([]) == []
+  end
+
   test "domain_count returns count of cached domains", %{
     domain: domain,
     parent: parent,
