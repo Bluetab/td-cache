@@ -143,6 +143,53 @@ defmodule TdCache.PermissionsTest do
     end
   end
 
+  describe "permitted_domain_ids_by_user_id/2" do
+    setup do
+      user = build(:user)
+      CacheHelpers.put_user(user)
+
+      parent = build(:domain)
+      domain = build(:domain, parent_id: parent.id)
+      child = build(:domain, parent_id: domain.id)
+
+      CacheHelpers.put_domain(parent)
+      CacheHelpers.put_domain(domain)
+      CacheHelpers.put_domain(child)
+
+      permission = "test_permission"
+      role = "test_role"
+
+      put_permission_roles(%{permission => [role]})
+
+      CacheHelpers.put_acl("domain", parent.id, role, [user.id])
+
+      on_exit(fn ->
+        Redix.del!(["permission:*:roles", "acl_role_users:*"])
+      end)
+
+      [user: user, parent: parent, domain: domain, child: child, permission: permission]
+    end
+
+    test "returns all permitted domain_ids, including descendents", %{
+      permission: permission,
+      user: user,
+      domain: domain,
+      parent: parent,
+      child: child
+    } do
+      domain_ids = permitted_domain_ids_by_user_id(user.id, permission)
+      assert_lists_equal(domain_ids, [parent.id, domain.id, child.id])
+    end
+
+    test "returns an empty list if no permissions are requested", %{user: user} do
+      assert permitted_domain_ids_by_user_id(user.id, []) == []
+    end
+
+    test "returns an empty list if has no permissions" do
+      assert permitted_domain_ids_by_user_id("invalid_session", "foo") == []
+    end
+  end
+
   describe "permitted_domain_ids/2" do
     setup do
       parent = build(:domain)
