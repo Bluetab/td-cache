@@ -54,6 +54,14 @@ defmodule TdCache.AclCache do
     end
   end
 
+  def get_acl_role_resource_domain_ids(resource_type, role) do
+    key = Keys.acl_role_users_key(resource_type, "*", role)
+
+    case Redix.command(["KEYS", key]) do
+      {:ok, keys} -> Enum.map(keys, fn key -> key |> String.split(":") |> Enum.at(2) end)
+    end
+  end
+
   def has_role?(resource_type, resource_id, role, user_id) do
     key = Keys.acl_role_users_key(resource_type, resource_id, role)
 

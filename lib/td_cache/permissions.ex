@@ -3,6 +3,7 @@ defmodule TdCache.Permissions do
   Shared cache for permissions.
   """
 
+  alias TdCache.AclCache
   alias TdCache.ConceptCache
   alias TdCache.ImplementationCache
   alias TdCache.IngestCache
@@ -115,6 +116,24 @@ defmodule TdCache.Permissions do
   defp expire_cmd(key, expire_at), do: ["EXPIREAT", key, expire_at]
 
   defp session_permissions_key(session_id), do: "session:" <> session_id <> ":permissions"
+
+  def permitted_domain_ids_by_user_id(user_id, permission) do
+    {:ok, roles} = get_permission_roles(permission)
+
+    roles
+    |> Enum.flat_map(fn role ->
+      "domain"
+      |> AclCache.get_acl_role_resource_domain_ids(role)
+      |> Enum.map(fn domain_id -> {role, domain_id} end)
+    end)
+    |> Enum.filter(fn {role, domain_id} ->
+      AclCache.has_role?("domain", domain_id, role, user_id)
+    end)
+    |> Enum.map(fn {_role, domain_id} -> domain_id end)
+    |> Enum.uniq()
+    |> Redix.to_integer_list!()
+    |> TaxonomyCache.reachable_domain_ids()
+  end
 
   def permitted_domain_ids(_session_id, []), do: []
 
