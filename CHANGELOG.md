@@ -1,10 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [4.50.1] 2022-09-16
 
 ### Added
 
-- [TD-5133] `Permissions.permitted_domain_ids_by_user_id/1` to verify allowed domains of user without session
+- [TD-5133] `Permissions.permitted_domain_ids_by_user_id/1` to verify allowed
+  domains of user without session
 
 ## [4.50.0] 2022-08-29
 
