@@ -119,15 +119,18 @@ defmodule TdCache.Permissions do
 
   def permitted_domain_ids_by_user_id(user_id, permission) do
     {:ok, roles} = get_permission_roles(permission)
+
     roles
     |> Enum.flat_map(fn role ->
       "domain"
       |> AclCache.get_acl_role_resource_domain_ids(role)
       |> Enum.map(fn domain_id -> {role, domain_id} end)
     end)
-    |> Enum.filter(fn {role, domain_id} -> AclCache.has_role?("domain", domain_id, role, user_id) end)
+    |> Enum.filter(fn {role, domain_id} ->
+      AclCache.has_role?("domain", domain_id, role, user_id)
+    end)
     |> Enum.map(fn {_role, domain_id} -> domain_id end)
-    |> Enum.uniq
+    |> Enum.uniq()
     |> Redix.to_integer_list!()
     |> TaxonomyCache.reachable_domain_ids()
   end
