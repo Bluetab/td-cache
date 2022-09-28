@@ -33,12 +33,21 @@ defmodule TdCache.Factory do
     }
   end
 
-  def implementation_factory do
+  def implementation_factory(attrs) do
+    id = unique_id()
     %{
-      id: unique_id(),
-      implementation_key: "impl_key_#{unique_id()}",
-      updated_at: DateTime.utc_now()
+      id: id,
+      implementation_key: "impl_key_#{id}",
+      domain_id: 10,
+      goal: 8.0,
+      minimum: 5.0,
+      updated_at: DateTime.utc_now(),
+      deleted_at: nil,
+      rule_id: nil,
+      status: "published",
+      implementation_ref: id
     }
+    |> merge_attributes(attrs)
   end
 
   def content_factory do

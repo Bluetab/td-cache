@@ -14,29 +14,30 @@ defmodule TdCache.ImplementationCache do
   Creates cache entries relating to a given implementation.
   """
   def put(implementation, opts \\ []) do
+    IO.inspect(implementation, label: "implementation cache --->")
     put_implementation(implementation, opts)
   end
 
   @doc """
   Reads implementation information for a given id from cache.
   """
-  def get(id) do
-    implementation = read_implementation(id)
+  def get(implementation_ref) do
+    implementation = read_implementation(implementation_ref)
     {:ok, implementation}
   end
 
   @doc """
   Reads implementation domain_id relating to a given implementation id.
   """
-  def get_domain_id(id) do
-    Redix.command!(["HGET", "implementation:#{id}", "domain_id"])
+  def get_domain_id(implementation_ref) do
+    Redix.command!(["HGET", "implementation:#{implementation_ref}", "domain_id"])
   end
 
   @doc """
   Deletes cache entries relating to a given implementation id.
   """
-  def delete(id) do
-    delete_implementation(id)
+  def delete(implementation_ref) do
+    delete_implementation(implementation_ref)
   end
 
   @doc """
@@ -49,12 +50,28 @@ defmodule TdCache.ImplementationCache do
     |> Enum.map(&String.to_integer/1)
   end
 
+  def delete_relation_impl_id_and_impl_ref() do
+    ["DEL", "relation_impl_id_to_impl_ref"]
+    |> Redix.command!()
+  end
+
+
   @doc """
   Returns a list of implementations ids referenced by links
   """
   @spec referenced_ids :: [integer()]
-  def referenced_ids do
-    LinkCache.referenced_ids("implementation:")
+  def referenced_ids(type \\ "implementation") do
+    LinkCache.referenced_ids("#{type}:")
+  end
+
+  def put_relation_impl_id_and_impl_ref([_|_] = list_references) do
+    Redix.command!(["HSET", "relation_impl_id_to_impl_ref" | list_references])
+  end
+
+  def put_relation_impl_id_and_impl_ref(_), do: 0
+
+  def get_relation_impl_id_and_impl_ref() do
+    Redix.command!(["HGETALL", "relation_impl_id_to_impl_ref"])
   end
 
   def clean_cached_implementations(keep_ids) do
@@ -63,7 +80,7 @@ defmodule TdCache.ImplementationCache do
     ids_to_delete =
       ["SMEMBERS", "implementation:keys"]
       |> Redix.command!()
-      |> Enum.map(fn "implementation:" <> id -> String.to_integer(id) end)
+      |> Enum.map(fn "implementation:" <> implementation_ref -> String.to_integer(implementation_ref) end)
       |> Enum.reject(&(&1 in keep_ids))
 
     keep_cmds =
@@ -96,6 +113,7 @@ defmodule TdCache.ImplementationCache do
 
   @props [
     {:id, :integer},
+    {:implementation_ref, :integer},
     {:deleted_at, :datetime},
     {:domain_id, :integer},
     {:rule_id, :integer},
@@ -120,14 +138,15 @@ defmodule TdCache.ImplementationCache do
     {:result_text, :string}
   ]
 
-  defp read_implementation(id) do
-    case Redix.read_map("implementation:#{id}") do
+  defp read_implementation(implementation_ref) do
+    IO.inspect(Redix.read_map("implementation:#{implementation_ref}"), label: "read cache imp with implementation ref ->")
+    case Redix.read_map("implementation:#{implementation_ref}") do
       {:ok, nil} ->
         nil
 
       {:ok, implementation} ->
         execution_result_info =
-          "implementation:#{id}:execution_result_info"
+          "implementation:#{implementation_ref}:execution_result_info"
           |> Redix.read_map()
           # TdCache github runner doesn't have Elixir 13
           # |> then(fn {:ok, result} -> result end)
@@ -166,20 +185,20 @@ defmodule TdCache.ImplementationCache do
   def put_optional(map, _key, nil), do: map
   def put_optional(map, key, value), do: Map.put(map, key, value)
 
-  defp delete_implementation(id) do
+  defp delete_implementation(implementation_ref) do
     Redix.transaction_pipeline([
-      ["DEL", "implementation:#{id}", "implementation:#{id}:execution_result_info"],
-      ["SREM", "implementation:keys", "implementation:#{id}"],
-      ["SADD", "implementation:deleted_ids", "#{id}"]
+      ["DEL", "implementation:#{implementation_ref}", "implementation:#{implementation_ref}:execution_result_info"],
+      ["SREM", "implementation:keys", "implementation:#{implementation_ref}"],
+      ["SADD", "implementation:deleted_ids", "#{implementation_ref}"]
     ])
   end
 
   defp put_implementation(
-         %{id: id, updated_at: updated_at, deleted_at: deleted_at} = implementation,
+         %{implementation_ref: implementation_ref, updated_at: updated_at, deleted_at: deleted_at} = implementation,
          opts
        ) do
     [last_updated, last_deleted] =
-      Redix.command!(["HMGET", "implementation:#{id}", :updated_at, :deleted_at])
+      Redix.command!(["HMGET", "implementation:#{implementation_ref}", :updated_at, :deleted_at])
 
     implementation
     |> Map.put(:updated_at, "#{updated_at}")
@@ -200,10 +219,12 @@ defmodule TdCache.ImplementationCache do
   defp put_implementation(implementation, _last_updated, _last_deleted, _force) do
     implementation
     |> implementation_commands()
+    |> IO.inspect(label: "redix commands ->")
     |> Redix.transaction_pipeline()
+    |> IO.inspect(label: "redix response ->")
   end
 
-  defp implementation_commands(%{id: id} = implementation) do
+  defp implementation_commands(%{implementation_ref: implementation_ref} = implementation) do
     props_keys = Enum.map(@props, fn {key, _} -> key end)
 
     implementation_props =
@@ -223,9 +244,9 @@ defmodule TdCache.ImplementationCache do
     maybe_put_rule(implementation)
 
     [
-      ["HSET", "implementation:#{id}", implementation_props],
-      ["HSET", "implementation:#{id}:execution_result_info", execution_result_info_props],
-      ["SADD", "implementation:keys", "implementation:#{id}"],
+      ["HSET", "implementation:#{implementation_ref}", implementation_props],
+      ["HSET", "implementation:#{implementation_ref}:execution_result_info", execution_result_info_props],
+      ["SADD", "implementation:keys", "implementation:#{implementation_ref}"],
       refresh_deleted_ids_command(implementation)
     ]
   end
@@ -236,11 +257,11 @@ defmodule TdCache.ImplementationCache do
 
   defp maybe_put_rule(_), do: nil
 
-  defp refresh_deleted_ids_command(%{id: id} = implementation) do
+  defp refresh_deleted_ids_command(%{implementation_ref: implementation_ref} = implementation) do
     case Map.get(implementation, :deleted_at) do
-      nil -> ["SREM", "implementation:deleted_ids", id]
-      "" -> ["SREM", "implementation:deleted_ids", id]
-      _ -> ["SADD", "implementation:deleted_ids", id]
+      nil -> ["SREM", "implementation:deleted_ids", implementation_ref]
+      "" -> ["SREM", "implementation:deleted_ids", implementation_ref]
+      _ -> ["SADD", "implementation:deleted_ids", implementation_ref]
     end
   end
 end

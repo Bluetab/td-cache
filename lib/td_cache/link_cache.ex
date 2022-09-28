@@ -168,7 +168,9 @@ defmodule TdCache.LinkCache do
          _last_updated,
          opts
        ) do
+
     commands = put_link_commands(link)
+    # IO.inspect(label: "he entrado al put link --->")
 
     {:ok, results} = Redix.transaction_pipeline(commands)
     source_add_count = Enum.at(results, 2)
@@ -410,6 +412,7 @@ defmodule TdCache.LinkCache do
     |> Enum.map(fn {resource_key, tags, id} ->
       {String.split(resource_key, ":", parts: 2), tags, id}
     end)
+    |> IO.inspect(label: "link resources ->")
     |> Enum.map(&read_source/1)
     |> Enum.filter(& &1)
   end
@@ -444,8 +447,10 @@ defmodule TdCache.LinkCache do
     end
   end
 
-  defp read_source({["implementation", implementation_id], tags, id}) do
-    case ImplementationCache.get(implementation_id) do
+  defp read_source({["implementation_ref", implementation_ref], tags, id}) do
+    # IO.inspect(implementation_ref, label: " implementation ref ->")
+    # IO.inspect(ImplementationCache.get(implementation_ref), label: "implentation cache ->")
+    case ImplementationCache.get(implementation_ref) do
       {:ok, nil} -> nil
       {:ok, implementation} -> resource_with_tags(implementation, :implementation, tags, id)
     end
