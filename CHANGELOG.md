@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.50.2] 2022-09-30
+
+### Added
+
+- [TD-5210] `DomainCache.id_to_name_map/0` returns a map of domain id keys with
+  name values
+
 ## [4.50.1] 2022-09-16
 
 ### Added

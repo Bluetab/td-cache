@@ -73,14 +73,23 @@ defmodule TdCache.DomainCache do
   Reads domain external id to id map from cache.
   """
   def external_id_to_id_map do
-    map = get_domain_external_id_to_id_map()
+    map = read_map(@ids_to_external_ids_key, &id_vals/1)
+
+    {:ok, map}
+  end
+
+  @doc """
+  Reads domain external id to id map from cache.
+  """
+  def id_to_name_map do
+    map = read_map(@ids_to_names_key, &id_keys/1)
 
     {:ok, map}
   end
 
   def external_id_to_id(external_id) do
-    case get_domain_external_id_to_id_map() do
-      %{^external_id => domain_id} -> {:ok, domain_id}
+    case external_id_to_id_map() do
+      {:ok, %{^external_id => domain_id}} -> {:ok, domain_id}
       _ -> :error
     end
   end
@@ -137,10 +146,6 @@ defmodule TdCache.DomainCache do
   defp read_domain_id("domain:" <> domain_id), do: domain_id
 
   defp read_domain_id(id), do: id
-
-  defp get_domain_external_id_to_id_map do
-    read_map(@ids_to_external_ids_key)
-  end
 
   defp delete_domain(id, opts) do
     key = "domain:#{id}"
@@ -199,8 +204,8 @@ defmodule TdCache.DomainCache do
 
   defp put_domain(_, _, _), do: {:error, :invalid}
 
-  defp read_map(collection) do
-    case Redix.read_map(collection, fn [id, key] -> {key, String.to_integer(id)} end) do
+  defp read_map(collection, transform) do
+    case Redix.read_map(collection, transform) do
       {:ok, nil} -> %{}
       {:ok, map} -> map
     end
@@ -229,4 +234,7 @@ defmodule TdCache.DomainCache do
     |> Graph.add_edge(parent_id, child_id)
     |> create_graph(entries)
   end
+
+  defp id_vals([id, key]), do: {key, String.to_integer(id)}
+  defp id_keys([id, val]), do: {String.to_integer(id), val}
 end
