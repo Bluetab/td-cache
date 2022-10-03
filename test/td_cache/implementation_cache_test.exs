@@ -187,7 +187,7 @@ defmodule TdCache.ImplementationCacheTest do
       assert {:ok, nil} = ImplementationCache.get(implementation.id)
     end
 
-    test "lists structure ids referenced in links", %{implementation: %{id: id}} do
+    test "lists implementation ids referenced in links", %{implementation: %{id: id}} do
       create_link(id)
       assert ImplementationCache.referenced_ids("implementation_ref") == [id]
     end
