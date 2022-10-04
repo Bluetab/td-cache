@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.53.0] 2022-10-04
+
+### Changed
+
+- [TD-5140] Implementation id for implementation_ref and insert relations in cache
+
 ## [4.50.2] 2022-09-30
 
 ### Added
