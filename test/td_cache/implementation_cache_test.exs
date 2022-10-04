@@ -1,6 +1,7 @@
 defmodule TdCache.ImplementationCacheTest do
   use ExUnit.Case
 
+  import TdCache.Factory
   import Assertions
 
   alias TdCache.ImplementationCache
@@ -8,21 +9,12 @@ defmodule TdCache.ImplementationCacheTest do
   alias TdCache.Redix
 
   setup do
-    implementation = %{
-      id: 10,
-      implementation_key: "key",
-      domain_id: 10,
-      goal: 8.0,
-      minimum: 5.0,
-      updated_at: DateTime.utc_now(),
-      deleted_at: nil,
-      rule_id: nil,
-      status: "published"
-    }
+    implementation = build(:implementation)
 
     on_exit(fn ->
       ImplementationCache.delete(implementation.id)
       Redix.command(["SREM", "implementation:deleted_ids", implementation.id])
+      Redix.command(["DEL", "relation_impl_id_to_impl_ref"])
     end)
 
     {:ok, implementation: implementation}
@@ -32,7 +24,7 @@ defmodule TdCache.ImplementationCacheTest do
     test "writes an implementation entry in redis and reads it back", %{
       implementation: implementation
     } do
-      assert {:ok, [9, 0, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(implementation)
 
       {:ok, impl} = ImplementationCache.get(implementation.id)
 
@@ -88,6 +80,43 @@ defmodule TdCache.ImplementationCacheTest do
       assert impl.id == implementation.id
       assert impl.rule_id == 10
       assert impl.rule.name == "rule_name"
+    end
+
+    test "write relation between implementation_id and implementation_ref" do
+      assert 3 =
+               ImplementationCache.put_relation_impl_id_and_impl_ref([
+                 111,
+                 111,
+                 333,
+                 333,
+                 222,
+                 222
+               ])
+
+      assert 0 = ImplementationCache.put_relation_impl_id_and_impl_ref([])
+    end
+
+    test "get relation between implementation_id and implementation_ref" do
+      relation_ids = [111, 111, 333, 333, 222, 222]
+      assert 3 = ImplementationCache.put_relation_impl_id_and_impl_ref(relation_ids)
+      relation_cache_ids = ImplementationCache.get_relation_impl_id_and_impl_ref()
+      string_relation_ids = relation_cache_ids |> Enum.map(&String.to_integer(&1))
+      assert relation_ids == string_relation_ids
+    end
+
+    test "delete relation between implementation_id and implementation_ref" do
+      assert 3 =
+               ImplementationCache.put_relation_impl_id_and_impl_ref([
+                 111,
+                 111,
+                 333,
+                 333,
+                 222,
+                 222
+               ])
+
+      assert 1 = ImplementationCache.delete_relation_impl_id_and_impl_ref()
+      assert [] = ImplementationCache.get_relation_impl_id_and_impl_ref()
     end
 
     test "updates an implementation already cached in redis when updated_at has changed", %{
@@ -158,9 +187,9 @@ defmodule TdCache.ImplementationCacheTest do
       assert {:ok, nil} = ImplementationCache.get(implementation.id)
     end
 
-    test "lists structure ids referenced in links", %{implementation: %{id: id}} do
+    test "lists implementation ids referenced in links", %{implementation: %{id: id}} do
       create_link(id)
-      assert ImplementationCache.referenced_ids() == [id]
+      assert ImplementationCache.referenced_ids("implementation_ref") == [id]
     end
   end
 
@@ -177,7 +206,7 @@ defmodule TdCache.ImplementationCacheTest do
         source_id: implementation_id,
         target_id: concept_id,
         updated_at: DateTime.utc_now(),
-        source_type: "implementation",
+        source_type: "implementation_ref",
         target_type: "business_concept"
       },
       publish: false
