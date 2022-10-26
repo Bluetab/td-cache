@@ -1,10 +1,9 @@
 defmodule TdCache.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
   @moduledoc false
 
   use Application
 
+  @impl true
   def start(_type, _args) do
     redis_host = Application.get_env(:td_cache, :redis_host, "redis")
     port = Application.get_env(:td_cache, :port, 6379)
