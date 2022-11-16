@@ -8,7 +8,7 @@ defmodule TdCache.UserCache do
 
   @ids "users:ids"
   @group_ids "user_groups:ids"
-  @props [:user_name, :full_name, :email, :external_id]
+  @props [:user_name, :full_name, :email, :external_id, :role]
   @name_to_id_key "users:name_to_id"
   @user_name_to_id_key "users:user_name_to_id"
   @external_id_to_id_key "users:external_id_to_id"
