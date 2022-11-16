@@ -4,7 +4,7 @@
 
 ### Added
 
-- [TD-5258] add `role` to user_cache props
+- [TD-5258] Add `role` to user_cache props
 
 ## [4.54.0] 2022-10-26
 
