@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.56.0] 2022-11-16
+
+### Added
+
+- [TD-5258] add `role` to user_cache props
+
 ## [4.54.0] 2022-10-26
 
 ### Changed
