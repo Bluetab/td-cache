@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-3919] Cache template subscope
+
 ## [4.56.0] 2022-11-16
 
 ### Added
