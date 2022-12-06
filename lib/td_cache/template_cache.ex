@@ -7,7 +7,7 @@ defmodule TdCache.TemplateCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
-  @props [:label, :scope, :name, :updated_at]
+  @props [:label, :scope, :subscope, :name, :updated_at]
   @name_to_id_key "templates:name_to_id"
 
   ## Client API
@@ -232,13 +232,21 @@ defmodule TdCache.TemplateCache do
       event = %{
         event: "template_updated",
         template: "template:#{id}",
-        scope: scope
-      }
+        scope: scope,
+      } |> maybe_put_subscope(template)
 
       {:ok, _event_id} = Publisher.publish(event, "template:events")
     end
 
     {:ok, results}
+  end
+
+  defp maybe_put_subscope(event, %{subscope: subscope} = _template) do
+    Map.put(event, :subscope, subscope)
+  end
+
+  defp maybe_put_subscope(event, _template) do
+    event
   end
 
   defp list_templates do
