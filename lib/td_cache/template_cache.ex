@@ -229,11 +229,13 @@ defmodule TdCache.TemplateCache do
     {:ok, results} = Redix.transaction_pipeline(commands)
 
     if Keyword.get(opts, :publish, true) do
-      event = %{
-        event: "template_updated",
-        template: "template:#{id}",
-        scope: scope,
-      } |> maybe_put_subscope(template)
+      event =
+        %{
+          event: "template_updated",
+          template: "template:#{id}",
+          scope: scope
+        }
+        |> maybe_put_subscope(template)
 
       {:ok, _event_id} = Publisher.publish(event, "template:events")
     end

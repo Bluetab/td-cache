@@ -10,7 +10,9 @@ defmodule TdCache.TemplateCacheTest do
   doctest TdCache.TemplateCache
 
   setup do
-    templates = 0..10 |> Enum.map(fn _ -> random_template(true) end) |> Enum.uniq() |> Enum.take(4)
+    templates =
+      0..10 |> Enum.map(fn _ -> random_template(true) end) |> Enum.uniq() |> Enum.take(4)
+
     template_without_subscope = random_template(false)
 
     on_exit(fn ->
@@ -166,5 +168,4 @@ defmodule TdCache.TemplateCacheTest do
   defp maybe_put_subscope(event, false) do
     Map.put(event, :subscope, nil)
   end
-
 end
