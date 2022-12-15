@@ -10,10 +10,13 @@ defmodule TdCache.TemplateCacheTest do
   doctest TdCache.TemplateCache
 
   setup do
-    templates = 0..10 |> Enum.map(fn _ -> random_template() end) |> Enum.uniq() |> Enum.take(4)
+    templates =
+      0..10 |> Enum.map(fn _ -> random_template(true) end) |> Enum.uniq() |> Enum.take(4)
+
+    template_without_subscope = random_template(false)
 
     on_exit(fn ->
-      templates
+      [template_without_subscope | templates]
       |> Enum.map(& &1.id)
       |> Enum.each(&TemplateCache.delete/1)
 
@@ -22,32 +25,33 @@ defmodule TdCache.TemplateCacheTest do
       Redix.del!("template:events")
     end)
 
-    [templates: templates]
+    [templates: templates, template_without_subscope: template_without_subscope]
   end
 
   test "put/1 returns Ok", context do
     [template | _] = context[:templates]
-    assert {:ok, [5, 1, 1]} == TemplateCache.put(template)
+    assert {:ok, [6, 1, 1]} == TemplateCache.put(template)
   end
 
   test "put/1 returns updates only when updated at is changed", context do
     [template | _] = context[:templates]
-    assert {:ok, [5, 1, 1]} == TemplateCache.put(template)
+    assert {:ok, [6, 1, 1]} == TemplateCache.put(template)
     assert {:ok, []} == TemplateCache.put(template)
   end
 
   test "put/1 emits an event when a new template is cached", context do
     [template | _] = context[:templates]
-    assert {:ok, [5, 1, 1]} == TemplateCache.put(template)
+    assert {:ok, [6, 1, 1]} == TemplateCache.put(template)
 
     assert {:ok, [event]} = Stream.read(:redix, ["template:events"], transform: true)
     assert event.event == "template_updated"
     assert event.template == "template:#{template.id}"
+    assert event.subscope == "Subscope #{template.id}"
   end
 
   test "put/2 suppresses events if publish option is false", context do
     [template | _] = context[:templates]
-    assert {:ok, [5, 1, 1]} == TemplateCache.put(template, publish: false)
+    assert {:ok, [6, 1, 1]} == TemplateCache.put(template, publish: false)
   end
 
   test "put/1 deletes previous names in name_to_id_map", %{templates: templates} do
@@ -77,6 +81,19 @@ defmodule TdCache.TemplateCacheTest do
     assert t.id == template.id
     assert t.name == template.name
     assert t.scope == template.scope
+    assert t.subscope == template.subscope
+    assert t.updated_at == to_string(template.updated_at)
+  end
+
+  test "get_by_name gets template, nil subscope converted to empty string", context do
+    template = context[:template_without_subscope]
+    TemplateCache.put(template)
+    {:ok, t} = TemplateCache.get_by_name(template.name)
+    assert t.content == template.content
+    assert t.id == template.id
+    assert t.name == template.name
+    assert t.scope == template.scope
+    assert t.subscope == ""
     assert t.updated_at == to_string(template.updated_at)
   end
 
@@ -111,6 +128,25 @@ defmodule TdCache.TemplateCacheTest do
     assert length(list) == 3
   end
 
+  test "list_by_subsscope will only return template from the requested scope and subscope",
+       context do
+    templates =
+      context[:templates]
+      |> Enum.take(6)
+      |> Enum.chunk_every(3)
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {templates, i} ->
+        Enum.map(templates, &Map.put(&1, :subscope, "subscope_#{i}"))
+      end)
+
+    %{id: id, scope: scope} = hd(templates)
+
+    templates
+    |> Enum.map(&TemplateCache.put/1)
+
+    {:ok, [%{id: ^id}]} = TemplateCache.list_by_subscope(scope, "subscope_0")
+  end
+
   test "delete/1 deletes from cache", context do
     [template | _] = context[:templates]
     TemplateCache.put(template)
@@ -124,7 +160,7 @@ defmodule TdCache.TemplateCacheTest do
     assert TemplateCache.fields_by_type!(scope, "string") == %{name => ["field"]}
   end
 
-  defp random_template do
+  defp random_template(subscope?) do
     id = System.unique_integer([:positive])
 
     field_group = %{
@@ -137,8 +173,18 @@ defmodule TdCache.TemplateCacheTest do
       name: "Template #{id}",
       label: "Label #{id}",
       scope: "Scope #{id}",
+      subscope: "Subscope #{id}",
       content: [field_group],
       updated_at: DateTime.utc_now()
     }
+    |> maybe_put_subscope(subscope?)
+  end
+
+  defp maybe_put_subscope(%{id: event_id} = event, true) do
+    Map.put(event, :subscope, "Subscope #{event_id}")
+  end
+
+  defp maybe_put_subscope(event, false) do
+    Map.put(event, :subscope, nil)
   end
 end

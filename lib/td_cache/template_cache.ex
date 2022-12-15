@@ -7,7 +7,7 @@ defmodule TdCache.TemplateCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
-  @props [:label, :scope, :name, :updated_at]
+  @props [:label, :scope, :subscope, :name, :updated_at]
   @name_to_id_key "templates:name_to_id"
 
   ## Client API
@@ -45,6 +45,20 @@ defmodule TdCache.TemplateCache do
     case list() do
       {:ok, templates} -> templates
       error -> error
+    end
+  end
+
+  def list_by_subscope(scope, subscope) do
+    case list() do
+      {:ok, templates} ->
+        {:ok,
+         Enum.filter(
+           templates,
+           &(Map.get(&1, :scope) == scope and Map.get(&1, :subscope) == subscope)
+         )}
+
+      error ->
+        error
     end
   end
 
@@ -229,16 +243,26 @@ defmodule TdCache.TemplateCache do
     {:ok, results} = Redix.transaction_pipeline(commands)
 
     if Keyword.get(opts, :publish, true) do
-      event = %{
-        event: "template_updated",
-        template: "template:#{id}",
-        scope: scope
-      }
+      event =
+        %{
+          event: "template_updated",
+          template: "template:#{id}",
+          scope: scope
+        }
+        |> maybe_put_subscope(template)
 
       {:ok, _event_id} = Publisher.publish(event, "template:events")
     end
 
     {:ok, results}
+  end
+
+  defp maybe_put_subscope(event, %{subscope: subscope} = _template) do
+    Map.put(event, :subscope, subscope)
+  end
+
+  defp maybe_put_subscope(event, _template) do
+    event
   end
 
   defp list_templates do
