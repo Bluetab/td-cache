@@ -48,6 +48,20 @@ defmodule TdCache.TemplateCache do
     end
   end
 
+  def list_by_subscope(scope, subscope) do
+    case list() do
+      {:ok, templates} ->
+        {:ok,
+         Enum.filter(
+           templates,
+           &(Map.get(&1, :scope) == scope and Map.get(&1, :subscope) == subscope)
+         )}
+
+      error ->
+        error
+    end
+  end
+
   def list_by_scope(scope) do
     case list() do
       {:ok, templates} ->

@@ -128,6 +128,25 @@ defmodule TdCache.TemplateCacheTest do
     assert length(list) == 3
   end
 
+  test "list_by_subsscope will only return template from the requested scope and subscope",
+       context do
+    templates =
+      context[:templates]
+      |> Enum.take(6)
+      |> Enum.chunk_every(3)
+      |> Enum.with_index()
+      |> Enum.flat_map(fn {templates, i} ->
+        Enum.map(templates, &Map.put(&1, :subscope, "subscope_#{i}"))
+      end)
+
+    %{id: id, scope: scope} = hd(templates)
+
+    templates
+    |> Enum.map(&TemplateCache.put/1)
+
+    {:ok, [%{id: ^id}]} = TemplateCache.list_by_subscope(scope, "subscope_0")
+  end
+
   test "delete/1 deletes from cache", context do
     [template | _] = context[:templates]
     TemplateCache.put(template)
