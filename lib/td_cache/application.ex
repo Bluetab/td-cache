@@ -14,10 +14,12 @@ defmodule TdCache.Application do
         {Redix, host: redis_host, port: port, password: password, name: :redix},
         {TdCache.Redix.Pool, redis_host: redis_host, port: port, password: password},
         TdCache.ConceptCache,
+        TdCache.HierarchyCache,
+        TdCache.TaxonomyCache,
         TdCache.TemplateCache,
         TdCache.UserCache,
-        TdCache.TaxonomyCache,
         con_cache_child_spec(:templates, 10, 60),
+        con_cache_child_spec(:hierarchies, 10, 60),
         con_cache_child_spec(:users, 10, 60),
         con_cache_child_spec(:taxonomy, 10, 60),
         con_cache_child_spec(:concepts, 10, 60)
