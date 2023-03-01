@@ -1,9 +1,9 @@
 defmodule TdCache.HierarchyCacheTest do
   use ExUnit.Case
 
+  alias TdCache.HierarchyCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
-  alias TdCache.HierarchyCache
 
   @name_to_id_key "hierarchies:name_to_id"
 
