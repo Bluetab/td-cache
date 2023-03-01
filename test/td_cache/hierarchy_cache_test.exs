@@ -10,32 +10,28 @@ defmodule TdCache.HierarchyCacheTest do
   doctest TdCache.HierarchyCache
 
   setup do
-    hierarchies = 0..4 |> Enum.map(fn _ -> random_hierarchy() end) |> Enum.uniq()
+    hierarchy = random_hierarchy()
 
     on_exit(fn ->
-      hierarchies
-      |> Enum.map(& &1.id)
-      |> Enum.each(&HierarchyCache.delete/1)
-
+      HierarchyCache.delete(hierarchy.id)
       ConCache.delete(:hierarchies, :all)
 
       Redix.del!("hierarchy:events")
     end)
 
-    [hierarchies: hierarchies]
+    [hierarchy: hierarchy]
   end
 
-  test "put/1 returns Ok", context do
-    [hierarchy | _] = context[:hierarchies]
+  test "put/1 returns Ok", %{hierarchy: hierarchy} do
     assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy)
   end
 
-  test "put/1 returns updates only when updated at is changed", %{hierarchies: [hierarchy | _]} do
+  test "put/1 returns updates only when updated at is changed", %{hierarchy: hierarchy} do
     assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy)
     assert {:ok, []} == HierarchyCache.put(hierarchy)
   end
 
-  test "put/1 emits an event when a new hierarchy is cached", %{hierarchies: [hierarchy | _]} do
+  test "put/1 emits an event when a new hierarchy is cached", %{hierarchy: hierarchy} do
     assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy)
 
     assert {:ok, [event]} = Stream.read(:redix, ["hierarchy:events"], transform: true)
@@ -43,13 +39,13 @@ defmodule TdCache.HierarchyCacheTest do
     assert event.hierarchy == "hierarchy:#{hierarchy.id}"
   end
 
-  test "put/2 suppresses events if publish option is false", %{hierarchies: [hierarchy | _]} do
+  test "put/2 suppresses events if publish option is false", %{hierarchy: hierarchy} do
     assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy, publish: false)
     assert {:ok, []} = Stream.read(:redix, ["hierarchy:events"], transform: true)
   end
 
   test "put/1 deletes previous names in name_to_id_map", %{
-    hierarchies: [%{id: id, name: name} = hierarchy | _]
+    hierarchy: %{id: id, name: name} = hierarchy
   } do
     id = to_string(id)
 
@@ -59,103 +55,70 @@ defmodule TdCache.HierarchyCacheTest do
 
     assert {:ok, [3, _, _, _]} = HierarchyCache.put(hierarchy)
 
-    #  "hierarchies:name_to_id"
     assert {:ok, [^name, ^id]} = Redix.command(["HGETALL", @name_to_id_key])
   end
 
-  # test "get/1 gets content", context do
-  #   [template | _] = context[:templates]
-  #   {:ok, _} = HierarchyCache.put(template)
-  #   {:ok, content} = HierarchyCache.get(template.id, :content)
-  #   assert content == template.content
-  # end
+  test "get/1 gets nodes", %{hierarchy: %{id: id, nodes: nodes} = hierarchy} do
+    {:ok, _} = HierarchyCache.put(hierarchy)
 
-  # test "get_by_name gets template", context do
-  #   [template | _] = context[:templates]
-  #   HierarchyCache.put(template)
-  #   {:ok, t} = HierarchyCache.get_by_name(template.name)
-  #   assert t.content == template.content
-  #   assert t.id == template.id
-  #   assert t.name == template.name
-  #   assert t.scope == template.scope
-  #   assert t.subscope == template.subscope
-  #   assert t.updated_at == to_string(template.updated_at)
-  # end
+    {:ok, cache_nodes} = HierarchyCache.get(id, :nodes)
 
-  # test "get_by_name gets template, nil subscope converted to empty string", context do
-  #   template = context[:template_without_subscope]
-  #   HierarchyCache.put(template)
-  #   {:ok, t} = HierarchyCache.get_by_name(template.name)
-  #   assert t.content == template.content
-  #   assert t.id == template.id
-  #   assert t.name == template.name
-  #   assert t.scope == template.scope
-  #   assert t.subscope == ""
-  #   assert t.updated_at == to_string(template.updated_at)
-  # end
+    atom_nodes = nodes_to_atom(cache_nodes)
 
-  # test "get_by_name invalid key will return nil" do
-  #   assert {:ok, nil} == HierarchyCache.get_by_name("invalid:key")
-  # end
+    assert atom_nodes == nodes
+  end
 
-  # test "list will return a list of objects", context do
-  #   context[:templates]
-  #   |> Enum.take(3)
-  #   |> Enum.map(&HierarchyCache.put/1)
+  test "get_by_name gets hierarchy", %{
+    hierarchy: %{id: id, name: name, nodes: nodes} = hierarchy
+  } do
+    HierarchyCache.put(hierarchy)
+    {:ok, h} = HierarchyCache.get_by_name(name)
 
-  #   ConCache.delete(:templates, :all)
-  #   {:ok, list} = HierarchyCache.list()
-  #   assert length(list) == 3
-  # end
+    atom_nodes = nodes_to_atom(h.nodes)
 
-  # test "list_by_scope will only return template from the requested scope", context do
-  #   templates =
-  #     context[:templates]
-  #     |> Enum.take(6)
-  #     |> Enum.chunk_every(3)
-  #     |> Enum.with_index()
-  #     |> Enum.flat_map(fn {templates, i} ->
-  #       Enum.map(templates, &Map.put(&1, :scope, "scope_#{i}"))
-  #     end)
+    assert atom_nodes == nodes
+    assert h.id == id
+    assert h.name == name
+    assert h.updated_at == to_string(hierarchy.updated_at)
+  end
 
-  #   templates
-  #   |> Enum.map(&HierarchyCache.put/1)
+  test "get_by_name invalid key will return nil" do
+    assert {:ok, nil} == HierarchyCache.get_by_name("invalid:key")
+  end
 
-  #   {:ok, list} = HierarchyCache.list_by_scope("scope_0")
-  #   assert length(list) == 3
-  # end
+  test "list will return a list of objects" do
+    hierarchies =
+      Enum.map(0..4, fn _ ->
+        hierarchy = random_hierarchy()
+        HierarchyCache.put(hierarchy)
+        hierarchy
+      end)
 
-  # test "list_by_subsscope will only return template from the requested scope and subscope",
-  #      context do
-  #   templates =
-  #     context[:templates]
-  #     |> Enum.take(6)
-  #     |> Enum.chunk_every(3)
-  #     |> Enum.with_index()
-  #     |> Enum.flat_map(fn {templates, i} ->
-  #       Enum.map(templates, &Map.put(&1, :subscope, "subscope_#{i}"))
-  #     end)
+    ConCache.delete(:hierarchies, :all)
 
-  #   %{id: id, scope: scope} = hd(templates)
+    {:ok, list} = HierarchyCache.list()
 
-  #   templates
-  #   |> Enum.map(&HierarchyCache.put/1)
+    assert length(list) == 5
 
-  #   {:ok, [%{id: ^id}]} = HierarchyCache.list_by_subscope(scope, "subscope_0")
-  # end
+    hierarchies
+    |> Enum.map(& &1.id)
+    |> Enum.each(&HierarchyCache.delete/1)
+  end
 
-  # test "delete/1 deletes from cache", context do
-  #   [template | _] = context[:templates]
-  #   HierarchyCache.put(template)
-  #   assert {:ok, [1, 1, 1]} == HierarchyCache.delete(template.id)
-  #   assert {:ok, nil} == HierarchyCache.get(template.id)
-  # end
+  test "delete/1 deletes from cache", %{hierarchy: hierarchy} do
+    %{id: id} = hierarchy
+    HierarchyCache.put(hierarchy)
+    assert {:ok, [1, 1, 1]} == HierarchyCache.delete(id)
+    assert {:ok, nil} == HierarchyCache.get(id)
+  end
 
-  # test "fields_by_type!/2 returns fields by type", %{templates: [template | _]} do
-  #   %{name: name, scope: scope} = template
-  #   HierarchyCache.put(template)
-  #   assert HierarchyCache.fields_by_type!(scope, "string") == %{name => ["field"]}
-  # end
+  defp nodes_to_atom(nodes) do
+    Enum.map(nodes, fn node ->
+      node
+      |> Enum.map(fn {k, v} -> {String.to_atom(k), v} end)
+      |> Map.new()
+    end)
+  end
 
   defp random_hierarchy do
     hierarchy_id = System.unique_integer([:positive])
