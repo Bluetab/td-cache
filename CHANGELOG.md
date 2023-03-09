@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.3.0] 2023-03-09
+
+## Added
+
+- [TD-3806] Cache hierarchy template
+
 ## [4.58.0] 2022-12-15
 
 ### Added
