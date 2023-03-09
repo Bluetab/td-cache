@@ -22,9 +22,10 @@ defmodule TdCache.HierarchyCache do
   end
 
   def get(id, prop) do
-    {:ok, hierarchy} = get(id)
-    value = Map.get(hierarchy, prop)
-    {:ok, value}
+    case get(id) do
+      {:ok, nil} -> {:ok, nil}
+      {:ok, hierarchy} -> {:ok, Map.get(hierarchy, prop)}
+    end
   end
 
   def get_by_name(name) do
