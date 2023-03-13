@@ -7,7 +7,7 @@ defmodule TdCache.HierarchyCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
-  @node_props [:hierarchy_id, :name, :node_id, :parent_id]
+  @node_props [:hierarchy_id, :name, :node_id, :parent_id, :key]
   @hierarchy_props [:name, :id, :updated_at]
   @name_to_id_key "hierarchies:name_to_id"
 

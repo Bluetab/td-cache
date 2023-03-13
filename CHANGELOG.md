@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.3.1] 2023-03-13
+
+## Changed
+
+- [TD-3806] Added hierarchies key
+
+## Added
+
+- [TD-3806] Cache hierarchy template
+
 ## [5.3.0] 2023-03-09
 
 ## Added
