@@ -79,10 +79,23 @@ defmodule TdCache.DomainCache do
   end
 
   @doc """
-  Reads domain external id to id map from cache.
+  Retuns a map of domains where the key is the id and the value is the name.
   """
   def id_to_name_map do
     map = read_map(@ids_to_names_key, &id_keys/1)
+
+    {:ok, map}
+  end
+
+  @doc """
+  Retuns a map of domains where the key is the id and the value is the external_id.
+  """
+  def id_to_external_id_map do
+    map =
+      @ids_to_external_ids_key
+      |> read_map(&id_vals/1)
+      |> Enum.map(fn {key, value} -> {value, key} end)
+      |> Map.new()
 
     {:ok, map}
   end
