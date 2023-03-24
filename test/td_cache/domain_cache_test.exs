@@ -148,6 +148,20 @@ defmodule TdCache.DomainCacheTest do
     end
   end
 
+  describe "id_to_external_id_map/0" do
+    test "returns a map of external_ids to ids" do
+      domains = build_many(10)
+      external_ids = Enum.map(domains, & &1.external_id)
+      ids = Enum.map(domains, & &1.id)
+
+      for d <- domains, do: DomainCache.put(d)
+
+      assert {:ok, map} = DomainCache.id_to_external_id_map()
+      assert_lists_equal(Map.values(map), external_ids)
+      assert_lists_equal(Map.keys(map), ids)
+    end
+  end
+
   defp build_many(count, opts \\ []) do
     Enum.map(1..count, fn _ -> build(:domain, opts) end)
   end

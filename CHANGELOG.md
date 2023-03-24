@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.4.0] 2023-03-23
+
+## Added
+
+- [TD-4870] Created `id_to_external_id_map` function in `DomainCache`
+
 ## [5.3.1] 2023-03-13
 
 ## Changed
