@@ -23,11 +23,11 @@ defmodule TdCache.HierarchyCacheTest do
   end
 
   test "put/1 returns Ok", %{hierarchy: hierarchy} do
-    assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy)
+    assert {:ok, [3, 1, 1]} == HierarchyCache.put(hierarchy)
   end
 
   test "put/1 emits an event when a new hierarchy is cached", %{hierarchy: hierarchy} do
-    assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy)
+    assert {:ok, [3, 1, 1]} == HierarchyCache.put(hierarchy)
 
     assert {:ok, [event]} = Stream.read(:redix, ["hierarchy:events"], transform: true)
     assert event.event == "hierarchy_updated"
@@ -35,7 +35,7 @@ defmodule TdCache.HierarchyCacheTest do
   end
 
   test "put/2 suppresses events if publish option is false", %{hierarchy: hierarchy} do
-    assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy, publish: false)
+    assert {:ok, [3, 1, 1]} == HierarchyCache.put(hierarchy, publish: false)
     assert {:ok, []} = Stream.read(:redix, ["hierarchy:events"], transform: true)
   end
 
@@ -120,7 +120,6 @@ defmodule TdCache.HierarchyCacheTest do
     %{
       id: hierarchy_id,
       name: "name_#{hierarchy_id}",
-      updated_at: DateTime.utc_now(),
       nodes: [
         %{node_id: 1, hierarchy_id: hierarchy_id, name: "father", parent_id: nil, path: "father"},
         %{

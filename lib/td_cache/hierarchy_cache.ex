@@ -8,7 +8,7 @@ defmodule TdCache.HierarchyCache do
   alias TdCache.Redix
 
   @node_props [:hierarchy_id, :name, :node_id, :parent_id, :key, :path]
-  @hierarchy_props [:name, :id, :updated_at]
+  @hierarchy_props [:name, :id]
   @name_to_id_key "hierarchies:name_to_id"
 
   ## Client API
