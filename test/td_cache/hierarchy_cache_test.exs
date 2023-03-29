@@ -23,16 +23,11 @@ defmodule TdCache.HierarchyCacheTest do
   end
 
   test "put/1 returns Ok", %{hierarchy: hierarchy} do
-    assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy)
-  end
-
-  test "put/1 returns updates only when updated at is changed", %{hierarchy: hierarchy} do
-    assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy)
-    assert {:ok, []} == HierarchyCache.put(hierarchy)
+    assert {:ok, [3, 1, 1]} == HierarchyCache.put(hierarchy)
   end
 
   test "put/1 emits an event when a new hierarchy is cached", %{hierarchy: hierarchy} do
-    assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy)
+    assert {:ok, [3, 1, 1]} == HierarchyCache.put(hierarchy)
 
     assert {:ok, [event]} = Stream.read(:redix, ["hierarchy:events"], transform: true)
     assert event.event == "hierarchy_updated"
@@ -40,7 +35,7 @@ defmodule TdCache.HierarchyCacheTest do
   end
 
   test "put/2 suppresses events if publish option is false", %{hierarchy: hierarchy} do
-    assert {:ok, [4, 1, 1]} == HierarchyCache.put(hierarchy, publish: false)
+    assert {:ok, [3, 1, 1]} == HierarchyCache.put(hierarchy, publish: false)
     assert {:ok, []} = Stream.read(:redix, ["hierarchy:events"], transform: true)
   end
 
@@ -79,7 +74,6 @@ defmodule TdCache.HierarchyCacheTest do
     assert atom_nodes == nodes
     assert h.id == id
     assert h.name == name
-    assert h.updated_at == to_string(hierarchy.updated_at)
   end
 
   test "get_by_name invalid key will return nil" do
@@ -126,11 +120,22 @@ defmodule TdCache.HierarchyCacheTest do
     %{
       id: hierarchy_id,
       name: "name_#{hierarchy_id}",
-      updated_at: DateTime.utc_now(),
       nodes: [
-        %{node_id: 1, hierarchy_id: hierarchy_id, name: "father", parent_id: nil},
-        %{node_id: 2, hierarchy_id: hierarchy_id, name: "children_1", parent_id: 1},
-        %{node_id: 3, hierarchy_id: hierarchy_id, name: "children_2", parent_id: 1}
+        %{node_id: 1, hierarchy_id: hierarchy_id, name: "father", parent_id: nil, path: "father"},
+        %{
+          node_id: 2,
+          hierarchy_id: hierarchy_id,
+          name: "children_1",
+          parent_id: 1,
+          path: "father/children_1"
+        },
+        %{
+          node_id: 3,
+          hierarchy_id: hierarchy_id,
+          name: "children_2",
+          parent_id: 1,
+          path: "father/children_2"
+        }
       ]
     }
   end

@@ -7,8 +7,8 @@ defmodule TdCache.HierarchyCache do
   alias TdCache.EventStream.Publisher
   alias TdCache.Redix
 
-  @node_props [:hierarchy_id, :name, :node_id, :parent_id, :key]
-  @hierarchy_props [:name, :id, :updated_at]
+  @node_props [:hierarchy_id, :name, :node_id, :parent_id, :key, :path]
+  @hierarchy_props [:name, :id]
   @name_to_id_key "hierarchies:name_to_id"
 
   ## Client API
@@ -166,22 +166,8 @@ defmodule TdCache.HierarchyCache do
     end
   end
 
-  defp put_hierarchy(%{id: id, updated_at: updated_at} = hierarchy, opts) do
-    last_updated = Redix.command!(["HGET", "hierarchy:#{id}", :updated_at])
-
-    {force, opts} = Keyword.pop(opts, :force, false)
-
-    hierarchy
-    |> Map.put(:updated_at, "#{updated_at}")
-    |> put_hierarchy(last_updated, force, opts)
-  end
-
-  defp put_hierarchy(%{updated_at: ts}, ts, false, _opts), do: {:ok, []}
-
   defp put_hierarchy(
          %{id: id, name: name, nodes: nodes} = hierarchy,
-         _last_updated,
-         _force,
          opts
        ) do
     nodes =

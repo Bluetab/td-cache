@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.5.0] 2023-03-29
+
+## Added
+
+- [TD-5650] Hierarchy path
+
 ## [5.4.0] 2023-03-23
 
 ## Added
