@@ -26,6 +26,11 @@ defmodule TdCache.ImplementationCache do
   end
 
   @doc """
+  List cached implementations ids.
+  """
+  def list, do: Redix.command!(["SMEMBERS", "implementation:keys"])
+
+  @doc """
   Reads implementation domain_id relating to a given implementation id.
   """
   def get_domain_id(implementation_ref) do

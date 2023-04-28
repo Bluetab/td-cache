@@ -1,6 +1,7 @@
 defmodule TdCache.ImplementationCacheTest do
   use ExUnit.Case
 
+  import TdCache.TestOperators
   import TdCache.Factory
   import Assertions
 
@@ -80,6 +81,23 @@ defmodule TdCache.ImplementationCacheTest do
       assert impl.id == implementation.id
       assert impl.rule_id == 10
       assert impl.rule.name == "rule_name"
+    end
+
+    test "writes implementations entries in redis and list implementations keys", %{
+      implementation: %{id: impl_id} = implementation
+    } do
+      %{id: impl2_id} = impl2 = build(:implementation)
+      %{id: impl3_id} = impl3 = build(:implementation)
+      assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(impl2)
+      assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(impl3)
+
+      assert [
+               "implementation:#{impl_id}",
+               "implementation:#{impl2_id}",
+               "implementation:#{impl3_id}"
+             ]
+             <|> ImplementationCache.list()
     end
 
     test "write relation between implementation_id and implementation_ref" do
