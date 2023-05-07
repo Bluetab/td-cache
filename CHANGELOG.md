@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [5.6.0] 2023-05-07
 
 - [TD-5442] implementation list
 
