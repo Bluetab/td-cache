@@ -4,6 +4,9 @@ defmodule TdCache.TestOperators do
   """
 
   def a <~> b, do: approximately_equal(a, b)
+  def a <|> b, do: approximately_equal(sorted(a), sorted(b))
+
+  defp sorted(list), do: Enum.sort(list)
 
   defp approximately_equal([h | t], [h2 | t2]) do
     approximately_equal(h, h2) && approximately_equal(t, t2)
@@ -19,4 +22,6 @@ defmodule TdCache.TestOperators do
     end)
     |> Map.new()
   end
+
+  defp string_values(value), do: value
 end
