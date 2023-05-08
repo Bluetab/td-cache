@@ -2,6 +2,8 @@
 
 ## [5.6.0] 2023-05-07
 
+### Added
+
 - [TD-5442] implementation list
 
 ## [5.5.0] 2023-03-29
@@ -12,23 +14,23 @@
 
 ## [5.4.0] 2023-03-23
 
-## Added
+### Added
 
 - [TD-4870] Created `id_to_external_id_map` function in `DomainCache`
 
 ## [5.3.1] 2023-03-13
 
-## Changed
+### Changed
 
 - [TD-3806] Added hierarchies key
 
-## Added
+### Added
 
 - [TD-3806] Cache hierarchy template
 
 ## [5.3.0] 2023-03-09
 
-## Added
+### Added
 
 - [TD-3806] Cache hierarchy template
 
