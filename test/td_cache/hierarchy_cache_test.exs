@@ -63,6 +63,18 @@ defmodule TdCache.HierarchyCacheTest do
     assert atom_nodes == nodes
   end
 
+  test "get_node/1 gets the node by specific key", %{hierarchy: %{id: id} = hierarchy} do
+    {:ok, _} = HierarchyCache.put(hierarchy)
+
+    node_id = 2
+    key = "#{id}_#{node_id}"
+    {:ok, node} = HierarchyCache.get_node(key)
+
+    assert node["path"] == "father/children_1"
+
+    assert nil == HierarchyCache.get_node!("")
+  end
+
   test "get_by_name gets hierarchy", %{
     hierarchy: %{id: id, name: name, nodes: nodes} = hierarchy
   } do
