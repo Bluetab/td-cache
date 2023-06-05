@@ -28,6 +28,22 @@ defmodule TdCache.HierarchyCache do
     end
   end
 
+  def get_node!(key) do
+    {:ok, node} = get_node(key)
+    node
+  end
+
+  def get_node(key) do
+    with {:key, [{hierarchy_id, _}, {node_id, _}]} <-
+           {:key, key |> String.split("_") |> Enum.map(&Integer.parse(&1, 10))},
+         {:ok, nodes} <- get(hierarchy_id, :nodes) do
+      {:ok, Enum.find(nodes, &(&1["node_id"] == node_id))}
+    else
+      {:key, _} -> {:ok, nil}
+      err -> err
+    end
+  end
+
   def get_by_name(name) do
     GenServer.call(__MODULE__, {:name, name})
   end
