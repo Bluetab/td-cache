@@ -139,6 +139,8 @@ defmodule TdCache.ImplementationCache do
     {:errors, :integer},
     {:records, :integer},
     {:result, :decimal},
+    {:goal, :float},
+    {:minimum, :float},
     {:date, :datetime},
     {:result_text, :string}
   ]
@@ -158,6 +160,7 @@ defmodule TdCache.ImplementationCache do
             {:ok, result} -> result
           end
           |> MapHelpers.parse_fields(@result_props)
+          |> IO.inspect(label: "read implementations ----->")
 
         rule =
           implementation
@@ -245,6 +248,7 @@ defmodule TdCache.ImplementationCache do
       |> Map.get(:execution_result_info)
       |> case do
         result = %{} -> Map.take(result, result_props_keys)
+        |> IO.inspect(label: "put implementations ----->")
         _ -> %{}
       end
 
