@@ -1,6 +1,12 @@
 # Changelog
 
-## [5.9.1] 2023-06-05
+## [5.9.1] 2023-07-04
+
+### Added
+
+- [TD-5840] Add props to Implementation cache
+
+## [5.8.0] 2023-06-05
 
 ### Added
 
