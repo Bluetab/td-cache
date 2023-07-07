@@ -139,6 +139,8 @@ defmodule TdCache.ImplementationCache do
     {:errors, :integer},
     {:records, :integer},
     {:result, :decimal},
+    {:goal, :float},
+    {:minimum, :float},
     {:date, :datetime},
     {:result_text, :string}
   ]
