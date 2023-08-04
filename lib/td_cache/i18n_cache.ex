@@ -21,6 +21,10 @@ defmodule TdCache.I18nCache do
     GenServer.call(__MODULE__, {:delete, locale})
   end
 
+  def delete(locale, message_id) do
+    GenServer.call(__MODULE__, {:delete, locale, message_id})
+  end
+
   def get_definition(locale, key, opts \\ [])
 
   def get_definition(_locale, "i18n:" <> _ = definition_key, opts) do
@@ -71,15 +75,21 @@ defmodule TdCache.I18nCache do
   end
 
   @impl true
-
   def handle_call({:put, locale, message, opts}, _from, state) do
     reply = put_message(locale, message, opts)
 
     {:reply, reply, state}
   end
 
+  @impl true
   def handle_call({:delete, locale}, _from, state) do
     reply = delete_locale(locale)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:delete, locale, message_id}, _from, state) do
+    reply = delete_message(locale, message_id)
     {:reply, reply, state}
   end
 
@@ -128,6 +138,15 @@ defmodule TdCache.I18nCache do
     response
   end
 
+  defp delete_message(locale, message_id) do
+    definition_key = i18n_definition_key(locale, message_id)
+    commands = ["DEL", definition_key]
+
+    response = Redix.command(commands)
+    :ok = delete_cache(definition_key)
+    response
+  end
+
   defp put_message(locale, {message_id, definition} = _message, _opts) do
     locale_key = i18n_locale_key(locale)
     definition_key = i18n_definition_key(locale, message_id)
@@ -137,9 +156,9 @@ defmodule TdCache.I18nCache do
       ["SADD", locale_key, definition_key]
     ]
 
-    results = Redix.transaction_pipeline(commands)
+    response = Redix.transaction_pipeline(commands)
     :ok = delete_cache(definition_key)
-    results
+    response
   end
 
   defp i18n_locale_key(locale), do: "#{@i18n_key}:keys:#{locale}"

@@ -47,14 +47,26 @@ defmodule TdCache.I18nCacheTest do
     assert length(I18nCache.list_by_locale(locale)) == 6
   end
 
-  test "delete/1 return ok when keys and messages was deleted", %{
+  test "delete/1 return ok when all keys and messages was deleted by locale", %{
     messages_en: {locale, messages_en}
   } do
     put_messages(locale, messages_en)
 
     assert {:ok, [5, 1]} = I18nCache.delete(locale)
 
-    assert length(I18nCache.list_by_locale(locale)) == 0
+    messages = I18nCache.list_by_locale(locale)
+    assert messages == []
+  end
+
+  test "delete/2 return ok when delete specific message_id", %{
+    messages_en: {locale, messages_en}
+  } do
+    put_messages(locale, messages_en)
+    {message_id, _definition} = get_ramdom_message(messages_en)
+
+    assert {:ok, 1} = I18nCache.delete(locale, message_id)
+
+    assert {:ok, nil} = I18nCache.get_definition(locale, message_id)
   end
 
   test "get_definition/2 return definition from message_id and locale", %{

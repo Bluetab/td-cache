@@ -4,7 +4,7 @@
 
 ### Added
 
-- [TD-589] Cache i18n Messages
+- [TD-5891] Cache i18n Messages
 
 
 ## [5.9.0] 2023-07-04
