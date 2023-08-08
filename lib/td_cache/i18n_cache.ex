@@ -97,6 +97,7 @@ defmodule TdCache.I18nCache do
   defp get_cache(key, fun, opts) do
     if Keyword.get(opts, :refresh, false) do
       message = fun.()
+      ## REVIEW: TD-5891 que pasa cuando es nil el mensaje
       ConCache.put(@i18n_key, key, message)
       message
     else

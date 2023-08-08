@@ -42,9 +42,10 @@ defmodule TdCache.I18nCacheTest do
   test "put/2 returns ok adding new message", %{messages_en: {locale, messages_en}} do
     put_messages(locale, messages_en)
 
+    old_size = length(I18nCache.list_by_locale(locale))
     assert {:ok, ["OK", 1]} = I18nCache.put(locale, %{message_id: "dx.dax", definition: "dax_en"})
 
-    assert length(I18nCache.list_by_locale(locale)) == 6
+    assert length(I18nCache.list_by_locale(locale)) == old_size + 1
   end
 
   test "delete/1 return ok when all keys and messages was deleted by locale", %{
@@ -99,7 +100,7 @@ defmodule TdCache.I18nCacheTest do
 
   test "map_keys_by_prefix/2 ", %{messages_en: {locale, messages_en}} do
     messages = %{
-      "kr.kar" => "tar_#{locale}",
+      "kr.kar" => "kar_#{locale}",
       "kr.kar.taaar" => "taaar_#{locale}",
       "kr.kar.teeer" => "teeer_#{locale}",
       "kr.kar.tiiir" => "tiiir_#{locale}"
@@ -109,7 +110,6 @@ defmodule TdCache.I18nCacheTest do
     |> Enum.map(fn {message_id, definition} ->
       %{message_id: message_id, definition: definition}
     end)
-    |> Kernel.++(messages_en)
     |> (&put_messages(locale, &1)).()
 
     prefix = "kr.kar"
