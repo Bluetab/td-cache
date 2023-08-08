@@ -5,7 +5,7 @@ defmodule TdCache.I18nCacheTest do
 
   alias TdCache.I18nCache
 
-  @locales [:en]
+  @locales ["en"]
 
   doctest TdCache.I18nCache
 
@@ -30,11 +30,11 @@ defmodule TdCache.I18nCacheTest do
   } do
     put_messages(locale, messages_en)
 
-    {message_id, definition} = get_ramdom_message(messages_en)
+    %{message_id: message_id, definition: definition} = get_ramdom_message(messages_en)
 
     new_definition = definition <> "_updated"
 
-    assert {:ok, _} = I18nCache.put(locale, {message_id, new_definition})
+    assert {:ok, _} = I18nCache.put(locale, %{message_id: message_id, definition: new_definition})
 
     assert {:ok, ^new_definition} = I18nCache.get_definition(locale, message_id)
   end
@@ -42,7 +42,7 @@ defmodule TdCache.I18nCacheTest do
   test "put/2 returns ok adding new message", %{messages_en: {locale, messages_en}} do
     put_messages(locale, messages_en)
 
-    assert {:ok, ["OK", 1]} = I18nCache.put(locale, {"dx.dax", "dax_en"})
+    assert {:ok, ["OK", 1]} = I18nCache.put(locale, %{message_id: "dx.dax", definition: "dax_en"})
 
     assert length(I18nCache.list_by_locale(locale)) == 6
   end
@@ -62,7 +62,7 @@ defmodule TdCache.I18nCacheTest do
     messages_en: {locale, messages_en}
   } do
     put_messages(locale, messages_en)
-    {message_id, _definition} = get_ramdom_message(messages_en)
+    %{message_id: message_id} = get_ramdom_message(messages_en)
 
     assert {:ok, 1} = I18nCache.delete(locale, message_id)
 
@@ -73,7 +73,7 @@ defmodule TdCache.I18nCacheTest do
     messages_en: {locale, messages_en}
   } do
     put_messages(locale, messages_en)
-    {message_id, definition} = get_ramdom_message(messages_en)
+    %{message_id: message_id, definition: definition} = get_ramdom_message(messages_en)
 
     assert {:ok, ^definition} = I18nCache.get_definition(locale, message_id)
   end
@@ -82,7 +82,7 @@ defmodule TdCache.I18nCacheTest do
     messages_en: {locale, messages_en}
   } do
     put_messages(locale, messages_en)
-    {message_id, definition} = get_ramdom_message(messages_en)
+    %{message_id: message_id, definition: definition} = get_ramdom_message(messages_en)
 
     assert {:ok, ^definition} = I18nCache.get_definition(locale, "i18n:#{locale}:#{message_id}")
   end
@@ -92,21 +92,24 @@ defmodule TdCache.I18nCacheTest do
   } do
     put_messages(locale, messages_en)
 
-    messages = Enum.map(messages_en, fn {_, message} -> message end)
+    messages = Enum.map(messages_en, fn %{definition: message} -> message end)
 
     assert messages <|> I18nCache.list_by_locale(locale)
   end
 
   test "map_keys_by_prefix/2 ", %{messages_en: {locale, messages_en}} do
     messages = %{
-      "kr.kar" => "tar#{locale}",
+      "kr.kar" => "tar_#{locale}",
       "kr.kar.taaar" => "taaar_#{locale}",
       "kr.kar.teeer" => "teeer_#{locale}",
       "kr.kar.tiiir" => "tiiir_#{locale}"
     }
 
     messages
-    |> Map.merge(messages_en)
+    |> Enum.map(fn {message_id, definition} ->
+      %{message_id: message_id, definition: definition}
+    end)
+    |> Kernel.++(messages_en)
     |> (&put_messages(locale, &1)).()
 
     prefix = "kr.kar"
@@ -119,13 +122,13 @@ defmodule TdCache.I18nCacheTest do
   end
 
   defp get_messages(locale) do
-    %{
-      "br.bar" => "bar_#{locale}",
-      "fo.foo" => "foo_#{locale}",
-      "bz.baz" => "faz_#{locale}",
-      "yz.yxz" => "yxz_#{locale}",
-      "qx.qux" => "qux_#{locale}"
-    }
+    [
+      %{message_id: "br.bar", definition: "bar_#{locale}"},
+      %{message_id: "fo.foo", definition: "foo_#{locale}"},
+      %{message_id: "bz.baz", definition: "faz_#{locale}"},
+      %{message_id: "yz.yxz", definition: "yxz_#{locale}"},
+      %{message_id: "qx.qux", definition: "qux_#{locale}"}
+    ]
   end
 
   defp get_ramdom_message(messages) do

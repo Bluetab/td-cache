@@ -147,7 +147,7 @@ defmodule TdCache.I18nCache do
     response
   end
 
-  defp put_message(locale, {message_id, definition} = _message, _opts) do
+  defp put_message(locale, %{message_id: message_id, definition: definition} = _message, _opts) do
     locale_key = i18n_locale_key(locale)
     definition_key = i18n_definition_key(locale, message_id)
 
