@@ -13,39 +13,42 @@ defmodule TdCache.I18nCache do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  def put(locale, message, opts \\ []) do
-    GenServer.call(__MODULE__, {:put, locale, message, opts})
+  def put(lang, message, opts \\ []) do
+    GenServer.call(__MODULE__, {:put, lang, message, opts})
   end
 
-  def delete(locale) do
-    GenServer.call(__MODULE__, {:delete, locale})
+  def delete(lang) do
+    GenServer.call(__MODULE__, {:delete, lang})
   end
 
-  def delete(locale, message_id) do
-    GenServer.call(__MODULE__, {:delete, locale, message_id})
+  def delete(lang, message_id) do
+    GenServer.call(__MODULE__, {:delete, lang, message_id})
   end
 
-  def get_definition(locale, key, opts \\ [])
+  def get_definition(lang, key, opts \\ [])
 
-  def get_definition(_locale, "i18n:" <> _ = definition_key, opts) do
-    response =
-      case get_cache(definition_key, fn -> read_definition(definition_key) end, opts) do
-        nil ->
-          nil
+  def get_definition(_lang, "i18n:" <> _ = definition_key, opts) do
+    case get_cache(definition_key, fn -> read_definition(definition_key) end, opts) do
+      nil ->
+        nil
 
-        message ->
-          message
-      end
-
-    {:ok, response}
+      message ->
+        message
+    end
   end
 
-  def get_definition(locale, message_id, opts) do
-    get_definition(locale, i18n_definition_key(locale, message_id), opts)
+  def get_definition(lang, message_id, opts) do
+    case get_definition(lang, i18n_definition_key(lang, message_id), opts) do
+      nil ->
+        Keyword.get(opts, :default_value, message_id)
+
+      definition ->
+        definition
+    end
   end
 
-  def list_by_locale(locale) do
-    key = i18n_locale_key(locale)
+  def list_by_lang(lang) do
+    key = i18n_lang_key(lang)
 
     case(Redix.command(["SMEMBERS", key])) do
       {:ok, ids} ->
@@ -56,14 +59,14 @@ defmodule TdCache.I18nCache do
     end
   end
 
-  def map_keys_by_prefix(locale, prefix) do
-    pattern = i18n_definition_key(locale, prefix <> "*")
+  def map_keys_by_prefix(lang, prefix) do
+    pattern = i18n_definition_key(lang, prefix <> "*")
 
     {:ok, keys} = Redix.command(["KEYS", pattern])
 
     keys
     |> Enum.into(%{}, fn definition_key ->
-      {defition_key_to_message_id(locale, definition_key), read_definition(definition_key)}
+      {defition_key_to_message_id(lang, definition_key), read_definition(definition_key)}
     end)
   end
 
@@ -75,21 +78,21 @@ defmodule TdCache.I18nCache do
   end
 
   @impl true
-  def handle_call({:put, locale, message, opts}, _from, state) do
-    reply = put_message(locale, message, opts)
+  def handle_call({:put, lang, message, opts}, _from, state) do
+    reply = put_message(lang, message, opts)
 
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:delete, locale}, _from, state) do
-    reply = delete_locale(locale)
+  def handle_call({:delete, lang}, _from, state) do
+    reply = delete_lang(lang)
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:delete, locale, message_id}, _from, state) do
-    reply = delete_message(locale, message_id)
+  def handle_call({:delete, lang, message_id}, _from, state) do
+    reply = delete_message(lang, message_id)
     {:reply, reply, state}
   end
 
@@ -97,7 +100,6 @@ defmodule TdCache.I18nCache do
   defp get_cache(key, fun, opts) do
     if Keyword.get(opts, :refresh, false) do
       message = fun.()
-      ## REVIEW: TD-5891 que pasa cuando es nil el mensaje
       ConCache.put(@i18n_key, key, message)
       message
     else
@@ -119,11 +121,11 @@ defmodule TdCache.I18nCache do
     end
   end
 
-  defp delete_locale(locale) do
-    locale_key = i18n_locale_key(locale)
+  defp delete_lang(lang) do
+    lang_key = i18n_lang_key(lang)
 
     keys_to_delete =
-      case(Redix.command(["SMEMBERS", locale_key])) do
+      case(Redix.command(["SMEMBERS", lang_key])) do
         {:ok, ids} -> ids
         _ -> []
       end
@@ -132,15 +134,15 @@ defmodule TdCache.I18nCache do
       keys_to_delete
       |> Enum.chunk_every(1000)
       |> Enum.map(&["DEL" | &1])
-      |> Kernel.++([["DEL", locale_key]])
+      |> Kernel.++([["DEL", lang_key]])
       |> Redix.transaction_pipeline()
 
     Enum.each(keys_to_delete, &delete_cache(&1))
     response
   end
 
-  defp delete_message(locale, message_id) do
-    definition_key = i18n_definition_key(locale, message_id)
+  defp delete_message(lang, message_id) do
+    definition_key = i18n_definition_key(lang, message_id)
     commands = ["DEL", definition_key]
 
     response = Redix.command(commands)
@@ -148,13 +150,13 @@ defmodule TdCache.I18nCache do
     response
   end
 
-  defp put_message(locale, %{message_id: message_id, definition: definition} = _message, _opts) do
-    locale_key = i18n_locale_key(locale)
-    definition_key = i18n_definition_key(locale, message_id)
+  defp put_message(lang, %{message_id: message_id, definition: definition} = _message, _opts) do
+    lang_key = i18n_lang_key(lang)
+    definition_key = i18n_definition_key(lang, message_id)
 
     commands = [
       ["SET", definition_key, definition],
-      ["SADD", locale_key, definition_key]
+      ["SADD", lang_key, definition_key]
     ]
 
     response = Redix.transaction_pipeline(commands)
@@ -162,16 +164,16 @@ defmodule TdCache.I18nCache do
     response
   end
 
-  defp i18n_locale_key(locale), do: "#{@i18n_key}:keys:#{locale}"
+  defp i18n_lang_key(lang), do: "#{@i18n_key}:keys:#{lang}"
 
-  defp i18n_definition_key(locale, message_id), do: "#{@i18n_key}:#{locale}:#{message_id}"
+  defp i18n_definition_key(lang, message_id), do: "#{@i18n_key}:#{lang}:#{message_id}"
 
-  defp defition_key_to_message_id(locale, definition_key) when is_atom(locale),
-    do: defition_key_to_message_id(Atom.to_string(locale), definition_key)
+  defp defition_key_to_message_id(lang, definition_key) when is_atom(lang),
+    do: defition_key_to_message_id(Atom.to_string(lang), definition_key)
 
-  defp defition_key_to_message_id(locale, "i18n:" <> locale_message_id) do
-    [locale_message, message_id] = String.split(locale_message_id, ":")
+  defp defition_key_to_message_id(lang, "i18n:" <> lang_message_id) do
+    [lang_message, message_id] = String.split(lang_message_id, ":")
 
-    if locale == locale_message, do: message_id, else: nil
+    if lang == lang_message, do: message_id, else: nil
   end
 end
