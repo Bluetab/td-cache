@@ -40,7 +40,7 @@ defmodule TdCache.I18nCache do
   def get_definition(lang, message_id, opts) do
     case get_definition(lang, i18n_definition_key(lang, message_id), opts) do
       nil ->
-        Keyword.get(opts, :default_value, message_id)
+        Keyword.get(opts, :default_value)
 
       definition ->
         definition
@@ -64,8 +64,7 @@ defmodule TdCache.I18nCache do
 
     {:ok, keys} = Redix.command(["KEYS", pattern])
 
-    keys
-    |> Enum.into(%{}, fn definition_key ->
+    Enum.into(keys, %{}, fn definition_key ->
       {defition_key_to_message_id(lang, definition_key), read_definition(definition_key)}
     end)
   end
