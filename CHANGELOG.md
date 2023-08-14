@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.12.1] 2023-08-14
+
+### Fixed
+
+- [TD-5891] Return nil when message not found
+
 ## [5.12.0] 2023-08-14
 
 ### Added

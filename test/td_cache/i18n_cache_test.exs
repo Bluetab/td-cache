@@ -67,7 +67,7 @@ defmodule TdCache.I18nCacheTest do
 
     assert {:ok, 1} = I18nCache.delete(lang, message_id)
 
-    assert ^message_id = I18nCache.get_definition(lang, message_id)
+    assert is_nil(I18nCache.get_definition(lang, message_id))
     assert "boo" = I18nCache.get_definition(lang, message_id, default_value: "boo")
   end
 
