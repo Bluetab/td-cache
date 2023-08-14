@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.12.0] 2023-08-14
+
+### Added
+
+- [TD-5891] Cache i18n Messages
+
+
 ## [5.9.0] 2023-07-04
 
 ### Added

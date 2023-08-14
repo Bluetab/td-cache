@@ -18,11 +18,13 @@ defmodule TdCache.Application do
         TdCache.TaxonomyCache,
         TdCache.TemplateCache,
         TdCache.UserCache,
+        TdCache.I18nCache,
         con_cache_child_spec(:templates, 10, 60),
         con_cache_child_spec(:hierarchies, 10, 60),
         con_cache_child_spec(:users, 10, 60),
         con_cache_child_spec(:taxonomy, 10, 60),
-        con_cache_child_spec(:concepts, 10, 60)
+        con_cache_child_spec(:concepts, 10, 60),
+        con_cache_child_spec(:i18n, 10, 60)
       ] ++ event_stream_workers(redis_host, port, password)
 
     # See https://hexdocs.pm/elixir/Supervisor.html
