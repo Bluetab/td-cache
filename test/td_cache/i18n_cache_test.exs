@@ -10,13 +10,13 @@ defmodule TdCache.I18nCacheTest do
   doctest TdCache.I18nCache
 
   setup do
-    [messages_en] = Enum.map(@langs, &get_messages(&1))
+    %{en: messages_en, es: messages_es} = get_messages()
 
     on_exit(fn ->
       Enum.map(@langs, &I18nCache.delete(&1))
     end)
 
-    [messages_en: {:en, messages_en}]
+    [messages_en: {:en, messages_en}, messages_es: {:es, messages_es}]
   end
 
   test "put/2 returns Ok", %{messages_en: {lang, messages_en}} do
@@ -53,7 +53,7 @@ defmodule TdCache.I18nCacheTest do
   } do
     put_messages(lang, messages_en)
 
-    assert {:ok, [5, 1]} = I18nCache.delete(lang)
+    assert {:ok, [9, 1]} = I18nCache.delete(lang)
 
     messages = I18nCache.list_by_lang(lang)
     assert messages == []
@@ -89,6 +89,97 @@ defmodule TdCache.I18nCacheTest do
     assert ^definition = I18nCache.get_definition(lang, "i18n:#{lang}:#{message_id}")
   end
 
+  test "get_definitions_by_value/2 return definitions from lang and value",
+       %{
+         messages_en: {lang_en, messages_en},
+         messages_es: {lang_es, messages_es}
+       } do
+    put_messages(lang_en, messages_en)
+    put_messages(lang_es, messages_es)
+
+    value = "val2_es"
+
+    assert [
+             %{
+               message_id: "br.bar.val2",
+               definition: ^value
+             },
+             %{
+               message_id: "fo.foo.val2",
+               definition: ^value
+             }
+           ] = I18nCache.get_definitions_by_value(value, lang_es)
+  end
+
+  test "get_definitions_by_value/3 return definitions from lang value and prefix provided",
+       %{
+         messages_en: {lang_en, messages_en},
+         messages_es: {lang_es, messages_es}
+       } do
+    put_messages(lang_en, messages_en)
+    put_messages(lang_es, messages_es)
+
+    value = "val2_es"
+    prefix = "br.bar"
+
+    assert [
+             %{
+               message_id: "br.bar.val2",
+               definition: ^value
+             }
+           ] = I18nCache.get_definitions_by_value(value, lang_es, prefix: prefix)
+  end
+
+  test "translate_definitions_by_value/4 translate definitions from lang value to lang_to provided",
+       %{
+         messages_en: {lang_en, messages_en},
+         messages_es: {lang_es, messages_es}
+       } do
+    put_messages(lang_en, messages_en)
+    put_messages(lang_es, messages_es)
+
+    lang_from = "es"
+    lang_to = "en"
+
+    value = "val2_es"
+
+    assert [
+             %{
+               message_id: "br.bar.val2",
+               definition_to: "val2_en",
+               definition_from: "val2_es"
+             },
+             %{
+               message_id: "fo.foo.val2",
+               definition_to: "val2_en",
+               definition_from: "val2_es"
+             }
+           ] = I18nCache.translate_definitions_by_value(value, lang_from, lang_to)
+  end
+
+  test "translate_definitions_by_value/4 translate definitions from lang value to lang_to provided with prefix",
+       %{
+         messages_en: {lang_en, messages_en},
+         messages_es: {lang_es, messages_es}
+       } do
+    put_messages(lang_en, messages_en)
+    put_messages(lang_es, messages_es)
+
+    lang_from = "es"
+    lang_to = "en"
+
+    value = "val2_es"
+    prefix = "br.bar"
+
+    assert [
+             %{
+               message_id: "br.bar.val2",
+               definition_to: "val2_en",
+               definition_from: "val2_es"
+             }
+           ] = I18nCache.translate_definitions_by_value(value, lang_from, lang_to, prefix: prefix)
+  end
+
   test "list_by_lang/1 return the list of definitions by lang", %{
     messages_en: {lang, messages_en}
   } do
@@ -122,14 +213,31 @@ defmodule TdCache.I18nCacheTest do
     Enum.each(messages, &I18nCache.put(lang, &1))
   end
 
-  defp get_messages(lang) do
-    [
-      %{message_id: "br.bar", definition: "bar_#{lang}"},
-      %{message_id: "fo.foo", definition: "foo_#{lang}"},
-      %{message_id: "bz.baz", definition: "faz_#{lang}"},
-      %{message_id: "yz.yxz", definition: "yxz_#{lang}"},
-      %{message_id: "qx.qux", definition: "qux_#{lang}"}
-    ]
+  defp get_messages() do
+    %{
+      en: [
+        %{message_id: "br.bar.val1", definition: "val1_en"},
+        %{message_id: "br.bar.val2", definition: "val2_en"},
+        %{message_id: "br.bar.val3", definition: "val3_en"},
+        %{message_id: "fo.foo.val1", definition: "val1_en"},
+        %{message_id: "fo.foo.val2", definition: "val2_en"},
+        %{message_id: "fo.foo.val3", definition: "val3_en"},
+        %{message_id: "bz.baz", definition: "faz_en"},
+        %{message_id: "yz.yxz", definition: "yxz_en"},
+        %{message_id: "qx.qux", definition: "qux_en"}
+      ],
+      es: [
+        %{message_id: "br.bar.val1", definition: "val1_es"},
+        %{message_id: "br.bar.val2", definition: "val2_es"},
+        %{message_id: "br.bar.val3", definition: "val3_es"},
+        %{message_id: "fo.foo.val1", definition: "val1_es"},
+        %{message_id: "fo.foo.val2", definition: "val2_es"},
+        %{message_id: "fo.foo.val3", definition: "val3_es"},
+        %{message_id: "bz.baz", definition: "faz_es"},
+        %{message_id: "yz.yxz", definition: "yxz_es"},
+        %{message_id: "qx.qux", definition: "qux_es"}
+      ]
+    }
   end
 
   defp get_ramdom_message(messages) do
