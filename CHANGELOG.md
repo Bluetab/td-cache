@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-5929] Get translation of i18n values
+
 ## [5.12.1] 2023-08-14
 
 ### Fixed
