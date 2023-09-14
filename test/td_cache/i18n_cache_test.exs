@@ -213,7 +213,7 @@ defmodule TdCache.I18nCacheTest do
     Enum.each(messages, &I18nCache.put(lang, &1))
   end
 
-  defp get_messages() do
+  defp get_messages do
     %{
       en: [
         %{message_id: "br.bar.val1", definition: "val1_en"},
