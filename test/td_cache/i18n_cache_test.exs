@@ -130,56 +130,6 @@ defmodule TdCache.I18nCacheTest do
            ] = I18nCache.get_definitions_by_value(value, lang_es, prefix: prefix)
   end
 
-  test "translate_definitions_by_value/4 translate definitions from lang value to lang_to provided",
-       %{
-         messages_en: {lang_en, messages_en},
-         messages_es: {lang_es, messages_es}
-       } do
-    put_messages(lang_en, messages_en)
-    put_messages(lang_es, messages_es)
-
-    lang_from = "es"
-    lang_to = "en"
-
-    value = "val2_es"
-
-    assert [
-             %{
-               message_id: "br.bar.val2",
-               definition_to: "val2_en",
-               definition_from: "val2_es"
-             },
-             %{
-               message_id: "fo.foo.val2",
-               definition_to: "val2_en",
-               definition_from: "val2_es"
-             }
-           ] = I18nCache.translate_definitions_by_value(value, lang_from, lang_to)
-  end
-
-  test "translate_definitions_by_value/4 translate definitions from lang value to lang_to provided with prefix",
-       %{
-         messages_en: {lang_en, messages_en},
-         messages_es: {lang_es, messages_es}
-       } do
-    put_messages(lang_en, messages_en)
-    put_messages(lang_es, messages_es)
-
-    lang_from = "es"
-    lang_to = "en"
-
-    value = "val2_es"
-    prefix = "br.bar"
-
-    assert [
-             %{
-               message_id: "br.bar.val2",
-               definition_to: "val2_en",
-               definition_from: "val2_es"
-             }
-           ] = I18nCache.translate_definitions_by_value(value, lang_from, lang_to, prefix: prefix)
-  end
-
   test "list_by_lang/1 return the list of definitions by lang", %{
     messages_en: {lang, messages_en}
   } do
