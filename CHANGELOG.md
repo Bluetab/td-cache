@@ -4,7 +4,7 @@
 
 ### Added
 
-- [TD-5929] Get translation of i18n values
+- [TD-5929] Get i18n definition using value and prefix
 
 ## [5.12.1] 2023-08-14
 
