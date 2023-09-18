@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.14.0] 2023-09-18
+
+### Added
+
+- [TD-5929] Get i18n definition using value and prefix
+
 ## [5.12.1] 2023-08-14
 
 ### Fixed

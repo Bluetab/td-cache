@@ -47,6 +47,19 @@ defmodule TdCache.I18nCache do
     end
   end
 
+  def get_definitions_by_value(value, lang, opts \\ [])
+
+  def get_definitions_by_value(value, lang, opts) do
+    prefix = Keyword.get(opts, :prefix, "")
+
+    lang
+    |> map_keys_by_prefix(prefix)
+    |> Enum.filter(fn {_, v} -> v == value end)
+    |> Enum.map(fn {message_id, definition} ->
+      %{definition: definition, message_id: message_id}
+    end)
+  end
+
   def list_by_lang(lang) do
     key = i18n_lang_key(lang)
 
