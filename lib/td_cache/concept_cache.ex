@@ -195,10 +195,10 @@ defmodule TdCache.ConceptCache do
   defp get_cache(key, fun, opts) do
     if Keyword.get(opts, :refresh, false) do
       concept = fun.()
-      ConCache.put(:concepts, key, concept)
+      ConCache.put(:business_concepts, key, concept)
       concept
     else
-      ConCache.get_or_store(:concepts, key, fn -> fun.() end)
+      ConCache.get_or_store(:business_concepts, key, fn -> fun.() end)
     end
   end
 
@@ -311,7 +311,7 @@ defmodule TdCache.ConceptCache do
       publish_event("restore_concepts", id)
     end
 
-    :ok = ConCache.delete(:concepts, id)
+    :ok = ConCache.delete(:business_concepts, id)
 
     {:ok, results}
   end
