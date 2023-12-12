@@ -23,7 +23,7 @@ defmodule TdCache.Application do
         con_cache_child_spec(:hierarchies, 10, 60),
         con_cache_child_spec(:users, 10, 60),
         con_cache_child_spec(:taxonomy, 10, 60),
-        con_cache_child_spec(:concepts, 10, 60),
+        con_cache_child_spec(:business_concepts, 10, 60),
         con_cache_child_spec(:i18n, 10, 60)
       ] ++ event_stream_workers(redis_host, port, password)
 
