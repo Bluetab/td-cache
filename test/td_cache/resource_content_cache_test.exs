@@ -16,7 +16,6 @@ defmodule TdCache.ResourceContentCacheTest do
     }
 
     on_exit(fn ->
-      nil
       ResourceContentCache.delete(resource_type)
     end)
 
@@ -32,18 +31,6 @@ defmodule TdCache.ResourceContentCacheTest do
   describe "resourceContentCache" do
     test "put i18n_resource content", %{resource_content: resource_content} do
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
-
-      # assert {:ok, ["OK", 3]} =
-      #          ResourceContentCache.put(generate_resource_content("my_type", 1001, "fr"))
-
-      # assert {:ok, ["OK", 3]} =
-      #          ResourceContentCache.put(generate_resource_content("res_type", 1000, "fr"))
-
-      # assert {:ok, ["OK", 3]} =
-      #          ResourceContentCache.put(generate_resource_content("res_type", 1001, "es"))
-
-      # assert {:ok, ["OK", 3]} =
-      #          ResourceContentCache.put(generate_resource_content("my_type", 1000, "es"))
 
       assert "var1" == ResourceContentCache.get("res_type", 1000, "es", "field1")
       assert "var2" == ResourceContentCache.get("res_type", 1000, "es", "field2")
@@ -112,33 +99,55 @@ defmodule TdCache.ResourceContentCacheTest do
 
     test "deletes resource type", %{
       resource_content: resource_content,
-      resource_type: resource_type
+      resource_type: resource_type,
+      resource_id: resource_id,
+      lang: lang
     } do
+      new_resource_type = "res_foo_type"
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
+
+      assert {:ok, ["OK", 3]} =
+               ResourceContentCache.put(
+                 generate_resource_content(new_resource_type, resource_id, lang)
+               )
 
       assert {:ok, [3, 3]} = ResourceContentCache.delete(resource_type)
 
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field1")
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field2")
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field3")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field1")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field2")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field3")
 
-      assert [] = ResourceContentCache.get_resource_keys("res_type")
+      assert [] = ResourceContentCache.get_resource_keys(resource_type)
+
+      assert "var1" == ResourceContentCache.get(new_resource_type, resource_id, lang, "field1")
+      resource_keys_list = ResourceContentCache.get_resource_keys(new_resource_type)
+      assert length(resource_keys_list) == 3
+      assert {:ok, [3, 3]} = ResourceContentCache.delete(new_resource_type)
     end
 
     test "deletes resource", %{
       resource_content: resource_content,
       resource_type: resource_type,
-      resource_id: resource_id
+      resource_id: resource_id,
+      lang: lang
     } do
+      new_resource_id = 1001
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
+
+      assert {:ok, ["OK", 3]} =
+               ResourceContentCache.put(
+                 generate_resource_content(resource_type, new_resource_id, lang)
+               )
 
       assert {:ok, [3, 3]} = ResourceContentCache.delete(resource_type, resource_id)
 
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field1")
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field2")
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field3")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field1")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field2")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field3")
 
-      assert [] = ResourceContentCache.get_resource_keys("res_type")
+      assert "var1" == ResourceContentCache.get(resource_type, new_resource_id, lang, "field1")
+      resource_keys_list = ResourceContentCache.get_resource_keys(resource_type)
+      assert length(resource_keys_list) == 3
     end
 
     test "deletes resource lang", %{
@@ -147,20 +156,28 @@ defmodule TdCache.ResourceContentCacheTest do
       resource_id: resource_id,
       lang: lang
     } do
+      new_lang = "fr"
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
+
+      assert {:ok, ["OK", 3]} =
+               ResourceContentCache.put(
+                 generate_resource_content(resource_type, resource_id, new_lang)
+               )
 
       assert {:ok, [3, 3]} = ResourceContentCache.delete(resource_type, resource_id, lang)
 
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field1")
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field2")
-      assert nil == ResourceContentCache.get("res_type", 1000, "es", "field3")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field1")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field2")
+      assert nil == ResourceContentCache.get(resource_type, resource_id, lang, "field3")
 
-      assert [] = ResourceContentCache.get_resource_keys("res_type")
+      assert "var1" == ResourceContentCache.get(resource_type, resource_id, new_lang, "field1")
+      resource_keys_list = ResourceContentCache.get_resource_keys(resource_type)
+      assert length(resource_keys_list) == 3
     end
   end
 
   defp generate_resource_content(resource_type, resource_id, lang) do
-    resource_content = %{
+    %{
       locale: %{lang: lang},
       resource_type: resource_type,
       resource_id: resource_id,
