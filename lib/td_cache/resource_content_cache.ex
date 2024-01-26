@@ -64,7 +64,7 @@ defmodule TdCache.ResourceContentCache do
     delete_commands = delete_commands(resource_type, "*", "*")
 
     case delete_commands do
-      [] -> []
+      [] -> {:ok, []}
       [_ | _] -> Redix.transaction_pipeline(delete_commands)
     end
   end
@@ -73,7 +73,7 @@ defmodule TdCache.ResourceContentCache do
     delete_commands = delete_commands(resource_type, resource_id, "*")
 
     case delete_commands do
-      [] -> []
+      [] -> {:ok, []}
       [_ | _] -> Redix.transaction_pipeline(delete_commands)
     end
   end
@@ -82,7 +82,7 @@ defmodule TdCache.ResourceContentCache do
     delete_commands = delete_commands(resource_type, resource_id, lang)
 
     case delete_commands do
-      [] -> []
+      [] -> {:ok, []}
       [_ | _] -> Redix.transaction_pipeline(delete_commands)
     end
   end
