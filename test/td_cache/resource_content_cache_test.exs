@@ -20,16 +20,18 @@ defmodule TdCache.ResourceContentCacheTest do
     end)
 
     [
-      resource_content: resource_content,
-      content: content,
-      resource_type: resource_type,
-      lang: lang,
-      resource_id: resource_id
+      content: %{
+        resource_content: resource_content,
+        content: content,
+        resource_type: resource_type,
+        lang: lang,
+        resource_id: resource_id
+      }
     ]
   end
 
   describe "resourceContentCache" do
-    test "put i18n_resource content", %{resource_content: resource_content} do
+    test "put i18n_resource content", %{content: %{resource_content: resource_content}} do
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
 
       assert "var1" == ResourceContentCache.get("res_type", 1000, "es", "field1")
@@ -49,17 +51,23 @@ defmodule TdCache.ResourceContentCacheTest do
              |> Enum.any?(fn value -> value == "i18n_resource:res_type:1000:es:field3" end)
     end
 
-    test "get value on found i18n_resource content", %{resource_content: resource_content} do
+    test "get value on found i18n_resource content", %{
+      content: %{resource_content: resource_content}
+    } do
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
       assert "var1" == ResourceContentCache.get("res_type", 1000, "es", "field1")
     end
 
-    test "get error on not found i18n_resource content", %{resource_content: resource_content} do
+    test "get error on not found i18n_resource content", %{
+      content: %{resource_content: resource_content}
+    } do
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
       assert nil == ResourceContentCache.get("res_type", 1000, "es", "field4")
     end
 
-    test "update value for i18n_resource content", %{resource_content: resource_content} do
+    test "update value for i18n_resource content", %{
+      content: %{resource_content: resource_content}
+    } do
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
       assert "var1" == ResourceContentCache.get("res_type", 1000, "es", "field1")
       assert "var2" == ResourceContentCache.get("res_type", 1000, "es", "field2")
@@ -97,12 +105,14 @@ defmodule TdCache.ResourceContentCacheTest do
              |> Enum.any?(fn value -> value == "i18n_resource:res_type:1000:es:field3" end)
     end
 
-    test "deletes resource type", %{
-      resource_content: resource_content,
-      resource_type: resource_type,
-      resource_id: resource_id,
-      lang: lang
-    } do
+    test "deletes resource type", %{content: content} do
+      %{
+        resource_content: resource_content,
+        resource_type: resource_type,
+        resource_id: resource_id,
+        lang: lang
+      } = content
+
       new_resource_type = "res_foo_type"
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
 
@@ -125,12 +135,14 @@ defmodule TdCache.ResourceContentCacheTest do
       assert {:ok, [3, 3]} = ResourceContentCache.delete(new_resource_type)
     end
 
-    test "deletes resource", %{
-      resource_content: resource_content,
-      resource_type: resource_type,
-      resource_id: resource_id,
-      lang: lang
-    } do
+    test "deletes resource", %{content: content} do
+      %{
+        resource_content: resource_content,
+        resource_type: resource_type,
+        resource_id: resource_id,
+        lang: lang
+      } = content
+
       new_resource_id = 1001
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
 
@@ -150,12 +162,14 @@ defmodule TdCache.ResourceContentCacheTest do
       assert length(resource_keys_list) == 3
     end
 
-    test "deletes resource lang", %{
-      resource_content: resource_content,
-      resource_type: resource_type,
-      resource_id: resource_id,
-      lang: lang
-    } do
+    test "deletes resource lang", %{content: content} do
+      %{
+        resource_content: resource_content,
+        resource_type: resource_type,
+        resource_id: resource_id,
+        lang: lang
+      } = content
+
       new_lang = "fr"
       assert {:ok, ["OK", 3]} = ResourceContentCache.put(resource_content)
 

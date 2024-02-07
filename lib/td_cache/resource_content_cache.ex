@@ -2,8 +2,9 @@ defmodule TdCache.ResourceContentCache do
   @moduledoc """
   Shared cache for Resource Content.
   """
-
+  alias TdCache.EventStream.Publisher
   alias TdCache.Redix
+
   @i18n_resource_key :i18n_resource
 
   def put(
@@ -61,30 +62,21 @@ defmodule TdCache.ResourceContentCache do
   end
 
   def delete(resource_type) do
-    delete_commands = delete_commands(resource_type, "*", "*")
-
-    case delete_commands do
-      [] -> {:ok, []}
-      [_ | _] -> Redix.transaction_pipeline(delete_commands)
-    end
+    resource_type
+    |> delete_commands("*", "*")
+    |> execute_commands()
   end
 
   def delete(resource_type, resource_id) do
-    delete_commands = delete_commands(resource_type, resource_id, "*")
-
-    case delete_commands do
-      [] -> {:ok, []}
-      [_ | _] -> Redix.transaction_pipeline(delete_commands)
-    end
+    resource_type
+    |> delete_commands(resource_id, "*")
+    |> execute_commands()
   end
 
   def delete(resource_type, resource_id, lang) do
-    delete_commands = delete_commands(resource_type, resource_id, lang)
-
-    case delete_commands do
-      [] -> {:ok, []}
-      [_ | _] -> Redix.transaction_pipeline(delete_commands)
-    end
+    resource_type
+    |> delete_commands(resource_id, lang)
+    |> execute_commands()
   end
 
   def delete_commands(resource_type, resource_id, lang) do
@@ -99,6 +91,22 @@ defmodule TdCache.ResourceContentCache do
       {:ok, redis_key_fields} ->
         [["DEL" | redis_key_fields], ["SREM", i18n_resource_key | redis_key_fields]]
     end
+  end
+
+  defp execute_commands([]), do: {:ok, []}
+  defp execute_commands(commands), do: Redix.transaction_pipeline(commands)
+
+  def send_resource_content_event(%{content: content} = resource_content) do
+    event =
+      resource_content
+      |> Map.delete(:content)
+      |> Map.put(:content, Jason.encode!(content))
+
+    {:ok, _event_id} = Publisher.publish(event, "i18n:events")
+  end
+
+  def send_resource_content_event(event) do
+    {:ok, _event_id} = Publisher.publish(event, "i18n:events")
   end
 
   defp i18n_resource_key(resource_type),
