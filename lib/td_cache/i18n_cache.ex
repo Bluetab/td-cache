@@ -6,6 +6,7 @@ defmodule TdCache.I18nCache do
 
   alias TdCache.Redix
   @i18n_key :i18n
+  @default_lang "en"
 
   ## Client API
 
@@ -98,7 +99,10 @@ defmodule TdCache.I18nCache do
   end
 
   def get_default_locale do
-    Redix.command(["GET", "i18n:locales:default"])
+    case Redix.command(["GET", "i18n:locales:default"]) do
+      {:ok, nil} -> {:ok, @default_lang}
+      response -> response
+    end
   end
 
   def get_required_locales do
