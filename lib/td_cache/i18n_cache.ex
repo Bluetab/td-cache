@@ -82,6 +82,29 @@ defmodule TdCache.I18nCache do
     end)
   end
 
+  def put_default_locale(default_locale) do
+    Redix.command(["SET", "i18n:locales:default", default_locale])
+  end
+
+  def put_required_locales([]) do
+    {:ok, [0, 0]}
+  end
+
+  def put_required_locales(required_locales) do
+    Redix.transaction_pipeline([
+      ["DEL", "i18n:locales:required"],
+      ["RPUSH", "i18n:locales:required", required_locales]
+    ])
+  end
+
+  def get_default_locale do
+    Redix.command(["GET", "i18n:locales:default"])
+  end
+
+  def get_required_locales do
+    Redix.read_list("i18n:locales:required")
+  end
+
   ## Callbacks
 
   @impl true
