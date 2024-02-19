@@ -6,7 +6,8 @@ defmodule TdCache.I18nCache do
 
   alias TdCache.Redix
   @i18n_key :i18n
-  @default_lang "en"
+
+  @default_lang Application.compile_env(:td_cache, :lang, "en")
 
   ## Client API
 
