@@ -89,6 +89,7 @@ defmodule TdCache.I18nCache do
   end
 
   def put_required_locales([]) do
+    {:ok, _} = Redix.command(["DEL", "i18n:locales:required"])
     {:ok, [0, 0]}
   end
 
