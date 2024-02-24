@@ -1,6 +1,13 @@
 # Changelog
 
-## [Unreleased]
+## [6.2.0] 2024-02-24
+
+### Added
+
+- [TD-6258] Cache I18n default and requires locales 
+
+
+## [5.20.0] 2023-12-12
 
 ### Changed
 
