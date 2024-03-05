@@ -137,7 +137,7 @@ defmodule TdCache.I18nCacheTest do
 
     messages = Enum.map(messages_en, fn %{definition: message} -> message end)
 
-    assert messages <|> I18nCache.list_by_lang(lang)
+    assert messages ||| I18nCache.list_by_lang(lang)
   end
 
   test "map_keys_by_prefix/2 ", %{messages_en: {lang, _messages_en}} do

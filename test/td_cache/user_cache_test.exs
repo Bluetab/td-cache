@@ -131,6 +131,20 @@ defmodule TdCache.UserCacheTest do
 
       assert {:ok, [0, 2]} = UserCache.put_roles(user_id, domain_ids_by_role)
       assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id)
+      assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id, "domain")
+    end
+
+    test "puts a hash with comma-separated ids of a resource_type as values and reads it back" do
+      %{id: user_id} = user = build(:user)
+      put_user(user)
+
+      domain_ids_by_role = %{
+        "role1_structure" => [10, 20, 30],
+        "role2_structure" => [40, 50, 60]
+      }
+
+      assert {:ok, [0, 2]} = UserCache.put_roles(user_id, domain_ids_by_role, "structure")
+      assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id, "structure")
     end
   end
 

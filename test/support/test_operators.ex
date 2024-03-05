@@ -4,7 +4,7 @@ defmodule TdCache.TestOperators do
   """
 
   def a <~> b, do: approximately_equal(a, b)
-  def a <|> b, do: approximately_equal(sorted(a), sorted(b))
+  def a ||| b, do: approximately_equal(sorted(a), sorted(b))
 
   defp sorted(list), do: Enum.sort(list)
 

@@ -31,9 +31,11 @@ defmodule TdCache.SessionCache do
 
   @spec delete(binary) :: :ok | {:error, any()}
   def delete(jti) when is_binary(jti) do
-    case Redix.command(["DEL", key(jti)]) do
+    keys = [key(jti) | Redix.keys!(key(jti) <> ":*")]
+
+    case Redix.command(["DEL" | keys]) do
       {:ok, 0} -> {:error, :not_found}
-      {:ok, 1} -> :ok
+      {:ok, _one_or_more} -> :ok
       {:error, e} -> {:error, e}
     end
   end

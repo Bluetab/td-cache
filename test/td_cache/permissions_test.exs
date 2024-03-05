@@ -73,7 +73,14 @@ defmodule TdCache.PermissionsTest do
     permissions: permissions
   } do
     session_id = "#{unique_id()}"
-    cache_session_permissions!(session_id, expiry(), permissions)
+
+    cache_session_permissions!(session_id, expiry(), %{
+      "domain" => permissions,
+      "structure" => %{"manage_quality_rule_implementations" => [1234]}
+    })
+
+    refute has_permission?(session_id, :create_business_concept, "structure", [1234])
+    assert has_permission?(session_id, :manage_quality_rule_implementations, "structure", [1234])
     assert has_permission?(session_id, :create_business_concept, "domain", domain.id)
     assert has_permission?(session_id, :create_business_concept, "domain", [domain.id, parent.id])
     assert has_permission?(session_id, :create_business_concept, "business_concept", concept.id)
@@ -108,7 +115,7 @@ defmodule TdCache.PermissionsTest do
 
     test "considers session permissions" do
       session_id = "#{unique_id()}"
-      cache_session_permissions!(session_id, expiry(), %{"xyzzy" => [123]})
+      cache_session_permissions!(session_id, expiry(), %{"domain" => %{"xyzzy" => [123]}})
       refute has_any_permission?(session_id, [:foo, :bar])
       assert has_any_permission?(session_id, [:foo, :bar, :xyzzy, :baz])
     end
@@ -203,8 +210,10 @@ defmodule TdCache.PermissionsTest do
       session_id = "#{unique_id()}"
 
       cache_session_permissions!(session_id, expiry(), %{
-        "foo" => [parent.id],
-        "bar" => [child.id]
+        "domain" => %{
+          "foo" => [parent.id],
+          "bar" => [child.id]
+        }
       })
 
       [session_id: session_id, parent: parent, domain: domain, child: child]
