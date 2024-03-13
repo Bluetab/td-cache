@@ -37,7 +37,10 @@ defmodule TdCache.SessionCacheTest do
     test "returns ok if session was deleted", %{jti: jti, exp: exp} do
       assert {:error, :not_found} = SessionCache.delete(jti)
       assert :ok = SessionCache.put(jti, exp)
+      assert :ok = SessionCache.put(jti <> ":domain:permissions", exp)
+      assert :ok = SessionCache.put(jti <> ":structure:permissions", exp)
       assert :ok = SessionCache.delete(jti)
+      assert [] = Redix.keys!("session:" <> jti <> "*")
     end
   end
 end

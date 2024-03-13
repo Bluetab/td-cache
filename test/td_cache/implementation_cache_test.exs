@@ -96,8 +96,8 @@ defmodule TdCache.ImplementationCacheTest do
                "implementation:#{impl_id}",
                "implementation:#{impl2_id}",
                "implementation:#{impl3_id}"
-             ]
-             <|> ImplementationCache.list()
+             ] |||
+               ImplementationCache.list()
     end
 
     test "write relation between implementation_id and implementation_ref" do

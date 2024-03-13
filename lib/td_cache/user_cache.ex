@@ -99,8 +99,16 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:put_roles, user_id, domain_ids_by_role})
   end
 
+  def put_roles(user_id, resource_ids_by_role, resource_type) do
+    GenServer.call(__MODULE__, {:put_roles, user_id, resource_ids_by_role, resource_type})
+  end
+
   def get_roles(user_id) do
     GenServer.call(__MODULE__, {:get_roles, user_id})
+  end
+
+  def get_roles(user_id, resource_type) do
+    GenServer.call(__MODULE__, {:get_roles, user_id, resource_type})
   end
 
   def delete(id) do
@@ -174,8 +182,20 @@ defmodule TdCache.UserCache do
   end
 
   @impl true
+  def handle_call({:put_roles, user_id, resource_ids_by_role, resource_type}, _from, state) do
+    reply = do_put_roles(user_id, resource_ids_by_role, resource_type)
+    {:reply, reply, state}
+  end
+
+  @impl true
   def handle_call({:get_roles, user_id}, _from, state) do
     reply = do_get_roles(user_id)
+    {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_call({:get_roles, user_id, resource_type}, _from, state) do
+    reply = do_get_roles(user_id, resource_type)
     {:reply, reply, state}
   end
 
@@ -318,12 +338,12 @@ defmodule TdCache.UserCache do
     end
   end
 
-  defp do_put_roles(user_id, domain_ids_by_role) do
-    key = "user:#{user_id}:roles"
+  defp do_put_roles(user_id, resource_ids_by_role, resource_type \\ "domain") do
+    key = "user:#{user_id}:roles:#{resource_type}"
 
     values =
-      Enum.flat_map(domain_ids_by_role, fn {role, domain_ids} ->
-        [role, Enum.join(domain_ids, ",")]
+      Enum.flat_map(resource_ids_by_role, fn {role, resource_ids} ->
+        [role, Enum.join(resource_ids, ",")]
       end)
 
     Redix.transaction_pipeline([
@@ -332,11 +352,11 @@ defmodule TdCache.UserCache do
     ])
   end
 
-  defp do_get_roles(user_id) do
-    key = "user:#{user_id}:roles"
+  defp do_get_roles(user_id, resource_type \\ "domain") do
+    key = "user:#{user_id}:roles:#{resource_type}"
 
-    Redix.read_map(key, fn [role, domain_ids] ->
-      {role, Redix.to_integer_list!(domain_ids)}
+    Redix.read_map(key, fn [role, resource_ids] ->
+      {role, Redix.to_integer_list!(resource_ids)}
     end)
   end
 
