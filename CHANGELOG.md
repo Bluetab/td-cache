@@ -4,7 +4,7 @@
 
 ### Added
 
-- [TD-4110] Add structure scoped permissions management
+- [TD-4110] Allow structure scoped permissions management
 
 ## [6.2.0] 2024-02-24
 
