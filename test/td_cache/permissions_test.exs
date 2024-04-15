@@ -5,8 +5,8 @@ defmodule TdCache.PermissionsTest do
   import TdCache.Factory
   import TdCache.Permissions, only: :functions
 
-  alias TdCache.DomainCache
   alias TdCache.CacheHelpers
+  alias TdCache.DomainCache
   alias TdCache.Redix
 
   doctest TdCache.Permissions
@@ -274,8 +274,6 @@ defmodule TdCache.PermissionsTest do
       parent: parent,
       child: child
     } do
-      all_domains = elem(DomainCache.domains(), 1)
-
       put_default_permissions(["foo"])
 
       [foo_domain_ids, bar_domain_ids] = permitted_domain_ids(session_id, ["foo", "bar"])
