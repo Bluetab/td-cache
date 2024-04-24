@@ -314,6 +314,7 @@ defmodule TdCache.PermissionsTest do
 
       assert are_default_permissions?(["foo"])
       assert are_default_permissions?(["foo", "bar"])
+      refute are_default_permissions?(["baz"])
       refute are_default_permissions?(["foo", "baz"])
       refute are_default_permissions?(["foo", "bar", "baz"])
     end

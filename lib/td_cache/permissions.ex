@@ -205,7 +205,7 @@ defmodule TdCache.Permissions do
 
   def permitted_domain_ids(session_id, [_ | _] = permissions) do
     if are_default_permissions?(permissions) do
-      all_domains = elem(DomainCache.domains(), 1)
+      {:ok, all_domains} = DomainCache.domains()
       Enum.map(permissions, fn _ -> all_domains end)
     else
       key = session_permissions_key(session_id, "domain")
@@ -222,7 +222,8 @@ defmodule TdCache.Permissions do
 
   def permitted_domain_ids(session_id, permission) do
     if is_default_permission?(permission) do
-      elem(DomainCache.domains(), 1)
+      {:ok, all_domains} = DomainCache.domains()
+      all_domains
     else
       session_id
       |> permitted_domain_ids([permission])
