@@ -5,6 +5,7 @@ defmodule TdCache.Permissions do
 
   alias TdCache.AclCache
   alias TdCache.ConceptCache
+  alias TdCache.DomainCache
   alias TdCache.ImplementationCache
   alias TdCache.IngestCache
   alias TdCache.Redix
@@ -203,21 +204,31 @@ defmodule TdCache.Permissions do
   def permitted_domain_ids(_session_id, []), do: []
 
   def permitted_domain_ids(session_id, [_ | _] = permissions) do
-    key = session_permissions_key(session_id, "domain")
+    if are_default_permissions?(permissions) do
+      {:ok, all_domains} = DomainCache.domains()
+      Enum.map(permissions, fn _ -> all_domains end)
+    else
+      key = session_permissions_key(session_id, "domain")
 
-    ["HMGET", key | permissions]
-    |> Redix.command!()
-    |> Enum.map(fn domain_ids ->
-      domain_ids
-      |> Redix.to_integer_list!()
-      |> TaxonomyCache.reachable_domain_ids()
-    end)
+      ["HMGET", key | permissions]
+      |> Redix.command!()
+      |> Enum.map(fn domain_ids ->
+        domain_ids
+        |> Redix.to_integer_list!()
+        |> TaxonomyCache.reachable_domain_ids()
+      end)
+    end
   end
 
   def permitted_domain_ids(session_id, permission) do
-    session_id
-    |> permitted_domain_ids([permission])
-    |> hd()
+    if is_default_permission?(permission) do
+      {:ok, all_domains} = DomainCache.domains()
+      all_domains
+    else
+      session_id
+      |> permitted_domain_ids([permission])
+      |> hd()
+    end
   end
 
   def put_permission_roles(roles_by_permission) do
@@ -257,5 +268,11 @@ defmodule TdCache.Permissions do
 
   def is_default_permission?(permission) do
     Redix.command!(["SISMEMBER", @default_permissions_key, permission]) == 1
+  end
+
+  def are_default_permissions?(permissions) do
+    Enum.all?(permissions, fn permission ->
+      is_default_permission?(permission)
+    end)
   end
 end

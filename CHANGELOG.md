@@ -1,5 +1,11 @@
 # Changelog
 
+## [6.5.0]
+
+### Fixed
+
+- [TD-6552] Returns all domains when all permissions are default
+
 ## [6.3.0] 2024-03-13
 
 ### Added
@@ -10,7 +16,7 @@
 
 ### Added
 
-- [TD-6258] Cache I18n default and requires locales 
+- [TD-6258] Cache I18n default and requires locales
 
 ## [5.20.0] 2023-12-12
 
@@ -35,7 +41,6 @@
 ### Added
 
 - [TD-5891] Cache i18n Messages
-
 
 ## [5.9.0] 2023-07-04
 

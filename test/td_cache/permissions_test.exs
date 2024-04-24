@@ -6,6 +6,7 @@ defmodule TdCache.PermissionsTest do
   import TdCache.Permissions, only: :functions
 
   alias TdCache.CacheHelpers
+  alias TdCache.DomainCache
   alias TdCache.Redix
 
   doctest TdCache.Permissions
@@ -249,6 +250,37 @@ defmodule TdCache.PermissionsTest do
     test "returns an empty list if no such key exists" do
       assert permitted_domain_ids("invalid_session", "foo") == []
     end
+
+    test "returns all domains if permission is in default role" do
+      put_default_permissions(["foo"])
+
+      permitted_domains = permitted_domain_ids("any_session_id", "foo")
+
+      assert_lists_equal(permitted_domains, elem(DomainCache.domains(), 1))
+    end
+
+    test "returns all domains if all permissions are in default role" do
+      put_default_permissions(["foo", "bar"])
+
+      [foo_domains, bar_domains] = permitted_domain_ids("any_session_id", ["foo", "bar"])
+
+      assert_lists_equal(foo_domains, elem(DomainCache.domains(), 1))
+      assert_lists_equal(bar_domains, elem(DomainCache.domains(), 1))
+    end
+
+    test "returns only permitted domain_ids if all permissions are not in default role", %{
+      session_id: session_id,
+      domain: domain,
+      parent: parent,
+      child: child
+    } do
+      put_default_permissions(["foo"])
+
+      [foo_domain_ids, bar_domain_ids] = permitted_domain_ids(session_id, ["foo", "bar"])
+
+      assert_lists_equal(foo_domain_ids, [parent.id, domain.id, child.id])
+      assert_lists_equal(bar_domain_ids, [child.id])
+    end
   end
 
   describe "put_default_permissions/1" do
@@ -273,6 +305,18 @@ defmodule TdCache.PermissionsTest do
       assert is_default_permission?("foo")
       assert is_default_permission?(:bar)
       refute is_default_permission?("baz")
+    end
+  end
+
+  describe "are_default_permission?/1" do
+    test "returns true if all permissions exists in the default permissions" do
+      put_default_permissions(["foo", "bar"])
+
+      assert are_default_permissions?(["foo"])
+      assert are_default_permissions?(["foo", "bar"])
+      refute are_default_permissions?(["baz"])
+      refute are_default_permissions?(["foo", "baz"])
+      refute are_default_permissions?(["foo", "bar", "baz"])
     end
   end
 
