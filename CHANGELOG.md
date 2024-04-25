@@ -1,5 +1,11 @@
 # Changelog
 
+## [6.5.1]
+
+### Fixed
+
+- [TD-6552] Returns all domains only for default role
+
 ## [6.5.0]
 
 ### Fixed
