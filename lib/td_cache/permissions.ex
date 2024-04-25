@@ -204,19 +204,29 @@ defmodule TdCache.Permissions do
   def permitted_domain_ids(_session_id, []), do: []
 
   def permitted_domain_ids(session_id, [_ | _] = permissions) do
-    if are_default_permissions?(permissions) do
-      {:ok, all_domains} = DomainCache.domains()
-      Enum.map(permissions, fn _ -> all_domains end)
-    else
+    with {:ok, cached_default_permissions} <- get_default_permissions(),
+         {:ok, all_domains} <- DomainCache.domains() do
+      {default_permissions, specific_permissions} =
+        Enum.split_with(permissions, &(&1 in cached_default_permissions))
+
       key = session_permissions_key(session_id, "domain")
 
-      ["HMGET", key | permissions]
-      |> Redix.command!()
-      |> Enum.map(fn domain_ids ->
-        domain_ids
-        |> Redix.to_integer_list!()
-        |> TaxonomyCache.reachable_domain_ids()
-      end)
+      specific_domains =
+        ["HMGET", key | specific_permissions]
+        |> Redix.command!()
+        |> Enum.map(fn domain_ids ->
+          domain_ids
+          |> Redix.to_integer_list!()
+          |> TaxonomyCache.reachable_domain_ids()
+        end)
+
+      specific_domains_by_permission = Enum.zip(specific_permissions, specific_domains)
+      default_domains_by_permission = Enum.map(default_permissions, &{&1, all_domains})
+
+      permissions_domains_map =
+        Map.new(default_domains_by_permission ++ specific_domains_by_permission)
+
+      Enum.map(permissions, &Map.get(permissions_domains_map, &1, []))
     end
   end
 
@@ -268,11 +278,5 @@ defmodule TdCache.Permissions do
 
   def is_default_permission?(permission) do
     Redix.command!(["SISMEMBER", @default_permissions_key, permission]) == 1
-  end
-
-  def are_default_permissions?(permissions) do
-    Enum.all?(permissions, fn permission ->
-      is_default_permission?(permission)
-    end)
   end
 end
