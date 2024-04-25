@@ -217,7 +217,15 @@ defmodule TdCache.PermissionsTest do
         }
       })
 
-      [session_id: session_id, parent: parent, domain: domain, child: child]
+      {:ok, all_domains} = DomainCache.domains()
+
+      [
+        session_id: session_id,
+        parent: parent,
+        domain: domain,
+        child: child,
+        all_domains: all_domains
+      ]
     end
 
     test "returns all permitted domain_ids, including descendents", %{
@@ -251,35 +259,25 @@ defmodule TdCache.PermissionsTest do
       assert permitted_domain_ids("invalid_session", "foo") == []
     end
 
-    test "returns all domains if permission is in default role" do
-      put_default_permissions(["foo"])
+    test "returns all domains if permission is in default role", %{all_domains: all_domains} do
+      put_default_permissions(["xyz"])
 
-      permitted_domains = permitted_domain_ids("any_session_id", "foo")
+      permitted_domains = permitted_domain_ids("any_session_id", "xyz")
 
-      assert_lists_equal(permitted_domains, elem(DomainCache.domains(), 1))
+      assert_lists_equal(permitted_domains, all_domains)
     end
 
-    test "returns all domains if all permissions are in default role" do
-      put_default_permissions(["foo", "bar"])
-
-      [foo_domains, bar_domains] = permitted_domain_ids("any_session_id", ["foo", "bar"])
-
-      assert_lists_equal(foo_domains, elem(DomainCache.domains(), 1))
-      assert_lists_equal(bar_domains, elem(DomainCache.domains(), 1))
-    end
-
-    test "returns only permitted domain_ids if all permissions are not in default role", %{
-      session_id: session_id,
-      domain: domain,
+    test "returns all domains only for default role", %{
+      all_domains: all_domains,
+      child: child,
       parent: parent,
-      child: child
+      domain: domain,
+      session_id: session_id
     } do
-      put_default_permissions(["foo"])
+      put_default_permissions(["xyz"])
 
-      [foo_domain_ids, bar_domain_ids] = permitted_domain_ids(session_id, ["foo", "bar"])
-
-      assert_lists_equal(foo_domain_ids, [parent.id, domain.id, child.id])
-      assert_lists_equal(bar_domain_ids, [child.id])
+      assert [[child.id], all_domains, [child.id, domain.id, parent.id], []] ==
+               permitted_domain_ids(session_id, ["bar", "xyz", "foo", "roo"])
     end
   end
 
@@ -305,18 +303,6 @@ defmodule TdCache.PermissionsTest do
       assert is_default_permission?("foo")
       assert is_default_permission?(:bar)
       refute is_default_permission?("baz")
-    end
-  end
-
-  describe "are_default_permission?/1" do
-    test "returns true if all permissions exists in the default permissions" do
-      put_default_permissions(["foo", "bar"])
-
-      assert are_default_permissions?(["foo"])
-      assert are_default_permissions?(["foo", "bar"])
-      refute are_default_permissions?(["baz"])
-      refute are_default_permissions?(["foo", "baz"])
-      refute are_default_permissions?(["foo", "bar", "baz"])
     end
   end
 
