@@ -1,5 +1,11 @@
 # Changelog
 
+## [6.2.1] 2024-04-29
+
+### Fixed
+
+- [TD-6552] Returns all domains only for default role
+
 ## [6.2.0] 2024-02-24
 
 ### Added
