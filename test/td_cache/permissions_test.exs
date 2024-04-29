@@ -6,6 +6,7 @@ defmodule TdCache.PermissionsTest do
   import TdCache.Permissions, only: :functions
 
   alias TdCache.CacheHelpers
+  alias TdCache.DomainCache
   alias TdCache.Redix
 
   doctest TdCache.Permissions
@@ -207,7 +208,15 @@ defmodule TdCache.PermissionsTest do
         "bar" => [child.id]
       })
 
-      [session_id: session_id, parent: parent, domain: domain, child: child]
+      {:ok, all_domains} = DomainCache.domains()
+
+      [
+        session_id: session_id,
+        parent: parent,
+        domain: domain,
+        child: child,
+        all_domains: all_domains
+      ]
     end
 
     test "returns all permitted domain_ids, including descendents", %{
@@ -239,6 +248,27 @@ defmodule TdCache.PermissionsTest do
 
     test "returns an empty list if no such key exists" do
       assert permitted_domain_ids("invalid_session", "foo") == []
+    end
+
+    test "returns all domains if permission is in default role", %{all_domains: all_domains} do
+      put_default_permissions(["xyz"])
+
+      permitted_domains = permitted_domain_ids("any_session_id", "xyz")
+
+      assert_lists_equal(permitted_domains, all_domains)
+    end
+
+    test "returns all domains only for default role", %{
+      all_domains: all_domains,
+      child: child,
+      parent: parent,
+      domain: domain,
+      session_id: session_id
+    } do
+      put_default_permissions(["xyz"])
+
+      assert [[child.id], all_domains, [child.id, domain.id, parent.id], []] ==
+               permitted_domain_ids(session_id, ["bar", "xyz", "foo", "roo"])
     end
   end
 
