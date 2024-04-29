@@ -63,11 +63,29 @@ defmodule TdCache.Permissions do
     has_permission?(session_id, permission, "domain", domain_id)
   end
 
-  def has_permission?(session_id, permission) do
+  defp do_has_permission?(session_id, permission, "structure", structure_ids)
+       when is_list(structure_ids) do
+    case permitted_structure_ids(session_id, permission) do
+      [] -> false
+      ids -> Enum.any?(structure_ids, &Enum.member?(ids, &1))
+    end
+  end
+
+  defp do_has_permission?(session_id, permission, "structure", structure_id)
+       when is_binary(structure_id) do
+    has_permission?(session_id, permission, "domain", String.to_integer(structure_id))
+  end
+
+  defp do_has_permission?(session_id, permission, "structure", structure_id)
+       when is_integer(structure_id) do
+    do_has_permission?(session_id, permission, "structure", [structure_id])
+  end
+
+  def has_permission?(session_id, permission, resource_type \\ "domain") do
     if is_default_permission?(permission) do
       true
     else
-      key = session_permissions_key(session_id)
+      key = session_permissions_key(session_id, resource_type)
       Redix.command!(["HEXISTS", key, permission]) == 1
     end
   end
@@ -76,18 +94,35 @@ defmodule TdCache.Permissions do
     Enum.any?(permissions, &has_permission?(session_id, &1, resource_type, resource_id))
   end
 
-  def has_any_permission?(session_id, permissions) when is_list(permissions) do
-    Enum.any?(permissions, &has_permission?(session_id, &1))
+  def has_any_permission?(session_id, permissions, resource_type \\ "domain")
+
+  def has_any_permission?(session_id, permissions, resource_type) when is_list(permissions) do
+    Enum.any?(permissions, &has_permission?(session_id, &1, resource_type))
   end
 
   def get_session_permissions(session_id) do
-    key = session_permissions_key(session_id)
+    resource_types =
+      session_id
+      |> session_permissions_key("*")
+      |> Redix.keys!()
+      |> Enum.map(&(&1 |> String.split(":") |> Enum.at(-2)))
 
-    case Redix.read_map(key, fn [k, v] -> {k, reachable_domain_ids(v)} end) do
-      {:ok, %{} = map} -> map
-      _ -> %{}
-    end
+    Enum.map(resource_types, fn resource_type ->
+      key = session_permissions_key(session_id, resource_type)
+
+      case Redix.read_map(key, &transform_function(resource_type, &1)) do
+        {:ok, %{} = map} -> {resource_type, map}
+        _ -> %{}
+      end
+    end)
+    |> Map.new()
   end
+
+  defp transform_function("domain", [permission, resource_ids]),
+    do: {permission, reachable_domain_ids(resource_ids)}
+
+  defp transform_function("structure", [permission, resource_ids]),
+    do: {permission, Redix.to_integer_list!(resource_ids)}
 
   defp reachable_domain_ids(domain_ids) do
     domain_ids
@@ -95,12 +130,22 @@ defmodule TdCache.Permissions do
     |> TaxonomyCache.reachable_domain_ids()
   end
 
-  def cache_session_permissions!(session_id, expire_at, domain_ids_by_permission) do
-    key = session_permissions_key(session_id)
+  def cache_session_permissions!(
+        session_id,
+        expire_at,
+        resource_ids_by_type_and_permission
+      ) do
+    resource_ids_by_type_and_permission
+    |> Map.to_list()
+    |> Enum.each(fn {resource_type, resource_ids_by_permission} ->
+      key = session_permissions_key(session_id, resource_type)
 
-    domain_ids_by_permission
-    |> Enum.flat_map(fn {permission, domain_ids} -> [permission, Enum.join(domain_ids, ",")] end)
-    |> do_cache_session_permissions(key, expire_at)
+      resource_ids_by_permission
+      |> Enum.flat_map(fn {permission, resource_ids} ->
+        [permission, Enum.join(resource_ids, ",")]
+      end)
+      |> do_cache_session_permissions(key, expire_at)
+    end)
   end
 
   defp do_cache_session_permissions([], key, _), do: Redix.command!(["DEL", key])
@@ -116,7 +161,8 @@ defmodule TdCache.Permissions do
   defp expire_cmd(key, nil), do: ["EXPIRE", key, 1]
   defp expire_cmd(key, expire_at), do: ["EXPIREAT", key, expire_at]
 
-  defp session_permissions_key(session_id), do: "session:" <> session_id <> ":permissions"
+  defp session_permissions_key(session_id, resource_type),
+    do: "session:" <> session_id <> ":" <> resource_type <> ":permissions"
 
   def permitted_domain_ids_by_user_id(user_id, permission) do
     {:ok, roles} = get_permission_roles(permission)
@@ -136,6 +182,25 @@ defmodule TdCache.Permissions do
     |> TaxonomyCache.reachable_domain_ids()
   end
 
+  def permitted_structure_ids(_session_id, []), do: []
+
+  def permitted_structure_ids(session_id, [_ | _] = permissions) do
+    key = session_permissions_key(session_id, "structure")
+
+    ["HMGET", key | permissions]
+    |> Redix.command!()
+    |> Enum.map(fn structure_ids ->
+      structure_ids
+      |> Redix.to_integer_list!()
+    end)
+  end
+
+  def permitted_structure_ids(session_id, permission) do
+    session_id
+    |> permitted_structure_ids([permission])
+    |> hd()
+  end
+
   def permitted_domain_ids(_session_id, []), do: []
 
   def permitted_domain_ids(session_id, [_ | _] = permissions) do
@@ -144,7 +209,7 @@ defmodule TdCache.Permissions do
       {default_permissions, specific_permissions} =
         Enum.split_with(permissions, &(&1 in cached_default_permissions))
 
-      key = session_permissions_key(session_id)
+      key = session_permissions_key(session_id, "domain")
 
       specific_domains =
         ["HMGET", key | specific_permissions]
