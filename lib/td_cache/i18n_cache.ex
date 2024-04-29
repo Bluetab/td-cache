@@ -7,6 +7,8 @@ defmodule TdCache.I18nCache do
   alias TdCache.Redix
   @i18n_key :i18n
 
+  @default_lang Application.compile_env(:td_cache, :lang, "en")
+
   ## Client API
 
   def start_link(opts \\ []) do
@@ -80,6 +82,33 @@ defmodule TdCache.I18nCache do
     Enum.into(keys, %{}, fn definition_key ->
       {defition_key_to_message_id(lang, definition_key), read_definition(definition_key)}
     end)
+  end
+
+  def put_default_locale(default_locale) do
+    Redix.command(["SET", "i18n:locales:default", default_locale])
+  end
+
+  def put_required_locales([]) do
+    {:ok, _} = Redix.command(["DEL", "i18n:locales:required"])
+    {:ok, [0, 0]}
+  end
+
+  def put_required_locales(required_locales) do
+    Redix.transaction_pipeline([
+      ["DEL", "i18n:locales:required"],
+      ["RPUSH", "i18n:locales:required", required_locales]
+    ])
+  end
+
+  def get_default_locale do
+    case Redix.command(["GET", "i18n:locales:default"]) do
+      {:ok, nil} -> {:ok, @default_lang}
+      response -> response
+    end
+  end
+
+  def get_required_locales do
+    Redix.read_list("i18n:locales:required")
   end
 
   ## Callbacks
