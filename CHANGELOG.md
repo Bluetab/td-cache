@@ -1,5 +1,11 @@
 # Changelog
 
+## [6.5.2] 2024-04-29
+
+### Fixed
+
+- [TD-6552] Backport 6.0.0 to actual
+
 ## [6.5.1] 2024-04-25
 
 ### Fixed
