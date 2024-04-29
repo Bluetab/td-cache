@@ -1,16 +1,28 @@
 # Changelog
 
-## [6.5.1]
+## [6.5.2] 2024-04-29
+
+### Fixed
+
+- [TD-6552] Backport 6.0.0 to actual
+
+## [6.5.1] 2024-04-25
 
 ### Fixed
 
 - [TD-6552] Returns all domains only for default role
 
-## [6.5.0]
+## [6.5.0] 2024-04-25
 
 ### Fixed
 
 - [TD-6552] Returns all domains when all permissions are default
+
+## [6.3.1] 2024-04-29
+
+### Fixed
+
+- [TD-6552] Returns all domains only for default role
 
 ## [6.3.0] 2024-03-13
 
@@ -18,11 +30,24 @@
 
 - [TD-4110] Allow structure scoped permissions management
 
+## [6.2.1] 2024-04-29
+
+### Fixed
+
+- [TD-6552] Returns all domains only for default role
+
 ## [6.2.0] 2024-02-24
 
 ### Added
 
 - [TD-6258] Cache I18n default and requires locales
+
+## [6.0.0] 2024-04-29
+
+### Fixed
+
+- [TD-6552] Returns all domains only for default role
+
 
 ## [5.20.0] 2023-12-12
 
