@@ -346,10 +346,16 @@ defmodule TdCache.UserCache do
         [role, Enum.join(resource_ids, ",")]
       end)
 
-    Redix.transaction_pipeline([
-      ["DEL", key],
-      ["HSET", key | values]
-    ])
+    case values do
+      [] ->
+        Redix.command(["DEL", key])
+
+      _ ->
+        Redix.transaction_pipeline([
+          ["DEL", key],
+          ["HSET", key | values]
+        ])
+    end
   end
 
   defp do_get_roles(user_id, resource_type \\ "domain") do
