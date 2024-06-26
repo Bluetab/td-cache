@@ -134,6 +134,23 @@ defmodule TdCache.UserCacheTest do
       assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id, "domain")
     end
 
+    test "Remove all roles if resources/domains is empty" do
+      %{id: user_id} = user = build(:user)
+      put_user(user)
+
+      domain_ids_by_role = %{
+        "role1" => [1, 2, 3],
+        "role2" => [4, 5, 6]
+      }
+
+      assert {:ok, [0, 2]} = UserCache.put_roles(user_id, domain_ids_by_role)
+      assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id)
+
+      assert {:ok, 1} = UserCache.put_roles(user_id, [])
+
+      assert {:ok, nil} = UserCache.get_roles(user_id)
+    end
+
     test "puts a hash with comma-separated ids of a resource_type as values and reads it back" do
       %{id: user_id} = user = build(:user)
       put_user(user)
