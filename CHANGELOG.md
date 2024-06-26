@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Add
+
+- [TD-6602] Case for empty list to delete cache
+
 ## [6.5.2] 2024-04-29
 
 ### Fixed
