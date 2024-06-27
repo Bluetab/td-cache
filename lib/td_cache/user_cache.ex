@@ -95,12 +95,8 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:put, user})
   end
 
-  def put_roles(user_id, domain_ids_by_role) do
-    GenServer.call(__MODULE__, {:put_roles, user_id, domain_ids_by_role})
-  end
-
-  def put_roles(user_id, resource_ids_by_role, resource_type) do
-    GenServer.call(__MODULE__, {:put_roles, user_id, resource_ids_by_role, resource_type})
+  def put_roles(user_id, resource_ids_by_role, resource_type, opts \\ []) do
+    GenServer.call(__MODULE__, {:put_roles, user_id, resource_ids_by_role, resource_type, opts})
   end
 
   def get_roles(user_id) do
@@ -121,6 +117,10 @@ defmodule TdCache.UserCache do
 
   def delete_group(id) do
     GenServer.call(__MODULE__, {:delete_group, id})
+  end
+
+  def delete_roles(user_id, resource_ids_by_role, resource_type) do
+    GenServer.call(__MODULE__, {:delete_roles, user_id, resource_ids_by_role, resource_type})
   end
 
   def ids_key, do: @ids
@@ -176,14 +176,14 @@ defmodule TdCache.UserCache do
   end
 
   @impl true
-  def handle_call({:put_roles, user_id, domain_ids_by_role}, _from, state) do
-    reply = do_put_roles(user_id, domain_ids_by_role)
+  def handle_call({:put_roles, user_id, resource_ids_by_role, resource_type, opts}, _from, state) do
+    reply = do_put_roles(user_id, resource_ids_by_role, resource_type, opts)
     {:reply, reply, state}
   end
 
   @impl true
-  def handle_call({:put_roles, user_id, resource_ids_by_role, resource_type}, _from, state) do
-    reply = do_put_roles(user_id, resource_ids_by_role, resource_type)
+  def handle_call({:delete_roles, user_id, resource_ids_by_role, resource_type}, _from, state) do
+    reply = do_delete_roles(user_id, resource_ids_by_role, resource_type)
     {:reply, reply, state}
   end
 
@@ -338,7 +338,7 @@ defmodule TdCache.UserCache do
     end
   end
 
-  defp do_put_roles(user_id, resource_ids_by_role, resource_type \\ "domain") do
+  defp do_put_roles(user_id, resource_ids_by_role, resource_type, opts) do
     key = "user:#{user_id}:roles:#{resource_type}"
 
     values =
@@ -346,10 +346,25 @@ defmodule TdCache.UserCache do
         [role, Enum.join(resource_ids, ",")]
       end)
 
-    Redix.transaction_pipeline([
-      ["DEL", key],
-      ["HSET", key | values]
-    ])
+    if Keyword.get(opts, :reload_roles, false) do
+      Redix.transaction_pipeline([
+        ["DEL", key],
+        ["HSET", key | values]
+      ])
+    else
+      Redix.command(["HSET", key | values])
+    end
+  end
+
+  defp do_delete_roles(user_id, resource_ids_by_role, resource_type) do
+    key = "user:#{user_id}:roles:#{resource_type}"
+
+    values =
+      Enum.flat_map(resource_ids_by_role, fn {role, _resource_ids} ->
+        [role]
+      end)
+
+    Redix.command(["HDEL", key | values])
   end
 
   defp do_get_roles(user_id, resource_type \\ "domain") do

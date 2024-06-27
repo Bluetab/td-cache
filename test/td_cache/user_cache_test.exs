@@ -90,6 +90,20 @@ defmodule TdCache.UserCacheTest do
       UserCache.delete(user_id)
       refute Redix.exists?("user:#{user_id}")
     end
+
+    test "delete user role from cache", %{user: %{id: user_id} = user} do
+      put_user(user)
+
+      role1 = %{"role1" => [1, 2, 3]}
+      role2 = %{"role2" => [4, 5, 6]}
+      domain_ids_by_role = Map.merge(role1, role2)
+
+      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
+
+      assert {:ok, 1} = UserCache.delete_roles(user_id, role1, "domain")
+
+      assert {:ok, ^role2} = UserCache.get_roles(user_id, "domain")
+    end
   end
 
   describe "exists?/1" do
@@ -119,7 +133,7 @@ defmodule TdCache.UserCacheTest do
     end
   end
 
-  describe "put_roles/2 and get_roles/1" do
+  describe "put_roles  and get_roles/1" do
     test "puts a hash with comma-separated ids as values and reads it back" do
       %{id: user_id} = user = build(:user)
       put_user(user)
@@ -129,7 +143,7 @@ defmodule TdCache.UserCacheTest do
         "role2" => [4, 5, 6]
       }
 
-      assert {:ok, [0, 2]} = UserCache.put_roles(user_id, domain_ids_by_role)
+      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
       assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id)
       assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id, "domain")
     end
@@ -143,8 +157,32 @@ defmodule TdCache.UserCacheTest do
         "role2_structure" => [40, 50, 60]
       }
 
-      assert {:ok, [0, 2]} = UserCache.put_roles(user_id, domain_ids_by_role, "structure")
+      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "structure")
       assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id, "structure")
+    end
+
+    test "puts roles with the option reload_roles set to true " do
+      %{id: user_id} = user = build(:user)
+      put_user(user)
+
+      domain_ids_by_role = %{
+        "role1" => [1, 2, 3],
+        "role2" => [4, 5, 6]
+      }
+
+      domains_ids_by_role_2 = %{
+        "role3" => [1, 2, 3],
+        "role4" => [4, 5, 6]
+      }
+
+      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
+      assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id)
+
+      assert {:ok, [1, 2]} =
+               UserCache.put_roles(user_id, domains_ids_by_role_2, "domain", reload_roles: true)
+
+      all_domains = Map.merge(domain_ids_by_role, domains_ids_by_role_2)
+      assert {:ok, ^domains_ids_by_role_2} = UserCache.get_roles(user_id, "domain")
     end
   end
 
