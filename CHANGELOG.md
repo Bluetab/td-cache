@@ -2,9 +2,9 @@
 
 ## [Unreleased]
 
-### Add
+### Added
 
-- [TD-6602] Case for empty list to delete cache
+- [TD-6602] Opts to put cache and add delete functionality
 
 ## [6.5.2] 2024-04-29
 
