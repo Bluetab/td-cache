@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- [TD-6659] Fix permitted domain for default permission
+
 ## [6.5.2] 2024-04-29
 
 ### Fixed
@@ -47,7 +53,6 @@
 ### Fixed
 
 - [TD-6552] Returns all domains only for default role
-
 
 ## [5.20.0] 2023-12-12
 
