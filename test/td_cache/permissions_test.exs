@@ -189,6 +189,14 @@ defmodule TdCache.PermissionsTest do
       assert_lists_equal(domain_ids, [parent.id, domain.id, child.id])
     end
 
+    test "returns all domains if permissions is in default rol", %{user: user} do
+      {:ok, domains} = TdCache.DomainCache.domains()
+
+      CacheHelpers.put_default_permissions([:default_permision])
+
+      assert permitted_domain_ids_by_user_id(user.id, :default_permision) == domains
+    end
+
     test "returns an empty list if no permissions are requested", %{user: user} do
       assert permitted_domain_ids_by_user_id(user.id, []) == []
     end

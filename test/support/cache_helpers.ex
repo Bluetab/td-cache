@@ -9,6 +9,7 @@ defmodule TdCache.CacheHelpers do
   alias TdCache.ConceptCache
   alias TdCache.ImplementationCache
   alias TdCache.IngestCache
+  alias TdCache.Permissions
   alias TdCache.Redix
   alias TdCache.TaxonomyCache
   alias TdCache.UserCache
@@ -71,5 +72,10 @@ defmodule TdCache.CacheHelpers do
     on_exit(fn -> UserCache.delete_group(group.id) end)
     UserCache.put_group(group)
     group
+  end
+
+  def put_default_permissions(permissions) do
+    on_exit(fn -> Permissions.put_default_permissions([]) end)
+    Permissions.put_default_permissions(permissions)
   end
 end
