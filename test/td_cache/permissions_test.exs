@@ -193,7 +193,6 @@ defmodule TdCache.PermissionsTest do
       {:ok, domains} = TdCache.DomainCache.domains()
 
       CacheHelpers.put_default_permissions([:default_permision])
-      TdCache.Permissions.get_default_permissions()
 
       assert permitted_domain_ids_by_user_id(user.id, :default_permision) == domains
     end
