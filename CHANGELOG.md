@@ -1,5 +1,11 @@
 # Changelog
 
+## [6.9.1] 2024-07-10
+
+### Added
+
+- [TD-6602] Opts to put cache and add delete functionality
+
 ## [6.9.0] 2024-07-05
 
 ### Fixed
