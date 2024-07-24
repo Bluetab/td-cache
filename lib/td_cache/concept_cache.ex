@@ -24,6 +24,7 @@ defmodule TdCache.ConceptCache do
     :business_concept_version_id,
     :current_version,
     :type,
+    :status,
     :shared_to_ids
   ]
 

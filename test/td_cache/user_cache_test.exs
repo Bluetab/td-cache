@@ -181,7 +181,6 @@ defmodule TdCache.UserCacheTest do
       assert {:ok, [1, 2]} =
                UserCache.put_roles(user_id, domains_ids_by_role_2, "domain", reload_roles: true)
 
-      all_domains = Map.merge(domain_ids_by_role, domains_ids_by_role_2)
       assert {:ok, ^domains_ids_by_role_2} = UserCache.get_roles(user_id, "domain")
     end
   end

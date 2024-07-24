@@ -21,7 +21,8 @@ defmodule TdCache.Factory do
       type: sequence("concept_type"),
       business_concept_version_id: unique_id(),
       name: sequence("concept_name"),
-      content: build(:content)
+      content: build(:content),
+      status: "published"
     }
   end
 
