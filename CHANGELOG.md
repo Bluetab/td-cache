@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-6689] Add Concept status field
+
 ## [6.9.1] 2024-07-10
 
 ### Added
