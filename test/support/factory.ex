@@ -22,7 +22,8 @@ defmodule TdCache.Factory do
       business_concept_version_id: unique_id(),
       name: sequence("concept_name"),
       content: build(:content),
-      status: "published"
+      status: "published",
+      i18n: build(:i18n_content)
     }
   end
 
@@ -56,6 +57,14 @@ defmodule TdCache.Factory do
     %{
       "data_owner" => sequence("data_owner"),
       "foo" => ["bar", "baz"]
+    }
+  end
+
+  def i18n_content_factory do
+    %{
+      "es" => %{
+        "foo" => ["xyz", "qux"]
+      }
     }
   end
 

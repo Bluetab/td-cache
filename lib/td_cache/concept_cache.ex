@@ -213,6 +213,7 @@ defmodule TdCache.ConceptCache do
 
       m ->
         {:ok, content} = read_content(concept)
+        {:ok, i18n} = read_i18n(concept)
         {:ok, rule_count} = RuleCache.count(concept_key)
         {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
         {:ok, concept_count} = LinkCache.count(concept_key, "business_concept")
@@ -226,6 +227,7 @@ defmodule TdCache.ConceptCache do
         |> Map.put(:link_tags, tags)
         |> Map.put(:concept_count, concept_count)
         |> Map.put(:content, content || %{})
+        |> Map.put(:i18n, i18n || %{})
         |> Map.put(:shared_to, shared_to)
     end
   end
@@ -235,6 +237,14 @@ defmodule TdCache.ConceptCache do
   end
 
   defp read_content(_) do
+    {:ok, %{}}
+  end
+
+  defp read_i18n(%{i18n: i18n}) do
+    {:ok, Jason.decode!(i18n)}
+  end
+
+  defp read_i18n(_) do
     {:ok, %{}}
   end
 
@@ -299,6 +309,12 @@ defmodule TdCache.ConceptCache do
         "content",
         Jason.encode!(Map.get(concept, :content, %{}))
       ],
+      [
+        "HSET",
+        "business_concept:#{id}",
+        "i18n",
+        Jason.encode!(Map.get(concept, :i18n, %{}))
+      ],
       ["SADD", @keys, "business_concept:#{id}"],
       ["SREM", @inactive_ids, id],
       ["SADD", @active_ids, id],
@@ -306,7 +322,7 @@ defmodule TdCache.ConceptCache do
     ]
 
     results = Redix.transaction_pipeline!(commands)
-    [_, _, _, activated, _, _] = results
+    [_, _, _, _, activated, _, _] = results
 
     if opts[:publish] != false && activated != 0 do
       publish_event("restore_concepts", id)
