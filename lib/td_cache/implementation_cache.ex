@@ -3,6 +3,7 @@ defmodule TdCache.ImplementationCache do
   Shared cache for implementations.
   """
 
+  alias TdCache.ConceptCache
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.RuleCache
@@ -154,8 +155,6 @@ defmodule TdCache.ImplementationCache do
         execution_result_info =
           "implementation:#{implementation_ref}:execution_result_info"
           |> Redix.read_map()
-          # TdCache github runner doesn't have Elixir 13
-          # |> then(fn {:ok, result} -> result end)
           |> case do
             {:ok, result} -> result
           end
@@ -164,16 +163,18 @@ defmodule TdCache.ImplementationCache do
         rule =
           implementation
           |> maybe_get_rule()
-          # |> then(fn {:ok, rule} -> rule end)
           |> case do
             {:ok, result} -> result
           end
           |> MapHelpers.parse_fields(@rule_props)
 
+        concepts = get_concepts_links(implementation_ref)
+
         implementation
         |> MapHelpers.parse_fields(@props)
         |> put_optional(:execution_result_info, execution_result_info)
         |> put_optional(:rule, rule)
+        |> put_optional(:concepts_links, concepts)
     end
   end
 
@@ -187,6 +188,41 @@ defmodule TdCache.ImplementationCache do
   end
 
   defp maybe_get_rule(_), do: {:ok, nil}
+
+  defp get_concepts_links(implementation_ref) do
+    ["SMEMBERS", "implementation_ref:#{implementation_ref}:links:business_concept"]
+    |> Redix.command!()
+    |> Enum.map(fn link_id ->
+      case LinkCache.get(link_id) do
+        {:ok, nil} ->
+          nil
+
+        {:ok, %{target: "business_concept:" <> concept_id}} ->
+          get_concepts_links_names(concept_id)
+      end
+    end)
+    |> Enum.reject(&(&1 === nil))
+  end
+
+  defp get_concepts_links_names(concept_id) do
+    case ConceptCache.get(concept_id) do
+      {:ok, nil} ->
+        nil
+
+      {:ok, %{i18n: i18n_content} = concept} ->
+        i18n =
+          i18n_content
+          |> Enum.map(fn {locale, %{"name" => name}} -> {locale, %{"name" => name}} end)
+          |> Map.new()
+
+        concept
+        |> Map.take([
+          :name,
+          :id
+        ])
+        |> Map.put(:i18n, i18n)
+    end
+  end
 
   def put_optional(map, _key, nil), do: map
   def put_optional(map, key, value), do: Map.put(map, key, value)
