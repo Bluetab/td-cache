@@ -7,6 +7,7 @@ defmodule TdCache.ConceptCache do
 
   alias Jason
   alias TdCache.EventStream.Publisher
+  alias TdCache.I18nCache
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.RuleCache
@@ -135,14 +136,14 @@ defmodule TdCache.ConceptCache do
 
   @impl true
   def handle_call({:get, id, opts}, _from, state) do
-    concept = get_cache(id, fn -> read_concept(id) end, opts)
+    concept = get_cache(id, fn -> read_concept(id, opts) end, opts)
     {:reply, {:ok, concept}, state}
   end
 
   @impl true
   def handle_call({:get, id, :domain_ids, opts}, _from, state) do
     domain_ids =
-      case get_cache(id, fn -> read_concept(id) end, opts) do
+      case get_cache(id, fn -> read_concept(id, opts) end, opts) do
         %{domain_id: domain_id} -> TaxonomyCache.reaching_domain_ids(domain_id)
         _ -> []
       end
@@ -153,7 +154,7 @@ defmodule TdCache.ConceptCache do
   @impl true
   def handle_call({:get, id, property, opts}, _from, state) do
     prop =
-      case get_cache(id, fn -> read_concept(id) end, opts) do
+      case get_cache(id, fn -> read_concept(id, opts) end, opts) do
         nil -> nil
         concept -> Map.get(concept, property)
       end
@@ -203,9 +204,12 @@ defmodule TdCache.ConceptCache do
     end
   end
 
-  defp read_concept(id) do
+  defp read_concept(id, opts) do
     concept_key = "business_concept:#{id}"
     {:ok, concept} = Redix.read_map(concept_key)
+
+    {:ok, default_lang} = I18nCache.get_default_locale()
+    lang = Keyword.get(opts, :lang, default_lang)
 
     case concept_entry_to_map(concept) do
       nil ->
@@ -213,7 +217,6 @@ defmodule TdCache.ConceptCache do
 
       m ->
         {:ok, content} = read_content(concept)
-        {:ok, i18n} = read_i18n(concept)
         {:ok, rule_count} = RuleCache.count(concept_key)
         {:ok, link_count} = LinkCache.count(concept_key, "data_structure")
         {:ok, concept_count} = LinkCache.count(concept_key, "business_concept")
@@ -227,8 +230,23 @@ defmodule TdCache.ConceptCache do
         |> Map.put(:link_tags, tags)
         |> Map.put(:concept_count, concept_count)
         |> Map.put(:content, content || %{})
-        |> Map.put(:i18n, i18n || %{})
         |> Map.put(:shared_to, shared_to)
+        |> translate_concept(lang)
+    end
+  end
+
+  defp translate_concept(%{content: content, name: name} = concept, lang) do
+    {:ok, i18n} = read_i18n(concept)
+
+    case Map.get(i18n, "#{lang}") do
+      nil ->
+        Map.delete(concept, :i18n)
+
+      i18n_content ->
+        concept
+        |> Map.put(:name, Map.get(i18n_content, "name", name))
+        |> Map.update(:content, content, &Map.merge(&1, Map.get(i18n_content, "content")))
+        |> Map.delete(:i18n)
     end
   end
 

@@ -21,8 +21,8 @@ defmodule TdCache.ImplementationCache do
   @doc """
   Reads implementation information for a given id from cache.
   """
-  def get(implementation_ref) do
-    implementation = read_implementation(implementation_ref)
+  def get(implementation_ref, opts \\ []) do
+    implementation = read_implementation(implementation_ref, opts)
     {:ok, implementation}
   end
 
@@ -146,7 +146,7 @@ defmodule TdCache.ImplementationCache do
     {:result_text, :string}
   ]
 
-  defp read_implementation(implementation_ref) do
+  defp read_implementation(implementation_ref, opts) do
     case Redix.read_map("implementation:#{implementation_ref}") do
       {:ok, nil} ->
         nil
@@ -168,7 +168,7 @@ defmodule TdCache.ImplementationCache do
           end
           |> MapHelpers.parse_fields(@rule_props)
 
-        concepts = get_concepts_links(implementation_ref)
+        concepts = get_concepts_links(implementation_ref, opts)
 
         implementation
         |> MapHelpers.parse_fields(@props)
@@ -189,7 +189,7 @@ defmodule TdCache.ImplementationCache do
 
   defp maybe_get_rule(_), do: {:ok, nil}
 
-  defp get_concepts_links(implementation_ref) do
+  defp get_concepts_links(implementation_ref, opts) do
     ["SMEMBERS", "implementation_ref:#{implementation_ref}:links:business_concept"]
     |> Redix.command!()
     |> Enum.map(fn link_id ->
@@ -198,29 +198,23 @@ defmodule TdCache.ImplementationCache do
           nil
 
         {:ok, %{target: "business_concept:" <> concept_id}} ->
-          get_concepts_links_names(concept_id)
+          get_concepts_links_names(concept_id, opts)
       end
     end)
     |> Enum.reject(&(&1 === nil))
   end
 
-  defp get_concepts_links_names(concept_id) do
-    case ConceptCache.get(concept_id) do
+  defp get_concepts_links_names(concept_id, opts) do
+    case ConceptCache.get(concept_id, opts) do
       {:ok, nil} ->
         nil
 
-      {:ok, %{i18n: i18n_content} = concept} ->
-        i18n =
-          i18n_content
-          |> Enum.map(fn {locale, %{"name" => name}} -> {locale, %{"name" => name}} end)
-          |> Map.new()
-
+      {:ok, concept} ->
         concept
         |> Map.take([
           :name,
           :id
         ])
-        |> Map.put(:i18n, i18n)
     end
   end
 

@@ -33,8 +33,21 @@ defmodule TdCache.LinkCache do
   @doc """
   Reads linked resources for a given resource.
   """
-  def list(resource_type, resource_id) do
-    linked_resources = linked_resources("#{resource_type}:#{resource_id}")
+  def list(resource_type, resource_id), do: list(resource_type, resource_id, [])
+
+  def list(resource_type, resource_id, opts) when is_list(opts) do
+    linked_resources = linked_resources("#{resource_type}:#{resource_id}", opts)
+    {:ok, linked_resources}
+  end
+
+  @doc """
+  Reads linked resources with a given type for a given resource.
+  """
+  def list(resource_type, resource_id, target_type) when is_binary(target_type),
+    do: list(resource_type, resource_id, target_type, [])
+
+  def list(resource_type, resource_id, target_type, opts) when is_binary(target_type) do
+    linked_resources = linked_resources("#{resource_type}:#{resource_id}", target_type, opts)
     {:ok, linked_resources}
   end
 
@@ -54,14 +67,6 @@ defmodule TdCache.LinkCache do
     |> String.split(":")
     |> Enum.at(1)
     |> String.to_integer()
-  end
-
-  @doc """
-  Reads linked resources with a given type for a given resource.
-  """
-  def list(resource_type, resource_id, target_type) do
-    linked_resources = linked_resources("#{resource_type}:#{resource_id}", target_type)
-    {:ok, linked_resources}
   end
 
   @doc """
@@ -386,19 +391,19 @@ defmodule TdCache.LinkCache do
   defp conditional_events(false, _), do: []
   defp conditional_events(_true, e), do: [e]
 
-  defp linked_resources(key, target_type) do
+  defp linked_resources(key, target_type, opts) do
     ["SMEMBERS", "#{key}:links:#{target_type}"]
     |> Redix.command!()
-    |> get_linked_resources(key)
+    |> get_linked_resources(key, opts)
   end
 
-  defp linked_resources(key) do
+  defp linked_resources(key, opts) when is_list(opts) do
     ["SMEMBERS", "#{key}:links"]
     |> Redix.command!()
-    |> get_linked_resources(key)
+    |> get_linked_resources(key, opts)
   end
 
-  defp get_linked_resources(resources, key) do
+  defp get_linked_resources(resources, key, opts) do
     resources
     |> Enum.map(&String.replace_prefix(&1, "link:", ""))
     |> Enum.map(&get_link/1)
@@ -410,12 +415,12 @@ defmodule TdCache.LinkCache do
     |> Enum.map(fn {resource_key, tags, id} ->
       {String.split(resource_key, ":", parts: 2), tags, id}
     end)
-    |> Enum.map(&read_source/1)
+    |> Enum.map(&read_source(&1, opts))
     |> Enum.filter(& &1)
   end
 
-  defp read_source({["business_concept", business_concept_id], tags, id}) do
-    case ConceptCache.get(business_concept_id) do
+  defp read_source({["business_concept", business_concept_id], tags, id}, opts) do
+    case ConceptCache.get(business_concept_id, opts) do
       {:ok, nil} ->
         nil
 
@@ -424,7 +429,7 @@ defmodule TdCache.LinkCache do
     end
   end
 
-  defp read_source({["data_structure", structure_id], tags, id}) do
+  defp read_source({["data_structure", structure_id], tags, id}, _opts) do
     case StructureCache.get(structure_id) do
       {:ok, nil} ->
         nil
@@ -434,7 +439,7 @@ defmodule TdCache.LinkCache do
     end
   end
 
-  defp read_source({["ingest", ingest_id], tags, id}) do
+  defp read_source({["ingest", ingest_id], tags, id}, _opts) do
     case IngestCache.get(ingest_id) do
       {:ok, nil} ->
         nil
@@ -444,14 +449,14 @@ defmodule TdCache.LinkCache do
     end
   end
 
-  defp read_source({["implementation_ref", implementation_ref], tags, id}) do
-    case ImplementationCache.get(implementation_ref) do
+  defp read_source({["implementation_ref", implementation_ref], tags, id}, opts) do
+    case ImplementationCache.get(implementation_ref, opts) do
       {:ok, nil} -> nil
       {:ok, implementation} -> resource_with_tags(implementation, :implementation, tags, id)
     end
   end
 
-  defp read_source(_), do: nil
+  defp read_source(_, _), do: nil
 
   defp resource_with_tags(%{id: resource_id} = resource, type, tags, link_id) do
     resource
