@@ -63,7 +63,10 @@ defmodule TdCache.Factory do
   def i18n_content_factory do
     %{
       "es" => %{
-        "foo" => ["xyz", "qux"]
+        "name" => "concept_name_es",
+        "content" => %{
+          "foo" => ["xyz", "qux"]
+        }
       }
     }
   end

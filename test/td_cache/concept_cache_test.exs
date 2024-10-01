@@ -101,6 +101,27 @@ defmodule TdCache.ConceptCacheTest do
       assert {:ok, ^content} = ConceptCache.get(concept.id, :content)
     end
 
+    test "reads the content property of a concept with specific lang", %{
+      concept: concept
+    } do
+      es_name = "concept_name_es"
+      es_value = ["xyz", "qux"]
+
+      i18n = %{
+        "es" => %{
+          "name" => es_name,
+          "content" => %{
+            "foo" => es_value
+          }
+        }
+      }
+
+      {:ok, _} = ConceptCache.put(Map.put(concept, :i18n, i18n))
+
+      assert {:ok, %{name: ^es_name, content: %{"foo" => ^es_value}}} =
+               ConceptCache.get(concept.id, lang: "es")
+    end
+
     test "reads the domain_ids property of a concept", %{domain: domain, concept: concept} do
       concept = Map.put(concept, :domain_id, domain.id)
 
