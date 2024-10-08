@@ -60,18 +60,6 @@ defmodule TdCache.ConceptCacheTest do
       assert c.status == "#{concept.status}"
     end
 
-    test "get/1 caches a concept entry locally and put/1 evicts it", context do
-      concept = context[:concept]
-      {:ok, _} = ConceptCache.put(concept)
-      assert is_nil(ConCache.get(:business_concepts, concept.id))
-
-      {:ok, _} = ConceptCache.get(concept.id)
-      refute is_nil(ConCache.get(:business_concepts, concept.id))
-
-      {:ok, _} = ConceptCache.put(concept)
-      assert is_nil(ConCache.get(:business_concepts, concept.id))
-    end
-
     test "writes a concept entry with domain in redis and reads it back", %{
       domain: domain,
       concept: concept
@@ -247,24 +235,6 @@ defmodule TdCache.ConceptCacheTest do
       assert %{"data_owner" => _} = c.content
       assert c.status == "#{concept.status}"
     end
-  end
-
-  test "get with refresh option reads from redis and updates local cache", context do
-    %{id: id} = concept = context[:concept]
-    {:ok, [5, 1, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
-
-    # Inital read stores concept in local cache
-    assert {:ok, %{id: ^id, name: name}} = ConceptCache.get(id)
-
-    # update concept name in Redis
-    Redix.command!(["HSET", "business_concept:#{id}", %{name: "updated"}])
-
-    # get without refresh option returns name from local cache
-    assert {:ok, %{name: ^name}} = ConceptCache.get(id)
-
-    # get with refresh option reads from Redis and updates local cache
-    assert {:ok, %{name: "updated"}} = ConceptCache.get(id, refresh: true)
-    assert {:ok, %{name: "updated"}} = ConceptCache.get(id)
   end
 
   test "put confidential/public concept updates confidential ids list", context do

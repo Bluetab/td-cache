@@ -136,14 +136,14 @@ defmodule TdCache.ConceptCache do
 
   @impl true
   def handle_call({:get, id, opts}, _from, state) do
-    concept = get_cache(id, fn -> read_concept(id, opts) end, opts)
+    concept = read_concept(id, opts)
     {:reply, {:ok, concept}, state}
   end
 
   @impl true
   def handle_call({:get, id, :domain_ids, opts}, _from, state) do
     domain_ids =
-      case get_cache(id, fn -> read_concept(id, opts) end, opts) do
+      case read_concept(id, opts) do
         %{domain_id: domain_id} -> TaxonomyCache.reaching_domain_ids(domain_id)
         _ -> []
       end
@@ -154,7 +154,7 @@ defmodule TdCache.ConceptCache do
   @impl true
   def handle_call({:get, id, property, opts}, _from, state) do
     prop =
-      case get_cache(id, fn -> read_concept(id, opts) end, opts) do
+      case read_concept(id, opts) do
         nil -> nil
         concept -> Map.get(concept, property)
       end
@@ -193,16 +193,6 @@ defmodule TdCache.ConceptCache do
   end
 
   ## Private functions
-
-  defp get_cache(key, fun, opts) do
-    if Keyword.get(opts, :refresh, false) do
-      concept = fun.()
-      ConCache.put(:business_concepts, key, concept)
-      concept
-    else
-      ConCache.get_or_store(:business_concepts, key, fn -> fun.() end)
-    end
-  end
 
   defp read_concept(id, opts) do
     concept_key = "business_concept:#{id}"
