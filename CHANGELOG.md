@@ -1,5 +1,15 @@
 # Changelog
 
+## [6.13.0] 2024-10-09
+
+### Added
+
+- [TD-6469] Fetch contept with language provided in options.
+
+### Changed
+
+- [TD-6469] Fetch concept directly from redis on read.
+
 ## [6.9.2] 2024-07-24
 
 ### Added
