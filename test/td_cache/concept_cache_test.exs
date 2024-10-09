@@ -46,7 +46,7 @@ defmodule TdCache.ConceptCacheTest do
 
     test "writes a concept entry in redis and reads it back", context do
       concept = context[:concept]
-      {:ok, [5, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
+      {:ok, [5, 1, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert c
       assert c.id == concept.id
@@ -60,25 +60,13 @@ defmodule TdCache.ConceptCacheTest do
       assert c.status == "#{concept.status}"
     end
 
-    test "get/1 caches a concept entry locally and put/1 evicts it", context do
-      concept = context[:concept]
-      {:ok, _} = ConceptCache.put(concept)
-      assert is_nil(ConCache.get(:business_concepts, concept.id))
-
-      {:ok, _} = ConceptCache.get(concept.id)
-      refute is_nil(ConCache.get(:business_concepts, concept.id))
-
-      {:ok, _} = ConceptCache.put(concept)
-      assert is_nil(ConCache.get(:business_concepts, concept.id))
-    end
-
     test "writes a concept entry with domain in redis and reads it back", %{
       domain: domain,
       concept: concept
     } do
       concept = Map.put(concept, :domain_id, domain.id)
 
-      {:ok, [6, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
+      {:ok, [6, 1, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert c
       assert c.id == concept.id
@@ -99,6 +87,27 @@ defmodule TdCache.ConceptCacheTest do
     test "reads the content property of a concept", %{concept: %{content: content} = concept} do
       {:ok, _} = ConceptCache.put(concept)
       assert {:ok, ^content} = ConceptCache.get(concept.id, :content)
+    end
+
+    test "reads the content property of a concept with specific lang", %{
+      concept: concept
+    } do
+      es_name = "concept_name_es"
+      es_value = ["xyz", "qux"]
+
+      i18n = %{
+        "es" => %{
+          "name" => es_name,
+          "content" => %{
+            "foo" => es_value
+          }
+        }
+      }
+
+      {:ok, _} = ConceptCache.put(Map.put(concept, :i18n, i18n))
+
+      assert {:ok, %{name: ^es_name, content: %{"foo" => ^es_value}}} =
+               ConceptCache.get(concept.id, lang: "es")
     end
 
     test "reads the domain_ids property of a concept", %{domain: domain, concept: concept} do
@@ -213,7 +222,7 @@ defmodule TdCache.ConceptCacheTest do
 
     test "writes a concept with content and reads it back", context do
       concept = context[:concept]
-      {:ok, [5, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
+      {:ok, [5, 1, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
       {:ok, c} = ConceptCache.get(concept.id)
       assert c
       assert c.id == concept.id
@@ -228,36 +237,18 @@ defmodule TdCache.ConceptCacheTest do
     end
   end
 
-  test "get with refresh option reads from redis and updates local cache", context do
-    %{id: id} = concept = context[:concept]
-    {:ok, [5, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
-
-    # Inital read stores concept in local cache
-    assert {:ok, %{id: ^id, name: name}} = ConceptCache.get(id)
-
-    # update concept name in Redis
-    Redix.command!(["HSET", "business_concept:#{id}", %{name: "updated"}])
-
-    # get without refresh option returns name from local cache
-    assert {:ok, %{name: ^name}} = ConceptCache.get(id)
-
-    # get with refresh option reads from Redis and updates local cache
-    assert {:ok, %{name: "updated"}} = ConceptCache.get(id, refresh: true)
-    assert {:ok, %{name: "updated"}} = ConceptCache.get(id)
-  end
-
   test "put confidential/public concept updates confidential ids list", context do
     # confidential concept
     %{id: id} = concept = context[:concept] |> Map.put(:confidential, true)
 
-    assert {:ok, [5, 1, 1, 0, 1, 1]} = ConceptCache.put(concept)
+    assert {:ok, [5, 1, 1, 1, 0, 1, 1]} = ConceptCache.put(concept)
     assert {:ok, 1} = ConceptCache.member_confidential_ids(id)
     assert ConceptCache.is_confidential?(id)
 
     # public concept
     concept = Map.put(concept, :confidential, false)
 
-    assert {:ok, [0, 0, 0, 0, 0, 1]} = ConceptCache.put(concept)
+    assert {:ok, [0, 0, 0, 0, 0, 0, 1]} = ConceptCache.put(concept)
     assert {:ok, 0} = ConceptCache.member_confidential_ids(id)
     refute ConceptCache.is_confidential?(id)
   end
@@ -266,7 +257,7 @@ defmodule TdCache.ConceptCacheTest do
     %{id: shared_id, name: name} = shared_to = context[:shared_to]
     %{id: id} = concept = Map.put(context[:concept], :shared_to_ids, [shared_to.id])
 
-    {:ok, [5, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
+    {:ok, [5, 1, 1, 1, 0, 1, 0]} = ConceptCache.put(concept)
     {:ok, %{shared_to: [%{id: ^shared_id, name: ^name}]}} = ConceptCache.get(id)
   end
 

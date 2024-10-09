@@ -7,6 +7,7 @@ defmodule TdCache.ConceptCache do
 
   alias Jason
   alias TdCache.EventStream.Publisher
+  alias TdCache.I18nCache
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.RuleCache
@@ -135,14 +136,14 @@ defmodule TdCache.ConceptCache do
 
   @impl true
   def handle_call({:get, id, opts}, _from, state) do
-    concept = get_cache(id, fn -> read_concept(id) end, opts)
+    concept = read_concept(id, opts)
     {:reply, {:ok, concept}, state}
   end
 
   @impl true
   def handle_call({:get, id, :domain_ids, opts}, _from, state) do
     domain_ids =
-      case get_cache(id, fn -> read_concept(id) end, opts) do
+      case read_concept(id, opts) do
         %{domain_id: domain_id} -> TaxonomyCache.reaching_domain_ids(domain_id)
         _ -> []
       end
@@ -153,7 +154,7 @@ defmodule TdCache.ConceptCache do
   @impl true
   def handle_call({:get, id, property, opts}, _from, state) do
     prop =
-      case get_cache(id, fn -> read_concept(id) end, opts) do
+      case read_concept(id, opts) do
         nil -> nil
         concept -> Map.get(concept, property)
       end
@@ -193,19 +194,12 @@ defmodule TdCache.ConceptCache do
 
   ## Private functions
 
-  defp get_cache(key, fun, opts) do
-    if Keyword.get(opts, :refresh, false) do
-      concept = fun.()
-      ConCache.put(:business_concepts, key, concept)
-      concept
-    else
-      ConCache.get_or_store(:business_concepts, key, fn -> fun.() end)
-    end
-  end
-
-  defp read_concept(id) do
+  defp read_concept(id, opts) do
     concept_key = "business_concept:#{id}"
     {:ok, concept} = Redix.read_map(concept_key)
+
+    {:ok, default_lang} = I18nCache.get_default_locale()
+    lang = Keyword.get(opts, :lang, default_lang)
 
     case concept_entry_to_map(concept) do
       nil ->
@@ -227,6 +221,22 @@ defmodule TdCache.ConceptCache do
         |> Map.put(:concept_count, concept_count)
         |> Map.put(:content, content || %{})
         |> Map.put(:shared_to, shared_to)
+        |> translate_concept(lang)
+    end
+  end
+
+  defp translate_concept(%{content: content, name: name} = concept, lang) do
+    {:ok, i18n} = read_i18n(concept)
+
+    case Map.get(i18n, "#{lang}") do
+      nil ->
+        Map.delete(concept, :i18n)
+
+      i18n_content ->
+        concept
+        |> Map.put(:name, Map.get(i18n_content, "name", name))
+        |> Map.update(:content, content, &Map.merge(&1, Map.get(i18n_content, "content")))
+        |> Map.delete(:i18n)
     end
   end
 
@@ -235,6 +245,14 @@ defmodule TdCache.ConceptCache do
   end
 
   defp read_content(_) do
+    {:ok, %{}}
+  end
+
+  defp read_i18n(%{i18n: i18n}) do
+    {:ok, Jason.decode!(i18n)}
+  end
+
+  defp read_i18n(_) do
     {:ok, %{}}
   end
 
@@ -299,6 +317,12 @@ defmodule TdCache.ConceptCache do
         "content",
         Jason.encode!(Map.get(concept, :content, %{}))
       ],
+      [
+        "HSET",
+        "business_concept:#{id}",
+        "i18n",
+        Jason.encode!(Map.get(concept, :i18n, %{}))
+      ],
       ["SADD", @keys, "business_concept:#{id}"],
       ["SREM", @inactive_ids, id],
       ["SADD", @active_ids, id],
@@ -306,7 +330,7 @@ defmodule TdCache.ConceptCache do
     ]
 
     results = Redix.transaction_pipeline!(commands)
-    [_, _, _, activated, _, _] = results
+    [_, _, _, _, activated, _, _] = results
 
     if opts[:publish] != false && activated != 0 do
       publish_event("restore_concepts", id)

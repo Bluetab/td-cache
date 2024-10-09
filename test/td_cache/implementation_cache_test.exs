@@ -5,6 +5,7 @@ defmodule TdCache.ImplementationCacheTest do
   import TdCache.Factory
   import Assertions
 
+  alias TdCache.ConceptCache
   alias TdCache.ImplementationCache
   alias TdCache.LinkCache
   alias TdCache.Redix
@@ -122,6 +123,32 @@ defmodule TdCache.ImplementationCacheTest do
       assert relation_ids == string_relation_ids
     end
 
+    test "get implementation with related concepts in browser lang", %{
+      implementation: %{id: id} = implementation
+    } do
+      es_concept_name = "concept_name_es"
+      es_concept_value = ["xyz", "qux"]
+
+      i18n = %{
+        "es" => %{
+          "name" => es_concept_name,
+          "content" => %{
+            "foo" => es_concept_value
+          }
+        }
+      }
+
+      %{id: concept_id} = concept = build(:concept)
+
+      {:ok, _} = ImplementationCache.put(implementation)
+      {:ok, _} = ConceptCache.put(Map.put(concept, :i18n, i18n))
+
+      create_link(id, concept_id)
+
+      assert {:ok, %{concepts_links: [%{name: ^es_concept_name}]}} =
+               ImplementationCache.get(id, lang: "es")
+    end
+
     test "delete relation between implementation_id and implementation_ref" do
       assert 3 =
                ImplementationCache.put_relation_impl_id_and_impl_ref([
@@ -211,10 +238,8 @@ defmodule TdCache.ImplementationCacheTest do
     end
   end
 
-  defp create_link(implementation_id) do
+  defp create_link(implementation_id, concept_id \\ 8) do
     id = System.unique_integer([:positive])
-
-    concept_id = 8
 
     on_exit(fn -> LinkCache.delete(id, publish: false) end)
 
