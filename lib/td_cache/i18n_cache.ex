@@ -111,6 +111,14 @@ defmodule TdCache.I18nCache do
     Redix.read_list("i18n:locales:required")
   end
 
+  def get_active_locales! do
+    prefix = "#{@i18n_key}:keys:"
+
+    "#{prefix}*"
+    |> Redix.keys!()
+    |> Enum.map(&String.replace(&1, prefix, ""))
+  end
+
   ## Callbacks
 
   @impl true
