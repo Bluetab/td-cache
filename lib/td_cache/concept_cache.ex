@@ -245,12 +245,9 @@ defmodule TdCache.ConceptCache do
 
   defp read_concept_i18n(id) do
     concept_key = "business_concept:#{id}"
-    case Redix.read_map(concept_key) do
-      {:ok, nil} -> nil
-      {:ok, concept} ->
-        {:ok, i18n} = read_i18n(concept)
-        i18n
-    end
+    {:ok, concept} = Redix.read_map(concept_key)
+    {:ok, i18n} = read_i18n(concept)
+    i18n
   end
 
   defp translate_concept(%{content: content, name: name} = concept, lang) do
