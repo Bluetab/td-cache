@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-6651] Add get users for multiple ACL keys
+
 ## [6.13.0] 2024-10-09
 
 ### Added
