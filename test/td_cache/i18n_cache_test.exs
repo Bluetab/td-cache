@@ -137,6 +137,16 @@ defmodule TdCache.I18nCacheTest do
              ] = I18nCache.get_definitions_by_value(value, lang_es, prefix: prefix)
     end
 
+    test "get_active_locales! return all active locales", %{
+      messages_en: {lang_en, messages_en},
+      messages_es: {lang_es, messages_es}
+    } do
+      put_messages(lang_en, messages_en)
+      put_messages(lang_es, messages_es)
+
+      assert ["en", "es"] ||| I18nCache.get_active_locales!()
+    end
+
     test "list_by_lang/1 return the list of definitions by lang", %{
       messages_en: {lang, messages_en}
     } do

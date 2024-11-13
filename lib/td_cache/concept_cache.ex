@@ -67,6 +67,13 @@ defmodule TdCache.ConceptCache do
   end
 
   @doc """
+  Reads a i18n of a concept for a given id from cache
+  """
+  def get_i18n(id) do
+    GenServer.call(__MODULE__, {:get_i18n, id})
+  end
+
+  @doc """
   Updates cache entries for active and inactive (deleted/deprecated) ids.
   Events will be emitted for newly inactivated ids.
   """
@@ -163,6 +170,17 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
+  def handle_call({:get_i18n, id}, _from, state) do
+    prop =
+      case read_concept_i18n(id) do
+        nil -> nil
+        concept_i18n -> concept_i18n
+      end
+
+    {:reply, {:ok, prop}, state}
+  end
+
+  @impl true
   def handle_call(:active_ids, _from, state) do
     ids = read_active_ids()
     {:reply, {:ok, ids}, state}
@@ -225,6 +243,13 @@ defmodule TdCache.ConceptCache do
     end
   end
 
+  defp read_concept_i18n(id) do
+    concept_key = "business_concept:#{id}"
+    {:ok, concept} = Redix.read_map(concept_key)
+    {:ok, i18n} = read_i18n(concept)
+    i18n
+  end
+
   defp translate_concept(%{content: content, name: name} = concept, lang) do
     {:ok, i18n} = read_i18n(concept)
 
@@ -236,7 +261,6 @@ defmodule TdCache.ConceptCache do
         concept
         |> Map.put(:name, Map.get(i18n_content, "name", name))
         |> Map.update(:content, content, &Map.merge(&1, Map.get(i18n_content, "content")))
-        |> Map.delete(:i18n)
     end
   end
 

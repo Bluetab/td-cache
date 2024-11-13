@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-6783] Get concept i18n content and active locales
+
 ## [6.13.0] 2024-10-09
 
 ### Added
