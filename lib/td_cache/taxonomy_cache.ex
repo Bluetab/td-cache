@@ -53,15 +53,13 @@ defmodule TdCache.TaxonomyCache do
 
   @impl true
   def handle_call({:get, id}, _from, state) do
-    domain = get_cache({:id, id}, fn -> do_get_domain(id) end)
+    domain = do_get_domain(id)
     {:reply, domain, state}
   end
 
   @impl true
   def handle_call({:get_by, external_id}, from, state) do
-    case get_cache({:external_id, external_id}, fn ->
-           DomainCache.external_id_to_id(external_id)
-         end) do
+    case DomainCache.external_id_to_id(external_id) do
       :error -> {:reply, nil, state}
       {:ok, id} -> handle_call({:get, id}, from, state)
     end
@@ -69,13 +67,13 @@ defmodule TdCache.TaxonomyCache do
 
   @impl true
   def handle_call(:count, _from, state) do
-    count = get_cache(:count, fn -> DomainCache.count!() end)
+    count = DomainCache.count!()
     {:reply, count, state}
   end
 
   @impl true
   def handle_call({:reaching, id}, _from, state) do
-    tree = get_cache(:tree, fn -> DomainCache.tree() end)
+    tree = DomainCache.tree()
     reply = do_get_reaching_ids(id, tree)
 
     {:reply, reply, state}
@@ -83,7 +81,7 @@ defmodule TdCache.TaxonomyCache do
 
   @impl true
   def handle_call({:reachable, ids}, _from, state) do
-    tree = get_cache(:tree, fn -> DomainCache.tree() end)
+    tree = DomainCache.tree()
     reply = do_get_reachable_ids(ids, tree)
 
     {:reply, reply, state}
@@ -91,25 +89,15 @@ defmodule TdCache.TaxonomyCache do
 
   @impl true
   def handle_call({:has_role, domain_id_or_ids, role, user_id}, _from, state) do
-    tree = get_cache(:tree, fn -> DomainCache.tree() end)
+    tree = DomainCache.tree()
     parent_ids = do_get_reaching_ids(domain_id_or_ids, tree)
 
-    reply =
-      get_cache(
-        {:has_role, parent_ids, role, user_id},
-        fn ->
-          Enum.any?(parent_ids, &AclCache.has_role?("domain", &1, role, user_id))
-        end
-      )
+    reply = Enum.any?(parent_ids, &AclCache.has_role?("domain", &1, role, user_id))
 
     {:reply, reply, state}
   end
 
   ## Private functions
-
-  defp get_cache(key, fun) do
-    ConCache.get_or_store(:taxonomy, key, fn -> fun.() end)
-  end
 
   defp do_get_domain(domain_id) do
     case DomainCache.get(domain_id) do
@@ -119,29 +107,19 @@ defmodule TdCache.TaxonomyCache do
   end
 
   defp do_get_reaching_ids(domain_id, tree) do
-    get_cache(
-      {:reaching, domain_id, tree},
-      fn ->
-        domain_id
-        |> List.wrap()
-        |> Enum.filter(&Graph.has_vertex?(tree, &1))
-        |> Graph.Traversal.reaching(tree)
-        |> Enum.reject(&(&1 == 0))
-        |> Enum.reverse()
-      end
-    )
+    domain_id
+    |> List.wrap()
+    |> Enum.filter(&Graph.has_vertex?(tree, &1))
+    |> Graph.Traversal.reaching(tree)
+    |> Enum.reject(&(&1 == 0))
+    |> Enum.reverse()
   end
 
   defp do_get_reachable_ids(domain_id, tree) do
-    get_cache(
-      {:reachable, domain_id, tree},
-      fn ->
-        domain_id
-        |> List.wrap()
-        |> Enum.filter(&Graph.has_vertex?(tree, &1))
-        |> Graph.Traversal.reachable(tree)
-      end
-    )
+    domain_id
+    |> List.wrap()
+    |> Enum.filter(&Graph.has_vertex?(tree, &1))
+    |> Graph.Traversal.reachable(tree)
   end
 
   defp to_integer(id) when is_integer(id), do: id
