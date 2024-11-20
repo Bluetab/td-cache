@@ -96,13 +96,29 @@ defmodule TdCache.UserCacheTest do
 
       role1 = %{"role1" => [1, 2, 3]}
       role2 = %{"role2" => [4, 5, 6]}
+      unkown_role = %{"unkown_role" => [4, 5, 6, 234]}
+      roles_to_remove = Map.merge(role1, unkown_role)
       domain_ids_by_role = Map.merge(role1, role2)
 
       assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
 
-      assert {:ok, 1} = UserCache.delete_roles(user_id, role1, "domain")
+      assert {:ok, [1, 0]} = UserCache.delete_roles(user_id, roles_to_remove, "domain")
 
       assert {:ok, ^role2} = UserCache.get_roles(user_id, "domain")
+    end
+
+    test "delete user role from cache without only for the specific domain", %{user: %{id: user_id} = user} do
+      put_user(user)
+
+      role1 = %{"role1" => [1, 2, 3]}
+      role2 = %{"role2" => [4, 5, 6]}
+      domain_ids_by_role = Map.merge(role1, role2)
+
+      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
+
+      assert {:ok,[0]} = UserCache.delete_roles(user_id, %{"role1" => [1]}, "domain")
+
+      assert {:ok, %{"role2" => [4, 5, 6], "role1" => [2, 3]}} = UserCache.get_roles(user_id, "domain")
     end
   end
 

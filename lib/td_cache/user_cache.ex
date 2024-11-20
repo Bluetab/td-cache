@@ -359,12 +359,18 @@ defmodule TdCache.UserCache do
   defp do_delete_roles(user_id, resource_ids_by_role, resource_type) do
     key = "user:#{user_id}:roles:#{resource_type}"
 
-    values =
-      Enum.flat_map(resource_ids_by_role, fn {role, _resource_ids} ->
-        [role]
-      end)
+    roles = Map.keys(resource_ids_by_role)
 
-    Redix.command(["HDEL", key | values])
+    ["HMGET", key | roles]
+    |> Redix.command!()
+    |> Enum.map(&Redix.to_integer_list!(&1))
+    |> Enum.zip(resource_ids_by_role)
+    |> Enum.map(fn {ids, {role, ids_to_remove}} -> {role, ids -- ids_to_remove} end)
+    |> Enum.map(fn
+      {role, []} -> ["HDEL", key, role]
+      {role, keep_ids} -> ["HSET", key, role, Enum.join(keep_ids, ",")]
+    end)
+    |> Redix.transaction_pipeline()
   end
 
   defp do_get_roles(user_id, resource_type \\ "domain") do
