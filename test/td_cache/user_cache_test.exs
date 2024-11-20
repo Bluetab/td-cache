@@ -107,7 +107,9 @@ defmodule TdCache.UserCacheTest do
       assert {:ok, ^role2} = UserCache.get_roles(user_id, "domain")
     end
 
-    test "delete user role from cache without only for the specific domain", %{user: %{id: user_id} = user} do
+    test "delete user role from cache without only for the specific domain", %{
+      user: %{id: user_id} = user
+    } do
       put_user(user)
 
       role1 = %{"role1" => [1, 2, 3]}
@@ -116,9 +118,10 @@ defmodule TdCache.UserCacheTest do
 
       assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
 
-      assert {:ok,[0]} = UserCache.delete_roles(user_id, %{"role1" => [1]}, "domain")
+      assert {:ok, [0]} = UserCache.delete_roles(user_id, %{"role1" => [1]}, "domain")
 
-      assert {:ok, %{"role2" => [4, 5, 6], "role1" => [2, 3]}} = UserCache.get_roles(user_id, "domain")
+      assert {:ok, %{"role2" => [4, 5, 6], "role1" => [2, 3]}} =
+               UserCache.get_roles(user_id, "domain")
     end
   end
 
