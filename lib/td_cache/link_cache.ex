@@ -33,8 +33,7 @@ defmodule TdCache.LinkCache do
   @doc """
   Reads linked resources for a given resource.
   """
-  def list(resource_type, resource_id),
-    do: list(resource_type, resource_id, [])
+  def list(resource_type, resource_id), do: list(resource_type, resource_id, [])
 
   def list(resource_type, resource_id, opts) when is_list(opts) do
     linked_resources = linked_resources("#{resource_type}:#{resource_id}", opts)
@@ -264,16 +263,6 @@ defmodule TdCache.LinkCache do
   def did_delete?({:ok, [_, _, _, _, count, _]}), do: count > 0
   def did_delete?(_), do: false
 
-  def delete_all_links, do: do_delete_all_links(Redix.command!(["EXISTS", "link:keys"]) == 1)
-
-  defp do_delete_all_links(true) do
-    links = Redix.command!(["SMEMBERS", "link:keys"])
-
-    Redix.transaction_pipeline(Enum.map(links, fn key -> ["DEL", key] end))
-  end
-
-  defp do_delete_all_links(_false), do: nil
-
   defp do_delete_link(id, [nil, nil], _opts) do
     Redix.transaction_pipeline([
       ["DEL", "link:#{id}", "link:#{id}:tags"],
@@ -419,7 +408,6 @@ defmodule TdCache.LinkCache do
     |> Enum.map(&String.replace_prefix(&1, "link:", ""))
     |> Enum.map(&get_link/1)
     |> Enum.filter(& &1)
-    |> filter_links(key, opts)
     |> Enum.flat_map(fn %{id: id, source: source, target: target, tags: tags} ->
       [{source, tags, id}, {target, tags, id}]
     end)
@@ -429,16 +417,6 @@ defmodule TdCache.LinkCache do
     end)
     |> Enum.map(&read_source(&1, opts))
     |> Enum.filter(& &1)
-  end
-
-  def filter_links(resources, key, opts) do
-    case Map.get(Map.new(opts), :childs, false) do
-      true ->
-        Enum.filter(resources, fn %{source: source} -> source == key end)
-
-      _ ->
-        resources
-    end
   end
 
   defp read_source({["business_concept", business_concept_id], tags, id}, opts) do

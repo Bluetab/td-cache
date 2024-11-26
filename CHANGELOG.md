@@ -1,11 +1,5 @@
 # Changelog
 
-## [6.16.0] 2024-11-26
-
-### Added
-
-- [TD-6888] Add tag cache and filter for childs tag relations
-
 ## [6.15.0] 2024-11-13
 
 ### Added
