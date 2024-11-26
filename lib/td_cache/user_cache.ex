@@ -6,12 +6,39 @@ defmodule TdCache.UserCache do
 
   alias TdCache.Redix
 
-  @ids "users:ids"
-  @group_ids "user_groups:ids"
   @props [:user_name, :full_name, :email, :external_id, :role]
-  @name_to_id_key "users:name_to_id"
-  @user_name_to_id_key "users:user_name_to_id"
-  @external_id_to_id_key "users:external_id_to_id"
+
+  defmodule Keys do
+    @moduledoc false
+
+    def ids, do: "users:ids"
+
+    def group_ids, do: "user_groups:ids"
+
+    def name_to_id, do: "users:name_to_id"
+
+    def user_name_to_id, do: "users:user_name_to_id"
+
+    def external_id_to_id, do: "users:external_id_to_id"
+
+    def user(id), do: "user:#{id}"
+
+    def user_roles(id) do
+      "user:#{id}:roles"
+    end
+
+    def user_group(id) do
+      "user_group:#{id}"
+    end
+
+    def user_group_roles(id) do
+      "user_group:#{id}:roles"
+    end
+
+    def user_resource_roles(user_id, resource_type) do
+      "user:#{user_id}:roles:#{resource_type}"
+    end
+  end
 
   ## Client API
 
@@ -95,8 +122,12 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:put, user})
   end
 
-  def put_roles(user_id, resource_ids_by_role, resource_type, opts \\ []) do
-    GenServer.call(__MODULE__, {:put_roles, user_id, resource_ids_by_role, resource_type, opts})
+  def refresh_all_roles(entries) do
+    GenServer.call(__MODULE__, {:refresh_all_roles, entries})
+  end
+
+  def refresh_resource_roles(user_id, resource_type, entries) do
+    GenServer.call(__MODULE__, {:refresh_resource_roles, user_id, resource_type, entries})
   end
 
   def get_roles(user_id) do
@@ -119,13 +150,9 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:delete_group, id})
   end
 
-  def delete_roles(user_id, resource_ids_by_role, resource_type) do
-    GenServer.call(__MODULE__, {:delete_roles, user_id, resource_ids_by_role, resource_type})
-  end
+  def ids_key, do: Keys.ids()
 
-  def ids_key, do: @ids
-
-  def group_ids_key, do: @group_ids
+  def group_ids_key, do: Keys.group_ids()
   ## Callbacks
 
   @impl true
@@ -139,51 +166,43 @@ defmodule TdCache.UserCache do
     {:reply, {:ok, users}, state}
   end
 
-  @impl true
   def handle_call({:get, id}, _from, state) do
     user = get_cache(id, fn -> read_user(id) end)
     {:reply, {:ok, user}, state}
   end
 
-  @impl true
   def handle_call({:name, name}, _from, state) do
     user = read_by_name(name)
     {:reply, {:ok, user}, state}
   end
 
-  @impl true
   def handle_call({:user_name, user_name}, _from, state) do
     user = read_by_user_name(user_name)
     {:reply, {:ok, user}, state}
   end
 
-  @impl true
   def handle_call({:external_id, external_id}, _from, state) do
     user = read_by_external_id(external_id)
     {:reply, {:ok, user}, state}
   end
 
-  @impl true
   def handle_call({:get_group, id}, _from, state) do
     group = read_group(id)
     {:reply, {:ok, group}, state}
   end
 
-  @impl true
   def handle_call({:put, user}, _from, state) do
     reply = put_user(user)
     {:reply, reply, state}
   end
 
-  @impl true
-  def handle_call({:put_roles, user_id, resource_ids_by_role, resource_type, opts}, _from, state) do
-    reply = do_put_roles(user_id, resource_ids_by_role, resource_type, opts)
+  def handle_call({:refresh_all_roles, entries}, _from, state) do
+    reply = do_refresh_all_roles(entries)
     {:reply, reply, state}
   end
 
-  @impl true
-  def handle_call({:delete_roles, user_id, resource_ids_by_role, resource_type}, _from, state) do
-    reply = do_delete_roles(user_id, resource_ids_by_role, resource_type)
+  def handle_call({:refresh_resource_roles, user_id, resource_type, entries}, _from, state) do
+    reply = do_refresh_resource_roles(user_id, resource_type, entries)
     {:reply, reply, state}
   end
 
@@ -199,19 +218,16 @@ defmodule TdCache.UserCache do
     {:reply, reply, state}
   end
 
-  @impl true
   def handle_call({:delete, id}, _from, state) do
     reply = delete_user(id)
     {:reply, reply, state}
   end
 
-  @impl true
   def handle_call({:put_group, group}, _from, state) do
     reply = do_put_group(group)
     {:reply, reply, state}
   end
 
-  @impl true
   def handle_call({:delete_group, id}, _from, state) do
     reply = do_delete_group(id)
     {:reply, reply, state}
@@ -224,7 +240,7 @@ defmodule TdCache.UserCache do
   end
 
   defp list_users do
-    case Redix.command(["SMEMBERS", @ids]) do
+    case Redix.command(["SMEMBERS", Keys.ids()]) do
       {:ok, ids} -> Enum.map(ids, &get_cache(&1, fn -> read_user(&1) end))
     end
   end
@@ -236,28 +252,28 @@ defmodule TdCache.UserCache do
   end
 
   defp read_user(id) do
-    case Redix.read_map("user:#{id}") do
+    case Redix.read_map(Keys.user(id)) do
       {:ok, nil} -> nil
       {:ok, user} -> Map.put(user, :id, id)
     end
   end
 
   defp read_by_name(full_name) do
-    case Redix.command!(["HGET", @name_to_id_key, full_name]) do
+    case Redix.command!(["HGET", Keys.name_to_id(), full_name]) do
       nil -> nil
       id -> read_user(id)
     end
   end
 
   defp read_by_user_name(user_name) do
-    case Redix.command!(["HGET", @user_name_to_id_key, user_name]) do
+    case Redix.command!(["HGET", Keys.user_name_to_id(), user_name]) do
       nil -> nil
       id -> read_user(id)
     end
   end
 
   defp read_by_external_id(external_id) do
-    case Redix.command!(["HGET", @external_id_to_id_key, external_id]) do
+    case Redix.command!(["HGET", Keys.external_id_to_id(), external_id]) do
       nil -> nil
       id -> read_user(id)
     end
@@ -270,7 +286,7 @@ defmodule TdCache.UserCache do
   end
 
   defp read_group(id) do
-    case Redix.read_map("user_group:#{id}") do
+    case Redix.read_map(Keys.user_group(id)) do
       {:ok, nil} -> nil
       {:ok, group} -> Map.put(group, :id, id)
     end
@@ -278,9 +294,9 @@ defmodule TdCache.UserCache do
 
   defp put_user(%{id: id} = user) do
     [
-      ["DEL", "user:#{id}"],
-      ["HSET", "user:#{id}", get_props(user)],
-      ["SADD", @ids, id]
+      ["DEL", Keys.user(id)],
+      ["HSET", Keys.user(id), get_props(user)],
+      ["SADD", Keys.ids(), id]
     ]
     |> add_full_name(user)
     |> add_user_name(user)
@@ -289,19 +305,19 @@ defmodule TdCache.UserCache do
   end
 
   defp add_full_name(pipeline, %{id: id, full_name: full_name}) do
-    pipeline ++ [["HSET", @name_to_id_key, full_name, id]]
+    pipeline ++ [["HSET", Keys.name_to_id(), full_name, id]]
   end
 
   defp add_full_name(pipeline, _), do: pipeline
 
   defp add_user_name(pipeline, %{id: id, user_name: user_name}) do
-    pipeline ++ [["HSET", @user_name_to_id_key, user_name, id]]
+    pipeline ++ [["HSET", Keys.user_name_to_id(), user_name, id]]
   end
 
   defp add_user_name(pipeline, _), do: pipeline
 
   defp add_external_id(pipeline, %{id: id, external_id: external_id}) when external_id != nil do
-    pipeline ++ [["HSET", @external_id_to_id_key, external_id, id]]
+    pipeline ++ [["HSET", Keys.external_id_to_id(), external_id, id]]
   end
 
   defp add_external_id(pipeline, _), do: pipeline
@@ -318,53 +334,78 @@ defmodule TdCache.UserCache do
   end
 
   defp delete_user(id) do
-    case Redix.command!(["HMGET", "user:#{id}", "full_name", "user_name", "external_id"]) do
+    case Redix.command!(["HMGET", Keys.user(id), "full_name", "user_name", "external_id"]) do
       [nil, nil, nil] ->
         Redix.transaction_pipeline([
-          ["DEL", "user:#{id}"],
-          ["DEL", "user:#{id}:roles"],
-          ["SREM", @ids, id]
+          ["DEL", Keys.user(id)],
+          ["DEL", Keys.user_roles(id)],
+          ["SREM", Keys.ids(), id]
         ])
 
       [full_name, user_name, external_id] ->
         Redix.transaction_pipeline([
-          ["DEL", "user:#{id}"],
-          ["DEL", "user:#{id}:roles"],
-          ["HDEL", @name_to_id_key, full_name],
-          ["HDEL", @user_name_to_id_key, user_name],
-          ["HDEL", @external_id_to_id_key, external_id],
-          ["SREM", @ids, id]
+          ["DEL", Keys.user(id)],
+          ["DEL", Keys.user_roles(id)],
+          ["HDEL", Keys.name_to_id(), full_name],
+          ["HDEL", Keys.user_name_to_id(), user_name],
+          ["HDEL", Keys.external_id_to_id(), external_id],
+          ["SREM", Keys.ids(), id]
         ])
     end
   end
 
-  defp do_put_roles(user_id, resource_ids_by_role, resource_type, opts) do
-    key = "user:#{user_id}:roles:#{resource_type}"
+  defp build_resources_cmds(resources) do
+    Enum.map(resources, fn {resource_type, roles_map} ->
+      {resource_type, build_role_args(roles_map)}
+    end)
+  end
 
-    values =
-      Enum.flat_map(resource_ids_by_role, fn {role, resource_ids} ->
-        [role, Enum.join(resource_ids, ",")]
+  defp build_role_args(roles_map) do
+    Enum.flat_map(roles_map, fn {role, resource_ids} ->
+      [role, Enum.join(resource_ids, ",")]
+    end)
+  end
+
+  defp do_refresh_all_roles(entries) do
+    clean_cmd =
+      "*"
+      |> Keys.user_resource_roles("*")
+      |> then(&["KEYS", &1])
+      |> Redix.command()
+      |> elem(1)
+      |> case do
+        [_ | _] = keys -> [["DEL" | keys]]
+        _ -> []
+      end
+
+    hset_cmds =
+      Enum.flat_map(entries, fn {user_id, resources} ->
+        resources
+        |> build_resources_cmds
+        |> Enum.map(fn {resource_type, cmd_args} ->
+          key = Keys.user_resource_roles(user_id, resource_type)
+          ["HSET", key | cmd_args]
+        end)
       end)
 
-    if Keyword.get(opts, :reload_roles, false) do
-      Redix.transaction_pipeline([
-        ["DEL", key],
-        ["HSET", key | values]
-      ])
-    else
-      Redix.command(["HSET", key | values])
+    case clean_cmd ++ hset_cmds do
+      [_ | _] = cmds -> Redix.transaction_pipeline(cmds)
+      _ -> {:ok, nil}
     end
   end
 
-  defp do_delete_roles(user_id, resource_ids_by_role, resource_type) do
-    key = "user:#{user_id}:roles:#{resource_type}"
+  defp do_refresh_resource_roles(user_id, resource_type, entries) do
+    key = Keys.user_resource_roles(user_id, resource_type)
 
-    values =
-      Enum.flat_map(resource_ids_by_role, fn {role, _resource_ids} ->
-        [role]
-      end)
+    hset_cmd =
+      entries
+      |> build_role_args()
+      |> case do
+        [_ | _] = args -> [["HSET", key | args]]
+        _ -> []
+      end
 
-    Redix.command(["HDEL", key | values])
+    Redix.transaction_pipeline([["DEL", key]] ++ hset_cmd)
   end
 
   defp do_get_roles(user_id, resource_type \\ "domain") do
@@ -377,18 +418,18 @@ defmodule TdCache.UserCache do
 
   defp do_put_group(%{id: id, name: name}) do
     [
-      ["DEL", "user_group:#{id}"],
-      ["HSET", "user_group:#{id}", %{name: name}],
-      ["SADD", @group_ids, id]
+      ["DEL", Keys.user_group(id)],
+      ["HSET", Keys.user_group(id), %{name: name}],
+      ["SADD", Keys.group_ids(), id]
     ]
     |> Redix.transaction_pipeline()
   end
 
   defp do_delete_group(id) do
     Redix.transaction_pipeline([
-      ["DEL", "user_group:#{id}"],
-      ["DEL", "user_group:#{id}:roles"],
-      ["SREM", @group_ids, id]
+      ["DEL", Keys.user_group(id)],
+      ["DEL", Keys.user_group_roles(id)],
+      ["SREM", Keys.group_ids(), id]
     ])
   end
 end
