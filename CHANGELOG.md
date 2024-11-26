@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [6.15.1] 2024-11-13
 
 ### Fix
 
