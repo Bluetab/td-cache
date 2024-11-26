@@ -23,7 +23,7 @@ defmodule TdCache.AclCacheTest do
         "acl_roles:test_type:*",
         "acl_role_users:test_type:*",
         "acl_role_users:resource_type_one:*",
-        "acl_role_users:dresource_type_two:*",
+        "acl_role_users:resource_type_two:*",
         "acl_group_roles:test_type:*",
         "acl_role_groups:test_type:*",
         "permission:foo:roles",
