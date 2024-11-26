@@ -9,6 +9,8 @@ defmodule TdCache.UserCacheTest do
   doctest TdCache.UserCache
 
   setup do
+    # Clean up all user_roles
+    on_exit(fn -> UserCache.refresh_all_roles(%{}) end)
     users = Enum.map(0..10, fn _ -> build(:user) end)
     [users: users, user: Enum.random(users)]
   end
@@ -90,39 +92,6 @@ defmodule TdCache.UserCacheTest do
       UserCache.delete(user_id)
       refute Redix.exists?("user:#{user_id}")
     end
-
-    test "delete user role from cache", %{user: %{id: user_id} = user} do
-      put_user(user)
-
-      role1 = %{"role1" => [1, 2, 3]}
-      role2 = %{"role2" => [4, 5, 6]}
-      unkown_role = %{"unkown_role" => [4, 5, 6, 234]}
-      roles_to_remove = Map.merge(role1, unkown_role)
-      domain_ids_by_role = Map.merge(role1, role2)
-
-      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
-
-      assert {:ok, [1, 0]} = UserCache.delete_roles(user_id, roles_to_remove, "domain")
-
-      assert {:ok, ^role2} = UserCache.get_roles(user_id, "domain")
-    end
-
-    test "delete user role from cache without only for the specific domain", %{
-      user: %{id: user_id} = user
-    } do
-      put_user(user)
-
-      role1 = %{"role1" => [1, 2, 3]}
-      role2 = %{"role2" => [4, 5, 6]}
-      domain_ids_by_role = Map.merge(role1, role2)
-
-      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
-
-      assert {:ok, [0]} = UserCache.delete_roles(user_id, %{"role1" => [1]}, "domain")
-
-      assert {:ok, %{"role2" => [4, 5, 6], "role1" => [2, 3]}} =
-               UserCache.get_roles(user_id, "domain")
-    end
   end
 
   describe "exists?/1" do
@@ -152,19 +121,117 @@ defmodule TdCache.UserCacheTest do
     end
   end
 
-  describe "put_roles  and get_roles/1" do
-    test "puts a hash with comma-separated ids as values and reads it back" do
+  describe "refresh_all_roles/1 refresh_resource_roles/3 and get_roles/1" do
+    test "refresh_all_roles deletes all entries and load back" do
+      %{id: user_id_1} = user1 = build(:user)
+      %{id: user_id_2} = user2 = build(:user)
+      put_user(user1)
+      put_user(user2)
+
+      entries = %{
+        user_id_1 => %{
+          "domain" => %{
+            "role1" => [1, 2, 3],
+            "role2" => [4, 5, 6]
+          }
+        },
+        user_id_2 => %{
+          "structure" => %{
+            "role2" => [3, 4],
+            "role3" => [6, 7]
+          }
+        }
+      }
+
+      assert {:ok, [2, 2]} = UserCache.refresh_all_roles(entries)
+
+      assert {:ok,
+              %{
+                "role1" => [1, 2, 3],
+                "role2" => [4, 5, 6]
+              }} = UserCache.get_roles(user_id_1, "domain")
+
+      assert {:ok,
+              %{
+                "role2" => [3, 4],
+                "role3" => [6, 7]
+              }} = UserCache.get_roles(user_id_2, "structure")
+
+      entries = %{
+        user_id_1 => %{"structure" => %{"role4" => [8]}}
+      }
+
+      assert {:ok, [2, 1]} = UserCache.refresh_all_roles(entries)
+
+      assert {:ok, nil} = UserCache.get_roles(user_id_1, "domain")
+      assert {:ok, nil} = UserCache.get_roles(user_id_2, "structure")
+      assert {:ok, %{"role4" => [8]}} = UserCache.get_roles(user_id_1, "structure")
+
+      assert {:ok, [1]} = UserCache.refresh_all_roles(%{})
+
+      assert {:ok, nil} = UserCache.get_roles(user_id_1, "structure")
+    end
+
+    test "refresh_all_roles handles empty entries with empty cache" do
+      assert {:ok, nil} = UserCache.refresh_all_roles(%{})
+    end
+
+    test "refresh_all_roles refreshes multiple resource_types for user" do
       %{id: user_id} = user = build(:user)
       put_user(user)
 
-      domain_ids_by_role = %{
+      entries = %{
+        user_id => %{
+          "domain" => %{"role1" => [1]},
+          "structure" => %{"role2" => [4]}
+        }
+      }
+
+      assert {:ok, [1, 1]} = UserCache.refresh_all_roles(entries)
+
+      assert {:ok, %{"role1" => [1]}} = UserCache.get_roles(user_id, "domain")
+      assert {:ok, %{"role2" => [4]}} = UserCache.get_roles(user_id, "structure")
+    end
+
+    test "refresh_resource_roles loads a user roles" do
+      %{id: user_id_1} = user1 = build(:user)
+      %{id: user_id_2} = user2 = build(:user)
+      put_user(user1)
+      put_user(user2)
+
+      entries = %{
         "role1" => [1, 2, 3],
         "role2" => [4, 5, 6]
       }
 
-      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
-      assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id)
-      assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id, "domain")
+      assert {:ok, [0, 2]} = UserCache.refresh_resource_roles(user_id_1, "domain", entries)
+
+      assert {:ok, ^entries} = UserCache.get_roles(user_id_1, "domain")
+      assert {:ok, nil} = UserCache.get_roles(user_id_2, "domain")
+
+      assert {:ok, [0, 2]} = UserCache.refresh_resource_roles(user_id_2, "domain", entries)
+
+      assert {:ok, ^entries} = UserCache.get_roles(user_id_1, "domain")
+      assert {:ok, ^entries} = UserCache.get_roles(user_id_2, "domain")
+
+      assert {:ok, [1]} = UserCache.refresh_resource_roles(user_id_1, "domain", %{})
+
+      assert {:ok, nil} = UserCache.get_roles(user_id_1, "domain")
+      assert {:ok, ^entries} = UserCache.get_roles(user_id_2, "domain")
+
+      entries2 = %{
+        "role3" => [8]
+      }
+
+      assert {:ok, [0, 1]} = UserCache.refresh_resource_roles(user_id_2, "structure", entries2)
+
+      assert {:ok, ^entries} = UserCache.get_roles(user_id_2, "domain")
+      assert {:ok, ^entries2} = UserCache.get_roles(user_id_2, "structure")
+
+      assert {:ok, [1, 1]} = UserCache.refresh_resource_roles(user_id_2, "domain", entries2)
+
+      assert {:ok, ^entries2} = UserCache.get_roles(user_id_2, "domain")
+      assert {:ok, ^entries2} = UserCache.get_roles(user_id_2, "structure")
     end
 
     test "puts a hash with comma-separated ids of a resource_type as values and reads it back" do
@@ -176,31 +243,10 @@ defmodule TdCache.UserCacheTest do
         "role2_structure" => [40, 50, 60]
       }
 
-      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "structure")
+      assert {:ok, [0, 2]} =
+               UserCache.refresh_resource_roles(user_id, "structure", domain_ids_by_role)
+
       assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id, "structure")
-    end
-
-    test "puts roles with the option reload_roles set to true " do
-      %{id: user_id} = user = build(:user)
-      put_user(user)
-
-      domain_ids_by_role = %{
-        "role1" => [1, 2, 3],
-        "role2" => [4, 5, 6]
-      }
-
-      domains_ids_by_role_2 = %{
-        "role3" => [1, 2, 3],
-        "role4" => [4, 5, 6]
-      }
-
-      assert {:ok, 2} = UserCache.put_roles(user_id, domain_ids_by_role, "domain")
-      assert {:ok, ^domain_ids_by_role} = UserCache.get_roles(user_id)
-
-      assert {:ok, [1, 2]} =
-               UserCache.put_roles(user_id, domains_ids_by_role_2, "domain", reload_roles: true)
-
-      assert {:ok, ^domains_ids_by_role_2} = UserCache.get_roles(user_id, "domain")
     end
   end
 
