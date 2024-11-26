@@ -1,10 +1,10 @@
 # Changelog
 
-## [6.16.0] 2024-11-26
+## [6.15.1] 2024-11-13
 
-### Added
+### Fix
 
-- [TD-6888] Add tag cache and filter for childs tag relations
+- [TD-6950] Delete only the specified domains and roles
 
 ## [6.15.0] 2024-11-13
 
