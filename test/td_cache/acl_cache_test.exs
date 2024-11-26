@@ -22,7 +22,7 @@ defmodule TdCache.AclCacheTest do
       Redix.del!([
         "acl_roles:test_type:*",
         "acl_role_users:test_type:*",
-        "acl_role_users:dresource_type_one:*",
+        "acl_role_users:resource_type_one:*",
         "acl_role_users:dresource_type_two:*",
         "acl_group_roles:test_type:*",
         "acl_role_groups:test_type:*",
@@ -88,19 +88,19 @@ defmodule TdCache.AclCacheTest do
 
   test "get_acl_role_users_multikey for multiple resource types and ids keys" do
     role = "multikey_role"
-    dresource_type_one_id = System.unique_integer([:positive])
+    resource_type_one_id = System.unique_integer([:positive])
     resource_type_two_id = System.unique_integer([:positive])
 
-    dresource_type_one_user_ids = System.unique_integer([:positive])
+    resource_type_one_user_ids = System.unique_integer([:positive])
     resource_type_two_user_ids = System.unique_integer([:positive])
-    CacheHelpers.put_user_ids([dresource_type_one_user_ids, resource_type_two_user_ids])
+    CacheHelpers.put_user_ids([resource_type_one_user_ids, resource_type_two_user_ids])
 
-    invalid_dresource_type_one_user_ids = System.unique_integer([:positive])
+    invalid_resource_type_one_user_ids = System.unique_integer([:positive])
     invalid_resource_type_two_user_ids = System.unique_integer([:positive])
 
-    AclCache.set_acl_role_users("dresource_type_one", dresource_type_one_id, role, [
-      dresource_type_one_user_ids,
-      invalid_dresource_type_one_user_ids
+    AclCache.set_acl_role_users("resource_type_one", resource_type_one_id, role, [
+      resource_type_one_user_ids,
+      invalid_resource_type_one_user_ids
     ])
 
     AclCache.set_acl_role_users("resource_type_two", resource_type_two_id, role, [
@@ -108,10 +108,10 @@ defmodule TdCache.AclCacheTest do
       invalid_resource_type_two_user_ids
     ])
 
-    assert [dresource_type_one_user_ids, resource_type_two_user_ids] ==
+    assert [resource_type_one_user_ids, resource_type_two_user_ids] ==
              AclCache.get_acl_role_users_multikey(
                %{
-                 "dresource_type_one" => [dresource_type_one_id],
+                 "resource_type_one" => [resource_type_one_id],
                  "resource_type_two" => [resource_type_two_id]
                },
                role
