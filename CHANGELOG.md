@@ -6,6 +6,18 @@
 
 - [TD-6651] Add get users for multiple ACL keys
 
+## [6.15.1] 2024-11-13
+
+### Fix
+
+- [TD-6950] Delete only the specified domains and roles
+
+## [6.15.0] 2024-11-13
+
+### Added
+
+- [TD-6783] Get concept i18n content and active locales
+
 ## [6.13.0] 2024-10-09
 
 ### Added
