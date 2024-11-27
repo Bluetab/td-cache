@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [6.15.2] 2024-11-27
 
 ### Added
 

@@ -1,6 +1,8 @@
 defmodule TdCache.Templates.AclLoaderTest do
   use ExUnit.Case
 
+  import TdCache.TestOperators
+
   alias TdCache.AclCache
   alias TdCache.CacheHelpers
   alias TdCache.Templates.AclLoader
@@ -14,8 +16,8 @@ defmodule TdCache.Templates.AclLoaderTest do
       domain1 = CacheHelpers.insert_domain()
       domain2 = CacheHelpers.insert_domain()
 
-      %{id: user_id_1} = CacheHelpers.insert_user()
-      %{id: user_id_2} = CacheHelpers.insert_user()
+      %{id: user_id_1, full_name: user_name_1} = CacheHelpers.insert_user()
+      %{id: user_id_2, full_name: user_name_2} = CacheHelpers.insert_user()
       %{id: user_id_3} = CacheHelpers.insert_user()
 
       AclCache.set_acl_roles("domain", domain1.id, ["role1", "role2"])
@@ -33,9 +35,15 @@ defmodule TdCache.Templates.AclLoaderTest do
 
       assert %{
                "role1" => [%{id: ^user_id_1}],
-               "role2" => [%{id: ^user_id_1}, %{id: ^user_id_2}],
+               "role2" => role2,
                "role3" => [%{id: ^user_id_3}]
              } = AclLoader.get_roles_and_users([domain1.id, domain2.id])
+
+      assert role2 |||
+               [
+                 %{id: user_id_1, full_name: user_name_1},
+                 %{id: user_id_2, full_name: user_name_2}
+               ]
     end
   end
 

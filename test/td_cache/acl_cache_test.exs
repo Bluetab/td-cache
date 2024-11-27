@@ -21,9 +21,7 @@ defmodule TdCache.AclCacheTest do
     on_exit(fn ->
       Redix.del!([
         "acl_roles:test_type:*",
-        "acl_role_users:test_type:*",
-        "acl_role_users:resource_type_one:*",
-        "acl_role_users:resource_type_two:*",
+        "acl_role_users:*",
         "acl_group_roles:test_type:*",
         "acl_role_groups:test_type:*",
         "permission:foo:roles",
@@ -86,33 +84,50 @@ defmodule TdCache.AclCacheTest do
     assert user_id in users_result
   end
 
-  test "get_acl_role_users_multikey for multiple resource types and ids keys" do
+  test "get_acl_user_ids_by_resources_role for multiple resource types and ids keys" do
     role = "multikey_role"
-    resource_type_one_id = System.unique_integer([:positive])
-    resource_type_two_id = System.unique_integer([:positive])
 
-    resource_type_one_user_ids = System.unique_integer([:positive])
-    resource_type_two_user_ids = System.unique_integer([:positive])
-    CacheHelpers.put_user_ids([resource_type_one_user_ids, resource_type_two_user_ids])
+    acl_entry_1 = %{
+      resource_type: "domain",
+      resource_id: System.unique_integer([:positive]),
+      user_id: System.unique_integer([:positive])
+    }
 
-    invalid_resource_type_one_user_ids = System.unique_integer([:positive])
-    invalid_resource_type_two_user_ids = System.unique_integer([:positive])
+    acl_entry_2 = %{
+      resource_type: "structure",
+      resource_id: System.unique_integer([:positive]),
+      user_id: System.unique_integer([:positive])
+    }
 
-    AclCache.set_acl_role_users("resource_type_one", resource_type_one_id, role, [
-      resource_type_one_user_ids,
-      invalid_resource_type_one_user_ids
-    ])
+    CacheHelpers.put_user_ids([acl_entry_1.user_id, acl_entry_2.user_id])
 
-    AclCache.set_acl_role_users("resource_type_two", resource_type_two_id, role, [
-      resource_type_two_user_ids,
-      invalid_resource_type_two_user_ids
-    ])
+    invalid_user_id = System.unique_integer([:positive])
 
-    assert [resource_type_one_user_ids, resource_type_two_user_ids] ==
-             AclCache.get_acl_role_users_multikey(
+    AclCache.set_acl_role_users(
+      acl_entry_1.resource_type,
+      acl_entry_1.resource_id,
+      role,
+      [
+        acl_entry_1.user_id,
+        invalid_user_id
+      ]
+    )
+
+    AclCache.set_acl_role_users(
+      acl_entry_2.resource_type,
+      acl_entry_2.resource_id,
+      role,
+      [
+        acl_entry_2.user_id,
+        invalid_user_id
+      ]
+    )
+
+    assert [acl_entry_1.user_id, acl_entry_2.user_id] ==
+             AclCache.get_acl_user_ids_by_resources_role(
                %{
-                 "resource_type_one" => [resource_type_one_id],
-                 "resource_type_two" => [resource_type_two_id]
+                 acl_entry_1.resource_type => [acl_entry_1.resource_id],
+                 acl_entry_2.resource_type => [acl_entry_2.resource_id]
                },
                role
              )
