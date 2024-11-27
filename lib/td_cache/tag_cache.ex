@@ -45,6 +45,26 @@ defmodule TdCache.TagCache do
     ]
   end
 
+  defp put_tag_commands(%{
+         id: id,
+         value: %{"type" => type, "target_type" => target_type},
+         updated_at: updated_at
+       }) do
+    [
+      [
+        "HSET",
+        "link:tag:#{id}",
+        "type",
+        "#{type}",
+        "target_type",
+        "#{target_type}",
+        "updated_at",
+        "#{updated_at}"
+      ],
+      ["SADD", "link:tag:keys", "link:tag:#{id}"]
+    ]
+  end
+
   @doc """
   Reads a cache entries relating to a given tag id.
   """
