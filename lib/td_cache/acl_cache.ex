@@ -62,6 +62,25 @@ defmodule TdCache.AclCache do
     end
   end
 
+  def get_acl_user_ids_by_resources_role(resources, role) do
+    keys =
+      Enum.flat_map(resources, fn {resource_type, resource_ids} ->
+        Enum.map(resource_ids, fn resource_id ->
+          Keys.acl_role_users_key(resource_type, resource_id, role)
+        end)
+      end)
+
+    [
+      ["SUNIONSTORE", "union_list"] ++ keys,
+      ["SINTER", "union_list", UserCache.ids_key()],
+      ["DEL", "union_list"]
+    ]
+    |> Redix.transaction_pipeline!()
+    |> case do
+      [_, user_ids, _] -> Redix.to_integer_list!(user_ids)
+    end
+  end
+
   def has_role?(resource_type, resource_id, role, user_id) do
     key = Keys.acl_role_users_key(resource_type, resource_id, role)
 

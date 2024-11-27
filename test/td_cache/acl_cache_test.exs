@@ -21,7 +21,7 @@ defmodule TdCache.AclCacheTest do
     on_exit(fn ->
       Redix.del!([
         "acl_roles:test_type:*",
-        "acl_role_users:test_type:*",
+        "acl_role_users:*",
         "acl_group_roles:test_type:*",
         "acl_role_groups:test_type:*",
         "permission:foo:roles",
@@ -82,6 +82,55 @@ defmodule TdCache.AclCacheTest do
 
     users_result = AclCache.get_acl_role_users(@resource_type, @resource_id, @role)
     assert user_id in users_result
+  end
+
+  test "get_acl_user_ids_by_resources_role for multiple resource types and ids keys" do
+    role = "multikey_role"
+
+    acl_entry_1 = %{
+      resource_type: "domain",
+      resource_id: System.unique_integer([:positive]),
+      user_id: System.unique_integer([:positive])
+    }
+
+    acl_entry_2 = %{
+      resource_type: "structure",
+      resource_id: System.unique_integer([:positive]),
+      user_id: System.unique_integer([:positive])
+    }
+
+    CacheHelpers.put_user_ids([acl_entry_1.user_id, acl_entry_2.user_id])
+
+    invalid_user_id = System.unique_integer([:positive])
+
+    AclCache.set_acl_role_users(
+      acl_entry_1.resource_type,
+      acl_entry_1.resource_id,
+      role,
+      [
+        acl_entry_1.user_id,
+        invalid_user_id
+      ]
+    )
+
+    AclCache.set_acl_role_users(
+      acl_entry_2.resource_type,
+      acl_entry_2.resource_id,
+      role,
+      [
+        acl_entry_2.user_id,
+        invalid_user_id
+      ]
+    )
+
+    assert [acl_entry_1.user_id, acl_entry_2.user_id] ==
+             AclCache.get_acl_user_ids_by_resources_role(
+               %{
+                 acl_entry_1.resource_type => [acl_entry_1.resource_id],
+                 acl_entry_2.resource_type => [acl_entry_2.resource_id]
+               },
+               role
+             )
   end
 
   test "delete_acl_role_users deletes from cache" do
