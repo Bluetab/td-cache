@@ -264,16 +264,6 @@ defmodule TdCache.LinkCache do
   def did_delete?({:ok, [_, _, _, _, count, _]}), do: count > 0
   def did_delete?(_), do: false
 
-  def delete_all_links, do: do_delete_all_links(Redix.command!(["EXISTS", "link:keys"]) == 1)
-
-  defp do_delete_all_links(true) do
-    links = Redix.command!(["SMEMBERS", "link:keys"])
-
-    Redix.transaction_pipeline(Enum.map(links, fn key -> ["DEL", key] end))
-  end
-
-  defp do_delete_all_links(_false), do: nil
-
   defp do_delete_link(id, [nil, nil], _opts) do
     Redix.transaction_pipeline([
       ["DEL", "link:#{id}", "link:#{id}:tags"],
