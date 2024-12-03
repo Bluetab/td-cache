@@ -1,6 +1,7 @@
 defmodule TdCache.TagCacheTest do
   use ExUnit.Case
 
+  import TdCache.TestOperators
   alias TdCache.Redix
   alias TdCache.TagCache
 
@@ -23,21 +24,22 @@ defmodule TdCache.TagCacheTest do
 
   describe "LinkCache" do
     test "writes a tag entry in redis, and reads it back, delete tag", context do
-      tag = context[:tag]
-      tag_value = tag.value
-      tag_type = Map.get(tag_value, "type", nil)
-      tag_target_type = Map.get(tag_value, "target_type", nil)
-      tag_expandable = to_string(Map.get(tag_value, "expandable", nil) == "true")
-
-      tag_updated_at = to_string(tag.updated_at)
+      %{
+        value: %{
+          "type" => type,
+          "target_type" => target_type,
+          "expandable" => expandable
+        },
+        updated_at: updated_at
+      } = tag = context[:tag]
 
       assert {:ok, [4, 1]} == TagCache.put(tag)
 
       {:ok, t} = TagCache.get(tag.id)
-      assert t.type == tag_type
-      assert t.target_type == tag_target_type
-      assert t.expandable == tag_expandable
-      assert t.updated_at == tag_updated_at
+      assert t.type == type
+      assert t.target_type == target_type
+      assert t.expandable == to_string(expandable)
+      assert t.updated_at == to_string(updated_at)
     end
 
     test "lists all links", %{tag: %{id: id1} = tag} do
@@ -46,9 +48,8 @@ defmodule TdCache.TagCacheTest do
       {:ok, _} = TagCache.put(tag)
       {:ok, _} = TagCache.put(tag2)
 
-      assert [_, _] = tags = TagCache.list()
-      assert Enum.any?(tags, &(&1.id == "#{id1}"))
-      assert Enum.any?(tags, &(&1.id == "#{id2}"))
+      assert tags = TagCache.list()
+      assert Enum.map(tags, & &1.id) ||| ["#{id1}", "#{id2}"]
     end
   end
 

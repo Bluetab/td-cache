@@ -81,11 +81,7 @@ defmodule TdCache.TagCache do
         nil
 
       _ ->
-        tag =
-          map
-          |> Map.put(:id, id)
-
-        struct(Tag, tag)
+        Map.merge(%Tag{id: id}, map)
     end
   end
 

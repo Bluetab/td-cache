@@ -23,3 +23,4 @@ erl_crash.dump
 td_cache-*.tar
 
 .iex.exs
+.tool-versions

@@ -419,7 +419,7 @@ defmodule TdCache.LinkCache do
     |> Enum.map(&String.replace_prefix(&1, "link:", ""))
     |> Enum.map(&get_link/1)
     |> Enum.filter(& &1)
-    |> filter_links(key, opts)
+    |> maybe_reject_parent_business_concept_links(key, opts)
     |> Enum.flat_map(fn %{id: id, source: source, target: target, tags: tags} ->
       [{source, tags, id}, {target, tags, id}]
     end)
@@ -431,13 +431,14 @@ defmodule TdCache.LinkCache do
     |> Enum.filter(& &1)
   end
 
-  def filter_links(resources, key, opts) do
-    case Map.get(Map.new(opts), :childs, false) do
-      true ->
-        Enum.filter(resources, fn %{source: source} -> source == key end)
-
-      _ ->
-        resources
+  defp maybe_reject_parent_business_concept_links(resources, key, opts) do
+    if Keyword.get(opts, :childs) do
+      Enum.reject(resources, fn
+        %{target: ^key, source: "business_concept:" <> _} -> true
+        _ -> false
+      end)
+    else
+      resources
     end
   end
 

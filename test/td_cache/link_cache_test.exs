@@ -1,8 +1,11 @@
 defmodule TdCache.LinkCacheTest do
   use ExUnit.Case
 
+  import TdCache.Factory
   import Assertions
+  import TdCache.TestOperators
 
+  alias TdCache.ConceptCache
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
@@ -174,6 +177,38 @@ defmodule TdCache.LinkCacheTest do
       assert LinkCache.linked_source_ids("foo", "baz") == [42]
       assert LinkCache.linked_source_ids("foo", "bar") == [42, 43, 44, 45]
       assert LinkCache.linked_source_ids("bar", "foo") == [99, 123]
+    end
+
+    test "list/3 retrieves child links" do
+      %{id: bc1_id} = concept1 = build(:concept)
+      %{id: bc2_id} = concept2 = build(:concept)
+      %{id: bc3_id} = concept3 = build(:concept)
+
+      ConceptCache.put(concept1)
+      ConceptCache.put(concept2)
+      ConceptCache.put(concept3)
+
+      put_link(%{
+        source_id: bc1_id,
+        target_id: bc2_id,
+        source_type: "business_concept",
+        target_type: "business_concept"
+      })
+
+      put_link(%{
+        source_id: bc2_id,
+        target_id: bc3_id,
+        source_type: "business_concept",
+        target_type: "business_concept"
+      })
+
+      Redix.command(["KEYS", "*"])
+
+      assert {:ok, links} = LinkCache.list("business_concept", concept2.id)
+      assert Enum.map(links, & &1.resource_id) ||| ["#{bc1_id}", "#{bc3_id}"]
+
+      assert {:ok, [link]} = LinkCache.list("business_concept", concept2.id, childs: true)
+      assert link.resource_id == "#{bc3_id}"
     end
   end
 
