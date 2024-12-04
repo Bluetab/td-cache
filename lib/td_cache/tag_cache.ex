@@ -74,14 +74,12 @@ defmodule TdCache.TagCache do
   end
 
   defp get_tag("link:tag:" <> id = key) do
-    {:ok, map} = Redix.read_map(key)
-
-    case map do
-      nil ->
-        nil
+    case Redix.read_map(key) do
+      {:ok, %{} = map} ->
+        Map.merge(%Tag{id: id}, map)
 
       _ ->
-        Map.merge(%Tag{id: id}, map)
+        nil
     end
   end
 
@@ -92,6 +90,17 @@ defmodule TdCache.TagCache do
     |> Redix.command!()
     |> Enum.map(&get_tag/1)
     |> Enum.filter(& &1)
+  end
+
+  def list_types(opts \\ []) do
+    tags = list()
+
+    opts
+    |> Enum.reduce(tags, fn
+      {:expandable, value}, tags ->
+        Enum.filter(tags, &(&1.expandable == value))
+    end)
+    |> Enum.map(& &1.type)
   end
 
   def delete(id), do: do_delete_tag(id, Redix.command!(["EXISTS", "link:tag:#{id}"]) == 1)
