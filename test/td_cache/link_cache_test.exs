@@ -207,7 +207,11 @@ defmodule TdCache.LinkCacheTest do
       assert {:ok, links} = LinkCache.list("business_concept", concept2.id)
       assert Enum.map(links, & &1.resource_id) ||| ["#{bc1_id}", "#{bc3_id}"]
 
-      assert {:ok, [link]} = LinkCache.list("business_concept", concept2.id, childs: true)
+      assert {:ok, [link]} =
+               LinkCache.list("business_concept", concept2.id,
+                 without_parent_business_concepts: true
+               )
+
       assert link.resource_id == "#{bc3_id}"
     end
   end

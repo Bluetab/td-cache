@@ -422,7 +422,7 @@ defmodule TdCache.LinkCache do
   end
 
   defp maybe_reject_parent_business_concept_links(resources, key, opts) do
-    if Keyword.get(opts, :childs) do
+    if Keyword.get(opts, :without_parent_business_concepts) do
       Enum.reject(resources, fn
         %{target: ^key, source: "business_concept:" <> _} -> true
         _ -> false
