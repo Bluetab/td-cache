@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- [TD-3612] Remove concache from taxonomy
+
 ## [6.16.0] 2024-12-13
 
 ### Added
