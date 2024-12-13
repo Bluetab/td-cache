@@ -33,7 +33,8 @@ defmodule TdCache.LinkCache do
   @doc """
   Reads linked resources for a given resource.
   """
-  def list(resource_type, resource_id), do: list(resource_type, resource_id, [])
+  def list(resource_type, resource_id),
+    do: list(resource_type, resource_id, [])
 
   def list(resource_type, resource_id, opts) when is_list(opts) do
     linked_resources = linked_resources("#{resource_type}:#{resource_id}", opts)
@@ -408,6 +409,7 @@ defmodule TdCache.LinkCache do
     |> Enum.map(&String.replace_prefix(&1, "link:", ""))
     |> Enum.map(&get_link/1)
     |> Enum.filter(& &1)
+    |> maybe_reject_parent_business_concept_links(key, opts)
     |> Enum.flat_map(fn %{id: id, source: source, target: target, tags: tags} ->
       [{source, tags, id}, {target, tags, id}]
     end)
@@ -417,6 +419,17 @@ defmodule TdCache.LinkCache do
     end)
     |> Enum.map(&read_source(&1, opts))
     |> Enum.filter(& &1)
+  end
+
+  defp maybe_reject_parent_business_concept_links(resources, key, opts) do
+    if Keyword.get(opts, :without_parent_business_concepts) do
+      Enum.reject(resources, fn
+        %{target: ^key, source: "business_concept:" <> _} -> true
+        _ -> false
+      end)
+    else
+      resources
+    end
   end
 
   defp read_source({["business_concept", business_concept_id], tags, id}, opts) do
