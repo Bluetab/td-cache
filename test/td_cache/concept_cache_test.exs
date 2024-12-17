@@ -264,14 +264,14 @@ defmodule TdCache.ConceptCacheTest do
 
     assert {:ok, [5, 1, 1, 1, 0, 1, 1]} = ConceptCache.put(concept)
     assert {:ok, 1} = ConceptCache.member_confidential_ids(id)
-    assert ConceptCache.is_confidential?(id)
+    assert ConceptCache.confidential?(id)
 
     # public concept
     concept = Map.put(concept, :confidential, false)
 
     assert {:ok, [0, 0, 0, 0, 0, 0, 1]} = ConceptCache.put(concept)
     assert {:ok, 0} = ConceptCache.member_confidential_ids(id)
-    refute ConceptCache.is_confidential?(id)
+    refute ConceptCache.confidential?(id)
   end
 
   test "puts concept with shared domain ids", context do

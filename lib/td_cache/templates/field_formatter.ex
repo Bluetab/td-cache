@@ -10,7 +10,7 @@ defmodule TdCache.Templates.FieldFormatter do
     |> Map.put("widget", "checkbox")
     |> Map.put("cardinality", "?")
     |> Map.put("default", "No")
-    |> Map.put("disabled", is_confidential_field_disabled?(ctx))
+    |> Map.put("disabled", confidential_field_disabled?(ctx))
   end
 
   def format(%{"type" => "user", "values" => %{"role_users" => role_name}} = field, ctx) do
@@ -31,15 +31,15 @@ defmodule TdCache.Templates.FieldFormatter do
 
   def format(%{} = field, _ctx), do: field
 
-  defp is_confidential_field_disabled?(%{claims: nil}), do: true
+  defp confidential_field_disabled?(%{claims: nil}), do: true
 
-  defp is_confidential_field_disabled?(%{claims: %{role: "admin"}}), do: false
+  defp confidential_field_disabled?(%{claims: %{role: "admin"}}), do: false
 
-  defp is_confidential_field_disabled?(%{domain_id: domain_id, claims: %{jti: jti}}) do
+  defp confidential_field_disabled?(%{domain_id: domain_id, claims: %{jti: jti}}) do
     !Permissions.has_permission?(jti, :manage_confidential_business_concepts, "domain", domain_id)
   end
 
-  defp is_confidential_field_disabled?(_), do: true
+  defp confidential_field_disabled?(_), do: true
 
   defp apply_role_meta(
          %{"values" => values} = field,
