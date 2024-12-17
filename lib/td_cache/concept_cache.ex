@@ -107,7 +107,7 @@ defmodule TdCache.ConceptCache do
   @doc """
   Returns true if the specified id is confidential, false otherwise.
   """
-  def is_confidential?(id) do
+  def confidential?(id) do
     case member_confidential_ids(id) do
       {:ok, n} -> n > 0
     end
@@ -194,7 +194,7 @@ defmodule TdCache.ConceptCache do
 
   @impl true
   def handle_call({:member_confidential_ids, id}, _from, state) do
-    reply = is_member_confidential_ids?(id)
+    reply = member_confidential_ids?(id)
     {:reply, {:ok, reply}, state}
   end
 
@@ -321,7 +321,7 @@ defmodule TdCache.ConceptCache do
     {:ok, results}
   end
 
-  defp is_member_confidential_ids?(id) do
+  defp member_confidential_ids?(id) do
     ["SISMEMBER", @confidential_ids, id] |> Redix.command!()
   end
 
