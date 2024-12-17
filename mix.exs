@@ -32,7 +32,7 @@ defmodule TdCache.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: :dev, runtime: false},
       {:ex_machina, "~> 2.8", only: :test},
-      {:graph, git: "https://github.com/Bluetab/graph.git", tag: "1.3.0"},
+      {:graph, git: "https://github.com/Bluetab/graph.git", tag: "1.4.0"},
       {:jason, "~> 1.4"},
       {:redix, "~> 1.5"}
     ]
