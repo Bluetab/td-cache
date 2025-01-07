@@ -5,7 +5,7 @@ defmodule TdCache.MixProject do
     [
       app: :td_cache,
       version: "6.15.2",
-      elixir: "~> 1.17",
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps()
@@ -29,7 +29,7 @@ defmodule TdCache.MixProject do
       {:assertions, "~> 0.20", only: :test},
       {:con_cache, "~> 1.1"},
       {:decimal, "~> 2.3"},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.7.11", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: :dev, runtime: false},
       {:ex_machina, "~> 2.8", only: :test},
       {:graph, git: "https://github.com/Bluetab/graph.git", tag: "1.4.0"},

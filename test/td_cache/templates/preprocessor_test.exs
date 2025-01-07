@@ -123,7 +123,7 @@ defmodule TdCache.Templates.PreprocessorTest do
                "values" => %{"processed_users" => processed_users, "role_users" => @role_name}
              } = users_field
 
-      assert Enum.sort(processed_users) == [full_name_1, full_name_2, full_name_3]
+      assert Enum.sort(processed_users) == Enum.sort([full_name_1, full_name_2, full_name_3])
 
       assert unchanged_field == %{"foo" => "bar"}
     end
