@@ -40,7 +40,6 @@ defmodule TdCache.HierarchyCache do
       {:ok, Enum.find(nodes, &(&1["node_id"] == node_id))}
     else
       {:key, _} -> {:ok, nil}
-      err -> err
     end
   end
 

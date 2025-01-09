@@ -303,14 +303,14 @@ defmodule TdCache.PermissionsTest do
     end
   end
 
-  describe "is_default_permission?/1" do
+  describe "default_permission?/1" do
     test "returns true iff the permission exists in the default permissions" do
       put_default_permissions([])
-      refute is_default_permission?("foo")
+      refute default_permission?("foo")
       put_default_permissions(["foo", "bar"])
-      assert is_default_permission?("foo")
-      assert is_default_permission?(:bar)
-      refute is_default_permission?("baz")
+      assert default_permission?("foo")
+      assert default_permission?(:bar)
+      refute default_permission?("baz")
     end
   end
 
