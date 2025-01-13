@@ -1,10 +1,16 @@
 # Changelog
 
-## [Unreleased]
+## [7.0.1]  2025-01-13
 
 ### Changed
 
 - [TD-3612] Remove concache from taxonomy
+
+## [7.0.0] 2025-01-07
+
+### Changed
+
+- [TD-6911] Bump to Elixir 1.18 and updated dependencies
 
 ## [6.16.0] 2024-12-13
 

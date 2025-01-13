@@ -24,7 +24,7 @@ jobs:
             plt-cache-
       - uses: erlef/setup-elixir@v1
         with:
-          otp-version: '23.3.4.18'
-          elixir-version: '1.12.3'
+          otp-version: "27.2"
+          elixir-version: "1.17.3"
       - run: mix deps.get
       - run: mix dialyzer
