@@ -11,7 +11,12 @@ defmodule TdCache.ImplementationCacheTest do
   alias TdCache.Redix
 
   setup do
-    implementation = build(:implementation)
+    dfcontent = %{
+      "Impact" => %{"origin" => "user", "value" => "High"},
+      "Quality Principles" => %{"origin" => "user", "value" => "Completeness"}
+    }
+
+    implementation = build(:implementation, df_content: dfcontent)
 
     on_exit(fn ->
       ImplementationCache.delete(implementation.id)
@@ -19,15 +24,14 @@ defmodule TdCache.ImplementationCacheTest do
       Redix.command(["DEL", "relation_impl_id_to_impl_ref"])
     end)
 
-    {:ok, implementation: implementation}
+    {:ok, implementation: implementation, dfcontent: dfcontent}
   end
 
   describe "ImplementationCache" do
     test "writes an implementation entry in redis and reads it back", %{
       implementation: implementation
     } do
-      assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(implementation)
-
+      assert {:ok, [11, 0, 1, 0]} = ImplementationCache.put(implementation)
       {:ok, impl} = ImplementationCache.get(implementation.id)
 
       assert_maps_equal(impl, implementation, [
@@ -38,7 +42,8 @@ defmodule TdCache.ImplementationCacheTest do
         :goal,
         :minimum,
         :rule_id,
-        :status
+        :status,
+        :df_content
       ])
 
       refute Map.has_key?(impl, :execution_result_info)
@@ -85,12 +90,13 @@ defmodule TdCache.ImplementationCacheTest do
     end
 
     test "writes implementations entries in redis and list implementations keys", %{
-      implementation: %{id: impl_id} = implementation
+      implementation: %{id: impl_id} = implementation,
+      dfcontent: dfcontent
     } do
-      %{id: impl2_id} = impl2 = build(:implementation)
+      %{id: impl2_id} = impl2 = build(:implementation, df_content: dfcontent)
       %{id: impl3_id} = impl3 = build(:implementation)
-      assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(implementation)
-      assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(impl2)
+      assert {:ok, [11, 0, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [11, 0, 1, 0]} = ImplementationCache.put(impl2)
       assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(impl3)
 
       assert [
