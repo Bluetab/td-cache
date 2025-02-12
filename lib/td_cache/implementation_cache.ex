@@ -128,7 +128,8 @@ defmodule TdCache.ImplementationCache do
     {:minimum, :float},
     {:result_type, :string},
     {:updated_at, :datetime},
-    {:status, :string}
+    {:status, :string},
+    {:df_content, :map}
   ]
 
   @rule_props [
@@ -172,6 +173,7 @@ defmodule TdCache.ImplementationCache do
 
         implementation
         |> MapHelpers.parse_fields(@props)
+        |> decode_df_content()
         |> put_optional(:execution_result_info, execution_result_info)
         |> put_optional(:rule, rule)
         |> put_optional(:concepts_links, concepts)
@@ -269,6 +271,7 @@ defmodule TdCache.ImplementationCache do
     implementation_props =
       implementation
       |> Map.take(props_keys)
+      |> encode_df_content()
 
     result_props_keys = Enum.map(@result_props, fn {key, _} -> key end)
 
@@ -307,4 +310,19 @@ defmodule TdCache.ImplementationCache do
       _ -> ["SADD", "implementation:deleted_ids", implementation_ref]
     end
   end
+
+  defp encode_df_content(%{df_content: content} = props) when is_map(content) do
+    %{props | df_content: Jason.encode!(content)}
+  end
+
+  defp encode_df_content(props), do: props
+
+  defp decode_df_content(%{df_content: content} = implementation) when is_binary(content) do
+    case Jason.decode(content) do
+      {:ok, decoded} -> %{implementation | df_content: decoded}
+      _ -> implementation
+    end
+  end
+
+  defp decode_df_content(implementation), do: implementation
 end
