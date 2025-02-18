@@ -4,7 +4,7 @@
 
 ### Added
 
-- [TD-7106] Add `data_structures` to implementation cache
+- [TD-7106] Issues with customisation and sorting in implementations tables
 
 ## [7.0.1] 2025-01-13
 
