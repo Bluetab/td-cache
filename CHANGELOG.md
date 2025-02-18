@@ -1,6 +1,12 @@
 # Changelog
 
-## [7.0.1]  2025-01-13
+## [Unreleased]
+
+### Added
+
+- [TD-7106] Issues with customisation and sorting in implementations tables
+
+## [7.0.1] 2025-01-13
 
 ### Changed
 

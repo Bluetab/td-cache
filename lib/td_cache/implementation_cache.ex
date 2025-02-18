@@ -128,7 +128,9 @@ defmodule TdCache.ImplementationCache do
     {:minimum, :float},
     {:result_type, :string},
     {:updated_at, :datetime},
-    {:status, :string}
+    {:status, :string},
+    {:df_content, :map},
+    {:data_structures, :list}
   ]
 
   @rule_props [
@@ -172,6 +174,8 @@ defmodule TdCache.ImplementationCache do
 
         implementation
         |> MapHelpers.parse_fields(@props)
+        |> decode_df_content()
+        |> decode_data_structures()
         |> put_optional(:execution_result_info, execution_result_info)
         |> put_optional(:rule, rule)
         |> put_optional(:concepts_links, concepts)
@@ -269,6 +273,8 @@ defmodule TdCache.ImplementationCache do
     implementation_props =
       implementation
       |> Map.take(props_keys)
+      |> encode_df_content()
+      |> encode_data_structures()
 
     result_props_keys = Enum.map(@result_props, fn {key, _} -> key end)
 
@@ -307,4 +313,81 @@ defmodule TdCache.ImplementationCache do
       _ -> ["SADD", "implementation:deleted_ids", implementation_ref]
     end
   end
+
+  defp encode_df_content(%{df_content: content} = props) when is_map(content) do
+    %{props | df_content: Jason.encode!(content)}
+  end
+
+  defp encode_df_content(props), do: props
+
+  defp decode_df_content(%{df_content: content} = implementation) when is_binary(content) do
+    case Jason.decode(content) do
+      {:ok, decoded} -> %{implementation | df_content: decoded}
+      _ -> implementation
+    end
+  end
+
+  defp decode_df_content(implementation), do: implementation
+
+  defp encode_data_structures(%{data_structures: data_structures} = props) do
+    encoded_data_structures =
+      data_structures
+      |> Enum.map(fn %{
+                       data_structure: %{current_version: current_version, domains: domains} = ds,
+                       type: link_type
+                     } ->
+        cv =
+          Map.new()
+          |> Map.put(:name, Map.get(current_version, :name))
+          |> Map.put(:path, Map.get(current_version, :path))
+
+        data_structure =
+          Map.new()
+          |> Map.put(:id, Map.get(ds, :id))
+          |> Map.put(:external_id, Map.get(ds, :external_id))
+          |> Map.put(:domains, domains)
+          |> Map.put(:current_version, cv)
+
+        %{data_structure: data_structure, type: link_type}
+      end)
+      |> Jason.encode!()
+
+    Map.put(props, :data_structures, encoded_data_structures)
+  end
+
+  defp encode_data_structures(props), do: props
+
+  defp decode_data_structures(%{data_structures: data_structures} = implementation) do
+    implementation
+    |> Map.delete(:data_structures)
+    |> Map.put("data_structures", data_structures)
+    |> decode_data_structures()
+  end
+
+  defp decode_data_structures(%{"data_structures" => data_structures} = implementation) do
+    case Jason.decode(data_structures) do
+      {:ok, decoded_data_structures} ->
+        decoded_data_structures =
+          decoded_data_structures
+          |> Enum.map(fn %{
+                           "type" => link_type,
+                           "data_structure" =>
+                             %{"domains" => domains} =
+                               data_structure
+                         } ->
+            ds = %{data_structure | "domains" => domains}
+
+            %{"type" => String.to_atom(link_type), "data_structure" => ds}
+          end)
+
+        implementation
+        |> Map.delete("data_structures")
+        |> Map.put(:data_structures, MapHelpers.atomize_keys(decoded_data_structures))
+
+      _ ->
+        []
+    end
+  end
+
+  defp decode_data_structures(implementation), do: implementation
 end
