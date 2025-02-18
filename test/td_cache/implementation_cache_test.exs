@@ -39,10 +39,10 @@ defmodule TdCache.ImplementationCacheTest do
         data_structure: %{
           id: 111,
           external_id: "data_tructure_111",
+          domains: domains,
           current_version: %{
             path: ["this", "is", "a", "path"],
-            name: "data_structure_name_111",
-            domains: domains
+            name: "data_structure_name_111"
           }
         },
         type: :dataset
@@ -51,10 +51,10 @@ defmodule TdCache.ImplementationCacheTest do
         data_structure: %{
           id: 222,
           external_id: "data_tructure_222",
+          domains: domains,
           current_version: %{
             path: ["this", "is", "a", "path"],
-            name: "data_structure_name_222",
-            domains: domains
+            name: "data_structure_name_222"
           }
         },
         type: :population
@@ -63,10 +63,10 @@ defmodule TdCache.ImplementationCacheTest do
         data_structure: %{
           id: 333,
           external_id: "data_tructure_333",
+          domains: domains,
           current_version: %{
             path: ["this", "is", "a", "path"],
-            name: "data_structure_name_333",
-            domains: domains
+            name: "data_structure_name_333"
           }
         },
         type: :validation

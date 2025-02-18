@@ -333,21 +333,19 @@ defmodule TdCache.ImplementationCache do
     encoded_data_structures =
       data_structures
       |> Enum.map(fn %{
-                       data_structure: ds,
+                       data_structure: %{current_version: current_version, domains: domains} = ds,
                        type: link_type
                      } ->
-        current_version = Map.get(ds, :current_version)
-
         cv =
           Map.new()
           |> Map.put(:name, Map.get(current_version, :name))
-          |> Map.put(:domains, Map.get(current_version, :domains))
           |> Map.put(:path, Map.get(current_version, :path))
 
         data_structure =
           Map.new()
           |> Map.put(:id, Map.get(ds, :id))
           |> Map.put(:external_id, Map.get(ds, :external_id))
+          |> Map.put(:domains, domains)
           |> Map.put(:current_version, cv)
 
         %{data_structure: data_structure, type: link_type}
@@ -360,16 +358,31 @@ defmodule TdCache.ImplementationCache do
   defp encode_data_structures(props), do: props
 
   defp decode_data_structures(%{data_structures: data_structures} = implementation) do
+    implementation
+    |> Map.delete(:data_structures)
+    |> Map.put("data_structures", data_structures)
+    |> decode_data_structures()
+  end
+
+  defp decode_data_structures(%{"data_structures" => data_structures} = implementation) do
     case Jason.decode(data_structures) do
       {:ok, decoded_data_structures} ->
         decoded_data_structures =
           decoded_data_structures
-          |> MapHelpers.atomize_keys()
-          |> Enum.map(fn %{type: link_type} = ds ->
-            %{ds | type: String.to_atom(link_type)}
+          |> Enum.map(fn %{
+                           "type" => link_type,
+                           "data_structure" =>
+                             %{"domains" => domains} =
+                               data_structure
+                         } ->
+            ds = %{data_structure | "domains" => domains}
+
+            %{"type" => String.to_atom(link_type), "data_structure" => ds}
           end)
 
-        %{implementation | data_structures: MapHelpers.atomize_keys(decoded_data_structures)}
+        implementation
+        |> Map.delete("data_structures")
+        |> Map.put(:data_structures, MapHelpers.atomize_keys(decoded_data_structures))
 
       _ ->
         []
