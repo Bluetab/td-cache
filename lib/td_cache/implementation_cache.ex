@@ -129,7 +129,8 @@ defmodule TdCache.ImplementationCache do
     {:result_type, :string},
     {:updated_at, :datetime},
     {:status, :string},
-    {:df_content, :map}
+    {:df_content, :map},
+    {:data_structures, :list}
   ]
 
   @rule_props [
@@ -174,6 +175,7 @@ defmodule TdCache.ImplementationCache do
         implementation
         |> MapHelpers.parse_fields(@props)
         |> decode_df_content()
+        |> decode_data_structures()
         |> put_optional(:execution_result_info, execution_result_info)
         |> put_optional(:rule, rule)
         |> put_optional(:concepts_links, concepts)
@@ -272,6 +274,7 @@ defmodule TdCache.ImplementationCache do
       implementation
       |> Map.take(props_keys)
       |> encode_df_content()
+      |> encode_data_structures()
 
     result_props_keys = Enum.map(@result_props, fn {key, _} -> key end)
 
@@ -325,4 +328,53 @@ defmodule TdCache.ImplementationCache do
   end
 
   defp decode_df_content(implementation), do: implementation
+
+  defp encode_data_structures(%{data_structures: data_structures} = props) do
+    encoded_data_structures =
+      data_structures
+      |> Enum.map(fn %{
+                       data_structure: ds,
+                       type: link_type
+                     } ->
+        current_version = Map.get(ds, :current_version)
+
+        cv =
+          Map.new()
+          |> Map.put(:name, Map.get(current_version, :name))
+          |> Map.put(:domains, Map.get(current_version, :domains))
+          |> Map.put(:path, Map.get(current_version, :path))
+
+        data_structure =
+          Map.new()
+          |> Map.put(:id, Map.get(ds, :id))
+          |> Map.put(:external_id, Map.get(ds, :external_id))
+          |> Map.put(:current_version, cv)
+
+        %{data_structure: data_structure, type: link_type}
+      end)
+      |> Jason.encode!()
+
+    Map.put(props, :data_structures, encoded_data_structures)
+  end
+
+  defp encode_data_structures(props), do: props
+
+  defp decode_data_structures(%{data_structures: data_structures} = implementation) do
+    case Jason.decode(data_structures) do
+      {:ok, decoded_data_structures} ->
+        decoded_data_structures =
+          decoded_data_structures
+          |> MapHelpers.atomize_keys()
+          |> Enum.map(fn %{type: link_type} = ds ->
+            %{ds | type: String.to_atom(link_type)}
+          end)
+
+        %{implementation | data_structures: MapHelpers.atomize_keys(decoded_data_structures)}
+
+      _ ->
+        []
+    end
+  end
+
+  defp decode_data_structures(implementation), do: implementation
 end

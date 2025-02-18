@@ -16,7 +16,65 @@ defmodule TdCache.ImplementationCacheTest do
       "Quality Principles" => %{"origin" => "user", "value" => "Completeness"}
     }
 
-    implementation = build(:implementation, df_content: dfcontent)
+    domains = [
+      %{
+        id: 111,
+        name: "domain_name_111",
+        external_id: "domain_external_id_111"
+      },
+      %{
+        id: 222,
+        name: "domain_name_222",
+        external_id: "domain_external_id_222"
+      },
+      %{
+        id: 333,
+        name: "domain_name_333",
+        external_id: "domain_external_id_333"
+      }
+    ]
+
+    data_structures = [
+      %{
+        data_structure: %{
+          id: 111,
+          external_id: "data_tructure_111",
+          current_version: %{
+            path: ["this", "is", "a", "path"],
+            name: "data_structure_name_111",
+            domains: domains
+          }
+        },
+        type: :dataset
+      },
+      %{
+        data_structure: %{
+          id: 222,
+          external_id: "data_tructure_222",
+          current_version: %{
+            path: ["this", "is", "a", "path"],
+            name: "data_structure_name_222",
+            domains: domains
+          }
+        },
+        type: :population
+      },
+      %{
+        data_structure: %{
+          id: 333,
+          external_id: "data_tructure_333",
+          current_version: %{
+            path: ["this", "is", "a", "path"],
+            name: "data_structure_name_333",
+            domains: domains
+          }
+        },
+        type: :validation
+      }
+    ]
+
+    implementation =
+      build(:implementation, df_content: dfcontent, data_structures: data_structures)
 
     on_exit(fn ->
       ImplementationCache.delete(implementation.id)
@@ -31,7 +89,8 @@ defmodule TdCache.ImplementationCacheTest do
     test "writes an implementation entry in redis and reads it back", %{
       implementation: implementation
     } do
-      assert {:ok, [11, 0, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [12, 0, 1, 0]} = ImplementationCache.put(implementation)
+
       {:ok, impl} = ImplementationCache.get(implementation.id)
 
       assert_maps_equal(impl, implementation, [
@@ -43,7 +102,8 @@ defmodule TdCache.ImplementationCacheTest do
         :minimum,
         :rule_id,
         :status,
-        :df_content
+        :df_content,
+        :data_structures
       ])
 
       refute Map.has_key?(impl, :execution_result_info)
@@ -95,7 +155,7 @@ defmodule TdCache.ImplementationCacheTest do
     } do
       %{id: impl2_id} = impl2 = build(:implementation, df_content: dfcontent)
       %{id: impl3_id} = impl3 = build(:implementation)
-      assert {:ok, [11, 0, 1, 0]} = ImplementationCache.put(implementation)
+      assert {:ok, [12, 0, 1, 0]} = ImplementationCache.put(implementation)
       assert {:ok, [11, 0, 1, 0]} = ImplementationCache.put(impl2)
       assert {:ok, [10, 0, 1, 0]} = ImplementationCache.put(impl3)
 
