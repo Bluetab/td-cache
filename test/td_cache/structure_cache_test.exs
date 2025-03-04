@@ -22,6 +22,7 @@ defmodule TdCache.StructureCacheTest do
       path: ["foo", "bar"],
       updated_at: DateTime.utc_now(),
       metadata: %{"alias" => "source_alias"},
+      classes: %{"_grantable" => "grantable_table"},
       system_id: system.id,
       domain_ids: [1, 2],
       deleted_at: DateTime.utc_now()
@@ -124,14 +125,14 @@ defmodule TdCache.StructureCacheTest do
       assert {:ok, []} = StructureCache.put(structure)
 
       Redix.command!(["HDEL", "data_structure:#{structure.id}", "domain_ids"])
-      assert {:ok, [1, 9, 0, 0, 1, 2]} = StructureCache.put(structure)
+      assert {:ok, [1, 10, 0, 0, 1, 2]} = StructureCache.put(structure)
 
       assert {:ok, s} = StructureCache.get(structure.id)
       assert_structs_equal(structure, s, [:domain_ids])
     end
 
     test "deletes an entry in redis", %{structure: structure} do
-      assert {:ok, [0, 9, 1, 1, 0, 2]} = StructureCache.put(structure)
+      assert {:ok, [0, 10, 1, 1, 0, 2]} = StructureCache.put(structure)
       assert {:ok, [2, 1, 0]} = StructureCache.delete(structure.id)
       assert {:ok, nil} = StructureCache.get(structure.id)
     end

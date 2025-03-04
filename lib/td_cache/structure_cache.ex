@@ -61,7 +61,8 @@ defmodule TdCache.StructureCache do
     :external_id,
     :updated_at,
     :deleted_at,
-    :domain_ids
+    :domain_ids,
+    :classes
   ]
 
   defp read_structure(id) do
@@ -134,6 +135,7 @@ defmodule TdCache.StructureCache do
       structure
       |> Map.take(@props)
       |> add_metadata(structure)
+      |> add_classes(structure)
 
     [
       ["DEL", "data_structure:#{id}"],
@@ -172,4 +174,11 @@ defmodule TdCache.StructureCache do
   end
 
   defp add_metadata(%{} = structure_props, _), do: structure_props
+
+  defp add_classes(%{} = structure_props, %{classes: %{} = classes})
+       when map_size(classes) > 0 do
+    Map.put(structure_props, :classes, Jason.encode!(classes))
+  end
+
+  defp add_classes(%{} = structure_props, _), do: structure_props
 end
