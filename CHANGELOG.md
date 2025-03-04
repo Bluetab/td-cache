@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-6959] Added classes property to structures
+
 ## [7.0.1]  2025-01-13
 
 ### Changed
