@@ -9,6 +9,7 @@ defmodule TdCache.LinkCacheTest do
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
+  alias TdCache.StructureCache
 
   doctest TdCache.LinkCache
 
@@ -213,6 +214,63 @@ defmodule TdCache.LinkCacheTest do
                )
 
       assert link.resource_id == "#{bc3_id}"
+    end
+
+    test "returns a list of n random links" do
+      %{id: bc1_id} = concept1 = build(:concept)
+      %{id: bc2_id} = concept2 = build(:concept)
+      %{id: bc3_id} = concept3 = build(:concept)
+
+      structure = %{
+        id: System.unique_integer([:positive]),
+        name: "name",
+        external_id: "ext_id",
+        group: "group",
+        type: "type",
+        path: ["foo", "bar"],
+        updated_at: DateTime.utc_now(),
+        metadata: %{"alias" => "source_alias"},
+        system_id: 1,
+        domain_ids: [1, 2],
+        deleted_at: DateTime.utc_now()
+      }
+
+      ConceptCache.put(concept1)
+      ConceptCache.put(concept2)
+      ConceptCache.put(concept3)
+
+      StructureCache.put(structure)
+
+      put_link(%{
+        source_id: structure.id,
+        target_id: bc1_id,
+        source_type: "data_structure",
+        target_type: "business_concept"
+      })
+
+      put_link(%{
+        source_id: structure.id,
+        target_id: bc2_id,
+        source_type: "data_structure",
+        target_type: "business_concept"
+      })
+
+      put_link(%{
+        source_id: structure.id,
+        target_id: bc3_id,
+        source_type: "data_structure",
+        target_type: "business_concept"
+      })
+
+      {:ok, links} =
+        LinkCache.list_rand_links("data_structure", structure.id, "business_concept", 2)
+
+      assert Enum.count(links) == 2
+
+      {:ok, links} =
+        LinkCache.list_rand_links("data_structure", structure.id, "business_concept", 3)
+
+      assert Enum.count(links) == 3
     end
   end
 

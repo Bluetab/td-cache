@@ -129,6 +129,17 @@ defmodule TdCache.LinkCache do
     |> Enum.map(&String.to_integer/1)
   end
 
+  def list_rand_links(resource_type, resource_id, target_type, count \\ 10) do
+    key = "#{resource_type}:#{resource_id}"
+
+    linked_resources =
+      ["SRANDMEMBER", "#{key}:links:#{target_type}", count]
+      |> Redix.command!()
+      |> get_linked_resources(key, [])
+
+    {:ok, linked_resources}
+  end
+
   ## Private functions
 
   defp get_link("link:" <> id = key) do
