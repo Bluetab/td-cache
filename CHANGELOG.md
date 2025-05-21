@@ -1,12 +1,18 @@
 # Changelog
 
+## [7.5.0] 2025-05-22
+
+### Added
+
+- [TD-6219] Function to get n random links from cache
+
 ## [7.4.0] 2025-04-09
 
 ### Changed
 
 - License
 
-## [7.0.1]  2025-01-13
+## [7.0.1] 2025-01-13
 
 ### Changed
 
