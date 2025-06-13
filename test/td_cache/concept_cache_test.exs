@@ -21,7 +21,12 @@ defmodule TdCache.ConceptCacheTest do
 
     Enum.each([root, parent, domain, shared_to], &CacheHelpers.put_domain/1)
 
-    Redix.command(["DEL", @stream, "business_concept:ids:active", "business_concept:ids:inactive"])
+    Redix.command([
+      "DEL",
+      @stream,
+      "business_concept:ids:active",
+      "business_concept:ids:inactive"
+    ])
 
     on_exit(fn ->
       ConceptCache.delete(concept.id)
