@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Add
+
+- [TD-7300] Add Link origin
+
 ## [7.5.0] 2025-05-22
 
 ### Added
