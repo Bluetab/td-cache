@@ -169,6 +169,7 @@ defmodule TdCache.LinkCache do
 
     link
     |> Map.put(:updated_at, "#{updated_at}")
+    |> validate_origin
     |> put_link(last_updated, opts)
   end
 
@@ -241,18 +242,34 @@ defmodule TdCache.LinkCache do
       ["SADD", "#{source_type}:#{source_id}:links:#{target_type}", "link:#{id}"],
       ["SADD", "#{target_type}:#{target_id}:links:#{source_type}", "link:#{id}"],
       ["SADD", "link:keys", "link:#{id}"]
-    ] ++ put_link_tags_commands(link)
-  end
-
-  defp put_link_tags_commands(%{tags: []}), do: []
-
-  defp put_link_tags_commands(%{id: id, tags: tags}) do
-    [
-      ["SADD", "link:#{id}:tags"] ++ tags
     ]
+    |> maybe_link_tags_commands(link)
+    |> maybe_origin_field(link)
   end
 
-  defp put_link_tags_commands(_), do: []
+  defp validate_origin(%{origin: origin} = link) when is_binary(origin),
+    do: link
+
+  defp validate_origin(%{origin: _} = link),
+    do: Map.delete(link, :origin)
+
+  defp validate_origin(link), do: link
+
+  defp maybe_link_tags_commands(commands, %{tags: []}), do: commands
+
+  defp maybe_link_tags_commands(commands, %{id: id, tags: tags}) do
+    commands ++
+      [["SADD", "link:#{id}:tags"] ++ tags]
+  end
+
+  defp maybe_link_tags_commands(commands, _), do: commands
+
+  defp maybe_origin_field([del_command, hset_command | tail_commands], %{origin: origin})
+       when is_binary(origin) do
+    [del_command, hset_command ++ ["origin", origin] | tail_commands]
+  end
+
+  defp maybe_origin_field(commands, _), do: commands
 
   defp delete_link(id, opts) do
     {:ok, keys} = Redix.command(["HMGET", "link:#{id}", "source", "target"])
