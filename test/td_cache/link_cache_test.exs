@@ -211,20 +211,24 @@ defmodule TdCache.LinkCacheTest do
         source_id: bc1_id,
         target_id: bc2_id,
         source_type: "business_concept",
-        target_type: "business_concept"
+        target_type: "business_concept",
+        origin: "test_origin"
       })
 
       put_link(%{
         source_id: bc2_id,
         target_id: bc3_id,
         source_type: "business_concept",
-        target_type: "business_concept"
+        target_type: "business_concept",
+        origin: nil
       })
 
       Redix.command(["KEYS", "*"])
 
       assert {:ok, links} = LinkCache.list("business_concept", concept2.id)
       assert Enum.map(links, & &1.resource_id) ||| ["#{bc1_id}", "#{bc3_id}"]
+      assert Enum.any?(links, &(&1.origin == "test_origin"))
+      assert Enum.any?(links, &(&1.origin == nil))
 
       assert {:ok, [link]} =
                LinkCache.list("business_concept", concept2.id,

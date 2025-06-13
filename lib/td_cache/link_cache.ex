@@ -438,12 +438,12 @@ defmodule TdCache.LinkCache do
     |> Enum.map(&get_link/1)
     |> Enum.filter(& &1)
     |> maybe_reject_parent_business_concept_links(key, opts)
-    |> Enum.flat_map(fn %{id: id, source: source, target: target, tags: tags} ->
-      [{source, tags, id}, {target, tags, id}]
+    |> Enum.flat_map(fn %{id: id, source: source, target: target, tags: tags, origin: origin} ->
+      [{source, tags, id, origin}, {target, tags, id, origin}]
     end)
-    |> Enum.reject(fn {resource_key, _tags, _id} -> resource_key == key end)
-    |> Enum.map(fn {resource_key, tags, id} ->
-      {String.split(resource_key, ":", parts: 2), tags, id}
+    |> Enum.reject(fn {resource_key, _tags, _id, _origin} -> resource_key == key end)
+    |> Enum.map(fn {resource_key, tags, id, origin} ->
+      {String.split(resource_key, ":", parts: 2), tags, id, origin}
     end)
     |> Enum.map(&read_source(&1, opts))
     |> Enum.filter(& &1)
@@ -460,50 +460,54 @@ defmodule TdCache.LinkCache do
     end
   end
 
-  defp read_source({["business_concept", business_concept_id], tags, id}, opts) do
+  defp read_source({["business_concept", business_concept_id], tags, id, origin}, opts) do
     case ConceptCache.get(business_concept_id, opts) do
       {:ok, nil} ->
         nil
 
       {:ok, concept} ->
-        resource_with_tags(concept, :concept, tags, id)
+        resource_with_tags(concept, :concept, tags, id, origin)
     end
   end
 
-  defp read_source({["data_structure", structure_id], tags, id}, _opts) do
+  defp read_source({["data_structure", structure_id], tags, id, origin}, _opts) do
     case StructureCache.get(structure_id) do
       {:ok, nil} ->
         nil
 
       {:ok, structure} ->
-        resource_with_tags(structure, :data_structure, tags, id)
+        resource_with_tags(structure, :data_structure, tags, id, origin)
     end
   end
 
-  defp read_source({["ingest", ingest_id], tags, id}, _opts) do
+  defp read_source({["ingest", ingest_id], tags, id, origin}, _opts) do
     case IngestCache.get(ingest_id) do
       {:ok, nil} ->
         nil
 
       {:ok, ingest} ->
-        resource_with_tags(ingest, :ingest, tags, id)
+        resource_with_tags(ingest, :ingest, tags, id, origin)
     end
   end
 
-  defp read_source({["implementation_ref", implementation_ref], tags, id}, opts) do
+  defp read_source({["implementation_ref", implementation_ref], tags, id, origin}, opts) do
     case ImplementationCache.get(implementation_ref, opts) do
-      {:ok, nil} -> nil
-      {:ok, implementation} -> resource_with_tags(implementation, :implementation, tags, id)
+      {:ok, nil} ->
+        nil
+
+      {:ok, implementation} ->
+        resource_with_tags(implementation, :implementation, tags, id, origin)
     end
   end
 
   defp read_source(_, _), do: nil
 
-  defp resource_with_tags(%{id: resource_id} = resource, type, tags, link_id) do
+  defp resource_with_tags(%{id: resource_id} = resource, type, tags, link_id, origin) do
     resource
     |> Map.put(:resource_id, resource_id)
     |> Map.put(:resource_type, type)
     |> Map.put(:tags, tags)
     |> Map.put(:id, link_id)
+    |> Map.put(:origin, origin)
   end
 end
