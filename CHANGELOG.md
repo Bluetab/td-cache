@@ -174,7 +174,7 @@
 
 ## [5.5.0] 2023-03-29
 
-## Added
+### Added
 
 - [TD-5650] Hierarchy path
 
