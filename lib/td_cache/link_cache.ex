@@ -264,8 +264,7 @@ defmodule TdCache.LinkCache do
 
   defp maybe_link_tags_commands(commands, _), do: commands
 
-  defp maybe_origin_field([del_command, hset_command | tail_commands], %{origin: origin})
-       when is_binary(origin) do
+  defp maybe_origin_field([del_command, hset_command | tail_commands], %{origin: origin}) do
     [del_command, hset_command ++ ["origin", origin] | tail_commands]
   end
 
