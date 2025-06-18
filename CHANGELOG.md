@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-### Add
+### Added
 
 - [TD-7300] Add Link origin
 
