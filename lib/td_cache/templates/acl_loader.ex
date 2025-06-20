@@ -43,7 +43,9 @@ defmodule TdCache.Templates.AclLoader do
   defp get_roles_and_groups_by_domain(domain_id) do
     domain_id
     |> TaxonomyCache.reaching_domain_ids()
-    |> Enum.map(fn domain_id -> {domain_id, AclCache.get_acl_group_roles("domain", domain_id)} end)
+    |> Enum.map(fn domain_id ->
+      {domain_id, AclCache.get_acl_group_roles("domain", domain_id)}
+    end)
     |> Enum.flat_map(fn {domain_id, roles} -> fetch_groups_by_role(domain_id, roles) end)
     |> group_by_domains()
   end

@@ -43,7 +43,7 @@ defmodule TdCache.LinkCacheTest do
       link_key = "link:#{link.id}"
       source_key = "#{link.source_type}:#{link.source_id}"
       target_key = "#{link.target_type}:#{link.target_id}"
-      assert {:ok, [0, 3, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, 4, 1, 1, 1, 1, 1]} == LinkCache.put(link)
 
       {:ok, events} = Stream.read(:redix, ["foo:events", "bar:events"], transform: true)
       assert Enum.count(events) == 2
@@ -55,27 +55,45 @@ defmodule TdCache.LinkCacheTest do
       {:ok, l} = LinkCache.get(link.id)
       assert l.source == "#{link.source_type}:#{link.source_id}"
       assert l.target == "#{link.target_type}:#{link.target_id}"
+      assert l.origin == "#{link.origin}"
       assert l.updated_at == to_string(link.updated_at)
       assert l.tags == []
     end
 
     test "writes a link entry with tags in redis and reads it back", context do
       link = context[:tagged_link]
-      assert {:ok, [0, 3, 1, 1, 1, 1, 1, 3]} == LinkCache.put(link)
+      assert {:ok, [0, 4, 1, 1, 1, 1, 1, 3]} == LinkCache.put(link)
 
       {:ok, l} = LinkCache.get(link.id)
       assert l.source == "#{link.source_type}:#{link.source_id}"
       assert l.target == "#{link.target_type}:#{link.target_id}"
       assert l.updated_at == to_string(link.updated_at)
+      assert l.origin == "#{link.origin}"
       assert Enum.sort(l.tags) == Enum.sort(link.tags)
+    end
+
+    test "writes a link without origin if no origin", context do
+      link = context[:link] |> Map.delete(:origin)
+      assert {:ok, [0, 3, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+
+      {:ok, l} = LinkCache.get(link.id)
+      assert is_nil(l.origin)
+    end
+
+    test "writes a link with nil origin", context do
+      link = context[:link] |> Map.put(:origin, nil)
+      assert {:ok, [0, 3, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+
+      {:ok, l} = LinkCache.get(link.id)
+      assert is_nil(l.origin)
     end
 
     test "only rewrites a link entry if it's update timestamp has changed", context do
       link = context[:link]
-      assert {:ok, [0, 3, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, 4, 1, 1, 1, 1, 1]} == LinkCache.put(link)
       assert {:ok, []} == LinkCache.put(link)
 
-      assert {:ok, [1, 3, 0, 0, 0, 0, 0]} ==
+      assert {:ok, [1, 4, 0, 0, 0, 0, 0]} ==
                LinkCache.put(Map.put(link, :updated_at, DateTime.utc_now()))
     end
 
@@ -193,20 +211,24 @@ defmodule TdCache.LinkCacheTest do
         source_id: bc1_id,
         target_id: bc2_id,
         source_type: "business_concept",
-        target_type: "business_concept"
+        target_type: "business_concept",
+        origin: "test_origin"
       })
 
       put_link(%{
         source_id: bc2_id,
         target_id: bc3_id,
         source_type: "business_concept",
-        target_type: "business_concept"
+        target_type: "business_concept",
+        origin: nil
       })
 
       Redix.command(["KEYS", "*"])
 
       assert {:ok, links} = LinkCache.list("business_concept", concept2.id)
       assert Enum.map(links, & &1.resource_id) ||| ["#{bc1_id}", "#{bc3_id}"]
+      assert Enum.any?(links, &(&1.origin == "test_origin"))
+      assert Enum.any?(links, &(&1.origin == nil))
 
       assert {:ok, [link]} =
                LinkCache.list("business_concept", concept2.id,
@@ -281,7 +303,8 @@ defmodule TdCache.LinkCacheTest do
       target_id: System.unique_integer([:positive]),
       updated_at: DateTime.utc_now(),
       source_type: Map.get(params, :source_type, "foo"),
-      target_type: Map.get(params, :target_type, "bar")
+      target_type: Map.get(params, :target_type, "bar"),
+      origin: "some_origin"
     }
     |> Map.merge(params)
   end

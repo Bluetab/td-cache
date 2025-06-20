@@ -1,5 +1,11 @@
 # Changelog
 
+## [7.7.0] 2025-06-20
+
+### Added
+
+- [TD-7300] Add Link origin
+
 ## [7.5.0] 2025-05-22
 
 ### Added
@@ -168,7 +174,7 @@
 
 ## [5.5.0] 2023-03-29
 
-## Added
+### Added
 
 - [TD-5650] Hierarchy path
 
