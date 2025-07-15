@@ -1,5 +1,11 @@
 # Changelog
 
+[Unreleased]
+
+### Added
+
+- [TD-7301] Add batch retrieval for Concepts
+
 ## [7.7.0] 2025-06-20
 
 ### Added
