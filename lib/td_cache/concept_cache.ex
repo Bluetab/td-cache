@@ -12,6 +12,7 @@ defmodule TdCache.ConceptCache do
   alias TdCache.Redix
   alias TdCache.RuleCache
   alias TdCache.TaxonomyCache
+  alias TdCache.Utils.MapHelpers
 
   require Logger
 
@@ -260,20 +261,12 @@ defmodule TdCache.ConceptCache do
     ids
     |> Enum.map(fn id -> ["HGETALL", "business_concept:#{id}"] end)
     |> Redix.transaction_pipeline()
-    |> zip_results_with_ids(ids)
+    |> MapHelpers.zip_results_with_ids(ids)
     |> Enum.map(fn {id, hash} ->
       hash
       |> Redix.hash_to_map(transform_fun)
       |> Map.put(:id, id)
       |> concept_entry_to_map()
-    end)
-  end
-
-  defp zip_results_with_ids({:ok, results}, ids) do
-    ids
-    |> Enum.zip(results)
-    |> Enum.filter(fn {_id, result} ->
-      not Enum.empty?(result)
     end)
   end
 

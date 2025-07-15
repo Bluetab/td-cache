@@ -6,6 +6,7 @@ defmodule TdCache.StructureCache do
   alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.SystemCache
+  alias TdCache.Utils.MapHelpers
 
   ## Client API
 
@@ -22,6 +23,11 @@ defmodule TdCache.StructureCache do
   def get(id) do
     structure = read_structure(id)
     {:ok, structure}
+  end
+
+  def get_many(ids, opts \\ []) do
+    structures = read_structures_batch(ids, opts)
+    {:ok, structures}
   end
 
   @doc """
@@ -86,6 +92,38 @@ defmodule TdCache.StructureCache do
         |> Map.put(:metadata, metadata)
         |> Map.put(:id, id)
     end
+  end
+
+  defp read_structures_batch(ids, _opts) do
+    transform_fun = fn [key, value] -> {String.to_atom(key), value} end
+
+    ids
+    |> Enum.map(fn id -> ["HGETALL", "data_structure:#{id}"] end)
+    |> Redix.transaction_pipeline()
+    |> MapHelpers.zip_results_with_ids(ids)
+    |> Enum.map(fn {id, hash} ->
+      hash
+      |> Redix.hash_to_map(transform_fun)
+      |> enrich_structure_map(id)
+    end)
+  end
+
+  defp enrich_structure_map(structure, id) do
+    {:ok, path} = Redix.read_list("data_structure:#{id}:path")
+    {:ok, system} = SystemCache.get(Map.get(structure, :system_id))
+
+    metadata =
+      case Map.get(structure, :metadata) do
+        nil -> %{}
+        metadata -> Jason.decode!(metadata)
+      end
+
+    structure
+    |> Map.update(:domain_ids, [], &Redix.to_integer_list!/1)
+    |> put_optional(:path, path)
+    |> put_optional(:system, system)
+    |> Map.put(:metadata, metadata)
+    |> Map.put(:id, id)
   end
 
   def put_optional(map, _key, nil), do: map
