@@ -59,15 +59,15 @@ defmodule TdCache.ConceptCache do
     GenServer.call(__MODULE__, {:get, id, opts})
   end
 
-  def get_many(ids, opts \\ []) do
-    GenServer.call(__MODULE__, {:get_many, ids, opts})
-  end
-
   @doc """
   Reads a property of a concept for a given id from cache with options
   """
   def get(id, property, opts \\ []) do
     GenServer.call(__MODULE__, {:get, id, property, opts})
+  end
+
+  def get_many(ids, opts \\ []) do
+    GenServer.call(__MODULE__, {:get_many, ids, opts})
   end
 
   @doc """
