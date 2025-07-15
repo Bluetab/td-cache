@@ -94,6 +94,41 @@ defmodule TdCache.ConceptCacheTest do
       assert {:ok, ^content} = ConceptCache.get(concept.id, :content)
     end
 
+    test "reads many concepts", %{domain: %{id: domain_id}} do
+      %{id: shared_domain_id} = build(:domain)
+
+      [%{id: id1}, %{id: id2}, %{id: id3}] =
+        inserted_concepts =
+        Enum.map(1..3, fn i ->
+          concept =
+            if rem(i, 2) == 0 do
+              build(:concept, domain_id: domain_id, shared_to_ids: [shared_domain_id])
+            else
+              build(:concept, domain_id: domain_id)
+            end
+
+          {:ok, _} = ConceptCache.put(concept)
+          concept
+        end)
+
+      ids = [id1, id2, id3]
+
+      not_valid_id = Enum.max(ids) + 1
+
+      {:ok, cache_concepts} = ConceptCache.get_many(Enum.shuffle(ids ++ [not_valid_id]))
+
+      assert Enum.count(cache_concepts) == 3
+
+      assert Enum.all?(cache_concepts, fn %{id: concept_id, name: concept_name} ->
+               Enum.find(inserted_concepts, fn %{id: inserted_id, name: inserted_name} ->
+                 inserted_id == concept_id and inserted_name == concept_name
+               end)
+             end)
+
+      Redix.command!(["DEL"] ++ Redix.command!(["KEYS", "business_concept:*"]))
+      Redix.command!(["DEL", "domain:deleted_ids"])
+    end
+
     test "reads the content property of a concept with specific lang", %{
       concept: concept
     } do

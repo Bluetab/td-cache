@@ -59,6 +59,10 @@ defmodule TdCache.ConceptCache do
     GenServer.call(__MODULE__, {:get, id, opts})
   end
 
+  def get_many(ids, opts \\ []) do
+    GenServer.call(__MODULE__, {:get_many, ids, opts})
+  end
+
   @doc """
   Reads a property of a concept for a given id from cache with options
   """
@@ -170,6 +174,13 @@ defmodule TdCache.ConceptCache do
   end
 
   @impl true
+  def handle_call({:get_many, ids, opts}, _from, state) do
+    concepts = read_concepts_batch(ids, opts)
+
+    {:reply, {:ok, concepts}, state}
+  end
+
+  @impl true
   def handle_call({:get_i18n, id}, _from, state) do
     prop =
       case read_concept_i18n(id) do
@@ -241,6 +252,29 @@ defmodule TdCache.ConceptCache do
         |> Map.put(:shared_to, shared_to)
         |> translate_concept(lang)
     end
+  end
+
+  defp read_concepts_batch(ids, _opts) do
+    transform_fun = fn [key, value] -> {String.to_atom(key), value} end
+
+    ids
+    |> Enum.map(fn id -> ["HGETALL", "business_concept:#{id}"] end)
+    |> Redix.transaction_pipeline()
+    |> zip_results_with_ids(ids)
+    |> Enum.map(fn {id, hash} ->
+      hash
+      |> Redix.hash_to_map(transform_fun)
+      |> Map.put(:id, id)
+      |> concept_entry_to_map()
+    end)
+  end
+
+  defp zip_results_with_ids({:ok, results}, ids) do
+    ids
+    |> Enum.zip(results)
+    |> Enum.filter(fn {_id, result} ->
+      not Enum.empty?(result)
+    end)
   end
 
   defp read_concept_i18n(id) do
