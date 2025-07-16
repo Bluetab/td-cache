@@ -176,7 +176,10 @@ defmodule TdCache.ConceptCache do
 
   @impl true
   def handle_call({:get_many, ids, opts}, _from, state) do
-    concepts = read_concepts_batch(ids, opts)
+    concepts =
+      ids
+      |> Enum.uniq()
+      |> read_concepts_batch(opts)
 
     {:reply, {:ok, concepts}, state}
   end

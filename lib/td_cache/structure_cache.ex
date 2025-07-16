@@ -26,7 +26,11 @@ defmodule TdCache.StructureCache do
   end
 
   def get_many(ids, opts \\ []) do
-    structures = read_structures_batch(ids, opts)
+    structures =
+      ids
+      |> Enum.uniq()
+      |> read_structures_batch(opts)
+
     {:ok, structures}
   end
 

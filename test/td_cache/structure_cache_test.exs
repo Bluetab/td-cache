@@ -70,7 +70,7 @@ defmodule TdCache.StructureCacheTest do
           structure
         end)
 
-      ids = [id1, id2, id3]
+      ids = [id1, id2, id3, id1]
 
       not_valid_id = Enum.max(ids) + 1
 
