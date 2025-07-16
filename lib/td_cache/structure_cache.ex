@@ -98,6 +98,8 @@ defmodule TdCache.StructureCache do
     end
   end
 
+  defp read_structures_batch([], _opts), do: []
+
   defp read_structures_batch(ids, _opts) do
     transform_fun = fn [key, value] -> {String.to_atom(key), value} end
 
