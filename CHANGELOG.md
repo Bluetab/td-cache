@@ -4,7 +4,7 @@
 
 ### Added
 
-- [TD-7175] Added tools intto MapHelper to convert map keys between string and atom
+- [TD-7175] Added tools into MapHelper to convert map keys between string and atom. Added functions to search domain by name in redis.
 
 ## [7.7.0] 2025-06-20
 

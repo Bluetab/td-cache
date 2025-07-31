@@ -149,6 +149,22 @@ defmodule TdCache.DomainCache do
     end
   end
 
+  def get_by_name(name) when is_binary(name) do
+    case Redix.command(["HGETALL", @ids_to_names_key]) do
+      {:ok, data} ->
+        data
+        |> Enum.chunk_every(2)
+        |> Enum.find(fn [_id, stored_name] -> stored_name == name end)
+        |> case do
+          [id, _] -> {:ok, read_domain(id)}
+          _ -> {:error, :not_found}
+        end
+
+      _ ->
+        {:error, :redis_failure}
+    end
+  end
+
   defp get_deleted_domains do
     case Redix.command(["SMEMBERS", @deleted_ids]) do
       {:ok, ids} -> Enum.map(ids, &String.to_integer/1)

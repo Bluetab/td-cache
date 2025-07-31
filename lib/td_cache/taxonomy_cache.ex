@@ -132,6 +132,14 @@ defmodule TdCache.TaxonomyCache do
     DomainCache.put(domain, opts)
   end
 
+  def get_domain_by_name(name) do
+    case DomainCache.get_by_name(name) do
+      {:ok, nil} -> nil
+      {:error, :not_found} -> nil
+      {:ok, domain} -> domain
+    end
+  end
+
   def delete_domain(domain_id, opts \\ []) do
     delete_local_cache(domain_id)
     DomainCache.delete(domain_id, opts)
