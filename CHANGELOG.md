@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-7175] Added search domain in cache by name
+
 ## [7.7.0] 2025-06-20
 
 ### Added
