@@ -17,4 +17,12 @@ defmodule TdCache.Utils.MapHelpers do
   def parse_string(:string, value) when is_atom(value), do: Atom.to_string(value)
   # def parse_string(:datetime, value) when is_binary(value), do: DateTime.from_iso8601(value)
   def parse_string(_, value), do: value
+
+  def zip_results_with_ids({:ok, results}, ids) do
+    ids
+    |> Enum.zip(results)
+    |> Enum.filter(fn {_id, result} ->
+      not Enum.empty?(result)
+    end)
+  end
 end
