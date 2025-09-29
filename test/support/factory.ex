@@ -27,6 +27,30 @@ defmodule TdCache.Factory do
     }
   end
 
+  def system_factory do
+    %{
+      id: System.unique_integer([:positive]),
+      external_id: sequence("external_id_name"),
+      name: sequence("system_name")
+    }
+  end
+
+  def structure_factory do
+    %{
+      id: System.unique_integer([:positive]),
+      name: sequence("structure_name"),
+      external_id: sequence("ds_external_id"),
+      group: sequence("data_structure_version_group"),
+      type: "type",
+      path: ["foo", "bar"],
+      updated_at: DateTime.utc_now(),
+      metadata: %{"alias" => "source_alias"},
+      system_id: System.unique_integer([:positive]),
+      domain_ids: [1, 2],
+      deleted_at: DateTime.utc_now()
+    }
+  end
+
   def ingest_factory do
     %{
       id: unique_id(),

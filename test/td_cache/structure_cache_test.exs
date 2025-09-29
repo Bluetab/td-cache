@@ -2,6 +2,7 @@ defmodule TdCache.StructureCacheTest do
   use ExUnit.Case
 
   import Assertions
+  import TdCache.Factory
 
   alias TdCache.LinkCache
   alias TdCache.Redix
@@ -11,21 +12,8 @@ defmodule TdCache.StructureCacheTest do
   doctest TdCache.StructureCache
 
   setup do
-    system = %{id: System.unique_integer([:positive]), external_id: "foo", name: "bar"}
-
-    structure = %{
-      id: System.unique_integer([:positive]),
-      name: "name",
-      external_id: "ext_id",
-      group: "group",
-      type: "type",
-      path: ["foo", "bar"],
-      updated_at: DateTime.utc_now(),
-      metadata: %{"alias" => "source_alias"},
-      system_id: system.id,
-      domain_ids: [1, 2],
-      deleted_at: DateTime.utc_now()
-    }
+    system = build(:system)
+    structure = build(:structure, system_id: system.id)
 
     {:ok, _} = SystemCache.put(system)
 
@@ -68,6 +56,38 @@ defmodule TdCache.StructureCacheTest do
       assert s.system == system
     end
 
+    test "reads many structures", %{system: system} do
+      %{id: domain_id1} = build(:domain)
+      %{id: domain_id2} = build(:domain)
+
+      [%{id: id1}, %{id: id2}, %{id: id3}] =
+        inserted_structures =
+        Enum.map(1..3, fn _ ->
+          structure =
+            build(:structure, domain_ids: [domain_id1, domain_id2], system_id: system.id)
+
+          {:ok, _} = StructureCache.put(structure)
+          structure
+        end)
+
+      ids = [id1, id2, id3, id1]
+
+      not_valid_id = Enum.max(ids) + 1
+
+      {:ok, cache_structures} = StructureCache.get_many(Enum.shuffle(ids ++ [not_valid_id]))
+
+      assert Enum.count(cache_structures) == 3
+
+      assert Enum.all?(cache_structures, fn %{id: structure_id, name: structure_name} ->
+               Enum.find(inserted_structures, fn %{id: inserted_id, name: inserted_name} ->
+                 inserted_id == structure_id and inserted_name == structure_name
+               end)
+             end)
+
+      Redix.command!(["DEL"] ++ Redix.command!(["KEYS", "data_structure:*"]))
+      Redix.command!(["DEL", "domain:deleted_ids"])
+    end
+
     test "returns an empty map for metadata if not present", %{structure: structure} do
       structure = Map.delete(structure, :metadata)
       assert {:ok, _} = StructureCache.put(structure)
@@ -93,7 +113,7 @@ defmodule TdCache.StructureCacheTest do
     end
 
     test "does not update a structure already cached in redis having same update_at value", %{
-      structure: structure
+      structure: %{external_id: external_id} = structure
     } do
       {:ok, _} = StructureCache.put(structure)
       {:ok, s} = StructureCache.get(structure.id)
@@ -101,7 +121,7 @@ defmodule TdCache.StructureCacheTest do
       updated_structure = Map.put(structure, :external_id, "new_ext_id")
       {:ok, _} = StructureCache.put(updated_structure)
       {:ok, s} = StructureCache.get(structure.id)
-      assert s.external_id == "ext_id"
+      assert s.external_id == external_id
     end
 
     test "updates a structure already cached in redis when deleted_at has changed", %{
