@@ -1,5 +1,11 @@
 # Changelog
 
+[Unreleased]
+
+### Added
+
+- [TD-7401] Implement Configuration Changes to Enhance Redis Performance
+
 [7.11.0] 2025-09-24
 
 ### Added
