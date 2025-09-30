@@ -14,6 +14,11 @@ defmodule TdCache.AuditTest do
   end
 
   setup do
+    on_exit(fn ->
+      Audit.stream()
+      |> Redix.del!()
+    end)
+
     [
       event: %Event{
         event: "test_event",
@@ -54,6 +59,34 @@ defmodule TdCache.AuditTest do
       assert {:ok, ts, 0} = DateTime.from_iso8601(ts)
       assert DateTime.compare(ts, ts_before) == :gt
       assert DateTime.compare(ts, ts_after) == :lt
+    end
+
+    test "publishes event with maxlen configuration", %{event: event} do
+      original_config = Application.get_env(:td_cache, :audit, [])
+      Application.put_env(:td_cache, :audit, maxlen: "150")
+
+      try do
+        assert {:ok, id} = Audit.publish(event)
+
+        assert {:ok, [e]} = Stream.range(:redix, Audit.stream(), id, id, transform: :range)
+        assert e.event == "test_event"
+      after
+        Application.put_env(:td_cache, :audit, original_config)
+      end
+    end
+
+    test "uses default maxlen when no configuration provided", %{event: event} do
+      original_config = Application.get_env(:td_cache, :audit, [])
+      Application.put_env(:td_cache, :audit, [])
+
+      try do
+        assert {:ok, id} = Audit.publish(event)
+
+        assert {:ok, [e]} = Stream.range(:redix, Audit.stream(), id, id, transform: :range)
+        assert e.event == "test_event"
+      after
+        Application.put_env(:td_cache, :audit, original_config)
+      end
     end
   end
 end
