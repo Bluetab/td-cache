@@ -6,16 +6,22 @@ defmodule TdCache.Audit do
   alias TdCache.Audit.Event
   alias TdCache.EventStream.Publisher
 
+  @default_maxlen "100"
+
   def publish_all(events) when is_list(events) do
+    maxlen = maxlen()
+
     events
     |> Enum.map(&create_event/1)
-    |> Publisher.publish(stream())
+    |> Publisher.publish(stream(), maxlen: maxlen)
   end
 
   def publish(%Event{} = event) do
+    maxlen = maxlen()
+
     event
     |> create_event()
-    |> Publisher.publish(stream())
+    |> Publisher.publish(stream(), maxlen: maxlen)
   end
 
   def publish(fields) do
@@ -51,6 +57,10 @@ defmodule TdCache.Audit do
   defp service do
     config()
     |> Keyword.get(:service, "missing")
+  end
+
+  defp maxlen do
+    Keyword.get(config(), :maxlen, @default_maxlen)
   end
 
   defp config do
