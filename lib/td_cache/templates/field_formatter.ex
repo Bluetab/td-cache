@@ -30,7 +30,7 @@ defmodule TdCache.Templates.FieldFormatter do
   end
 
   def format(
-        %{"type" => "table", "values" => %{"table_columns" => [_ | _] = _columns}} = field,
+        %{"type" => "dynamic_table", "values" => %{"table_columns" => [_ | _]}} = field,
         ctx
       ) do
     update_in(field, ["values", "table_columns"], fn columns ->

@@ -128,7 +128,7 @@ defmodule TdCache.Templates.PreprocessorTest do
       assert unchanged_field == %{"foo" => "bar"}
     end
 
-    test "preprocess_template/2 process table type fields" do
+    test "preprocess_template/2 process dynamic table type fields" do
       %{id: domain_id} = CacheHelpers.insert_domain()
       %{id: user_id, full_name: full_name} = CacheHelpers.insert_user()
       %{id: group_id, name: group_name} = CacheHelpers.insert_group()
@@ -145,7 +145,7 @@ defmodule TdCache.Templates.PreprocessorTest do
         %{"foo" => "bar"},
         %{
           "name" => "table_field",
-          "type" => "table",
+          "type" => "dynamic_table",
           "values" => %{
             "table_columns" => [
               %{
