@@ -127,5 +127,90 @@ defmodule TdCache.Templates.PreprocessorTest do
 
       assert unchanged_field == %{"foo" => "bar"}
     end
+
+    test "preprocess_template/2 process dynamic table type fields" do
+      %{id: domain_id} = CacheHelpers.insert_domain()
+      %{id: user_id, full_name: full_name} = CacheHelpers.insert_user()
+      %{id: group_id, name: group_name} = CacheHelpers.insert_group()
+
+      AclCache.set_acl_roles("domain", domain_id, [@role_name])
+      AclCache.set_acl_group_roles("domain", domain_id, [@role_name])
+      AclCache.set_acl_role_users("domain", domain_id, @role_name, [user_id])
+      AclCache.set_acl_role_groups("domain", domain_id, @role_name, [group_id])
+
+      ctx = %{domain_ids: [domain_id], claims: %{user_id: user_id}}
+
+      fields = [
+        %{"name" => "user_field", "type" => "user", "values" => %{"role_users" => @role_name}},
+        %{"foo" => "bar"},
+        %{
+          "name" => "table_field",
+          "type" => "dynamic_table",
+          "values" => %{
+            "table_columns" => [
+              %{
+                "name" => "user_col",
+                "type" => "user",
+                "values" => %{"role_users" => @role_name}
+              },
+              %{"name" => "_confidential", "foo" => "bar"},
+              %{
+                "name" => "user_group_field_col",
+                "type" => "user_group",
+                "values" => %{"role_groups" => @role_name}
+              }
+            ]
+          }
+        }
+      ]
+
+      template = %{content: [%{"name" => "group1", "fields" => fields}]}
+
+      assert %{content: [%{"fields" => fields}]} = Preprocessor.preprocess_template(template, ctx)
+
+      assert Enum.find(fields, &(&1["name"] == "user_field")) == %{
+               "default" => full_name,
+               "name" => "user_field",
+               "type" => "user",
+               "values" => %{
+                 "processed_users" => [full_name],
+                 "role_users" => @role_name
+               }
+             }
+
+      assert %{"values" => %{"table_columns" => columns}} =
+               Enum.find(fields, &(&1["name"] == "table_field"))
+
+      assert Enum.find(columns, &(&1["name"] == "user_col")) == %{
+               "default" => full_name,
+               "name" => "user_col",
+               "type" => "user",
+               "values" => %{
+                 "processed_users" => [full_name],
+                 "role_users" => @role_name
+               }
+             }
+
+      assert Enum.find(columns, &(&1["name"] == "_confidential")) == %{
+               "cardinality" => "?",
+               "default" => "No",
+               "disabled" => true,
+               "foo" => "bar",
+               "name" => "_confidential",
+               "type" => "string",
+               "widget" => "checkbox"
+             }
+
+      assert Enum.find(columns, &(&1["name"] == "user_group_field_col")) == %{
+               "default" => full_name,
+               "name" => "user_group_field_col",
+               "type" => "user_group",
+               "values" => %{
+                 "processed_groups" => [group_name],
+                 "processed_users" => [full_name],
+                 "role_groups" => "foo_role"
+               }
+             }
+    end
   end
 end
