@@ -26,7 +26,12 @@ config :td_cache,
 
 config :td_cache, :audit,
   service: "td-cache",
-  stream: "audit:events:test"
+  stream: "audit:events:test",
+  maxlen: System.get_env("REDIS_AUDIT_STREAM_MAXLEN", "100")
+
+config :td_cache, :event_stream,
+  maxlen: System.get_env("REDIS_STREAM_MAXLEN", "100"),
+  streams: []
 
 # It is also possible to import configuration files, relative to this
 # directory. For example, you can emulate configuration per environment
