@@ -1,5 +1,11 @@
 # Changelog
 
+[7.12.0] 2025-10-28
+
+### Added
+
+- [TD-7340] Format `dynamic_table` fields.
+
 [7.11.1] 2025-09-30
 
 ### Added

@@ -29,6 +29,15 @@ defmodule TdCache.Templates.FieldFormatter do
     |> apply_user_group_meta(role_name, user_group_roles)
   end
 
+  def format(
+        %{"type" => "dynamic_table", "values" => %{"table_columns" => [_ | _]}} = field,
+        ctx
+      ) do
+    update_in(field, ["values", "table_columns"], fn columns ->
+      Enum.map(columns, &format(&1, ctx))
+    end)
+  end
+
   def format(%{} = field, _ctx), do: field
 
   defp confidential_field_disabled?(%{claims: nil}), do: true
