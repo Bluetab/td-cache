@@ -11,6 +11,8 @@ defmodule TdCache.LinkCache do
   alias TdCache.Redix
   alias TdCache.StructureCache
 
+  @default_batch_size 100
+
   ## Client API
 
   @doc """
@@ -20,6 +22,28 @@ defmodule TdCache.LinkCache do
   """
   def put(link, opts \\ []) do
     put_link(link, opts)
+  end
+
+  @doc """
+  Creates cache entries for multiple links in a batch.
+
+  The option `[publish: false]` may be used to prevent events from being published.
+  The option `[batch_size: size]` can be used to control the batch size.
+  """
+  def put_many(links, opts \\ []) when is_list(links) do
+    batch_size = Keyword.get(opts, :batch_size, @default_batch_size)
+    publish = Keyword.get(opts, :publish, true)
+
+    {successful, failed} =
+      links
+      |> Enum.chunk_every(batch_size)
+      |> Enum.map(&process_batch(&1, publish))
+      |> Enum.reduce({[], []}, fn {batch_successful, batch_failed},
+                                  {all_successful, all_failed} ->
+        {all_successful ++ batch_successful, all_failed ++ batch_failed}
+      end)
+
+    {:ok, successful, failed}
   end
 
   @doc """
@@ -143,20 +167,17 @@ defmodule TdCache.LinkCache do
   ## Private functions
 
   defp get_link("link:" <> id = key) do
-    {:ok, tags} = Redix.command(["SMEMBERS", "#{key}:tags"])
-    {:ok, map} = Redix.read_map(key)
+    with {:ok, tags} <- Redix.command(["SMEMBERS", "#{key}:tags"]),
+         {:ok, map} when not is_nil(map) <- Redix.read_map(key) do
+      link =
+        map
+        |> Map.put(:tags, tags)
+        |> Map.put(:id, id)
 
-    case map do
-      nil ->
-        nil
-
-      _ ->
-        link =
-          map
-          |> Map.put(:tags, tags)
-          |> Map.put(:id, id)
-
-        struct(Link, link)
+      struct(Link, link)
+    else
+      {:ok, nil} -> nil
+      _ -> nil
     end
   end
 
@@ -176,26 +197,37 @@ defmodule TdCache.LinkCache do
   defp put_link(%{updated_at: ts}, ts, _opts), do: {:ok, []}
 
   defp put_link(
-         %{
-           id: id,
-           source_type: source_type,
-           source_id: source_id,
-           target_type: target_type,
-           target_id: target_id
-         } = link,
+         link,
          _last_updated,
          opts
        ) do
     commands = put_link_commands(link)
 
-    {:ok, results} = Redix.transaction_pipeline(commands)
+    {:ok, results} = transaction_pipeline(commands)
     source_add_count = Enum.at(results, 2)
     target_add_count = Enum.at(results, 3)
 
     unless opts[:publish] == false do
-      # Publish events if link count has incremented
-      [source_add_count, target_add_count]
-      |> Enum.zip(["#{source_type}:events", "#{target_type}:events"])
+      publish_link_events(source_add_count, target_add_count, link)
+    end
+
+    {:ok, results}
+  end
+
+  defp publish_link_events(source_add_count, target_add_count, link) do
+    %{
+      id: id,
+      source_type: source_type,
+      source_id: source_id,
+      target_type: target_type,
+      target_id: target_id
+    } = link
+
+    events =
+      [
+        {source_add_count, "#{source_type}:events"},
+        {target_add_count, "#{target_type}:events"}
+      ]
       |> Enum.flat_map(fn {n, stream} ->
         conditional_events(
           n > 0,
@@ -209,10 +241,8 @@ defmodule TdCache.LinkCache do
         )
       end)
       |> Enum.uniq()
-      |> Publisher.publish()
-    end
 
-    {:ok, results}
+    Publisher.publish(events)
   end
 
   defp put_link_commands(
@@ -247,6 +277,324 @@ defmodule TdCache.LinkCache do
     |> maybe_origin_field(link)
   end
 
+  defp process_batch(links, publish) do
+    {commands, link_command_map, ordered_link_ids} = prepare_batch_commands(links)
+
+    if length(commands) > 0 do
+      process_batch_with_commands(links, link_command_map, ordered_link_ids, commands, publish)
+    else
+      {links, []}
+    end
+  end
+
+  defp process_batch_with_commands(links, link_command_map, ordered_link_ids, commands, publish) do
+    case transaction_pipeline(commands) do
+      {:ok, results} ->
+        {successful_links, failed_links} =
+          process_batch_results_dynamic_by_order(ordered_link_ids, link_command_map, results)
+
+        if publish and length(successful_links) > 0 do
+          publish_batch_events_dynamic(successful_links, link_command_map, results)
+        end
+
+        {successful_links, failed_links}
+
+      {:error, reason} ->
+        failed_links =
+          links
+          |> Enum.map(&Map.put(&1, :error_reason, reason))
+
+        {[], failed_links}
+    end
+  end
+
+  defp transaction_pipeline(commands) do
+    redix_module = Application.get_env(:td_cache, :redix_module, Redix)
+
+    case redix_module do
+      nil ->
+        Redix.transaction_pipeline(commands)
+
+      {:module, actual_module, _, _} when is_atom(actual_module) ->
+        actual_module.transaction_pipeline(commands)
+
+      module when is_atom(module) ->
+        module.transaction_pipeline(commands)
+    end
+  end
+
+  defp prepare_batch_commands(links) do
+    Enum.reduce(links, {[], %{}, []}, fn link, {all_commands, link_map, ordered_link_ids} ->
+      case prepare_single_link_commands(link) do
+        {:ok, cmds} when cmds != [] ->
+          new_link_map =
+            Map.put(link_map, link.id, %{
+              link: link,
+              commands: cmds
+            })
+
+          {all_commands ++ cmds, new_link_map, ordered_link_ids ++ [link.id]}
+
+        {:ok, []} ->
+          new_link_map = Map.put(link_map, link.id, %{link: link, commands: [], skipped: true})
+          {all_commands, new_link_map, ordered_link_ids ++ [link.id]}
+
+        {:error, reason} ->
+          new_link_map =
+            Map.put(link_map, link.id, %{
+              link: Map.put(link, :error_reason, reason),
+              commands: [],
+              invalid: true
+            })
+
+          {all_commands, new_link_map, ordered_link_ids ++ [link.id]}
+      end
+    end)
+    |> then(fn {commands, link_map, ordered_ids} -> {commands, link_map, ordered_ids} end)
+  end
+
+  defp prepare_single_link_commands(
+         %{
+           id: id,
+           source_type: _,
+           source_id: _,
+           target_type: _,
+           target_id: _,
+           updated_at: updated_at
+         } = link
+       )
+       when is_integer(id) do
+    case Redix.command(["HGET", "link:#{id}", :updated_at]) do
+      {:ok, last_updated} ->
+        if last_updated == "#{updated_at}" do
+          {:ok, []}
+        else
+          {:ok, put_link_commands(link)}
+        end
+
+      {:error, _reason} ->
+        {:ok, put_link_commands(link)}
+    end
+  end
+
+  defp prepare_single_link_commands(_link) do
+    {:error, :invalid_link_structure}
+  end
+
+  defp process_batch_results_dynamic_by_order(ordered_link_ids, link_command_map, results) do
+    {successful_links, failed_links} =
+      Enum.reduce(ordered_link_ids, {[], []}, fn link_id, {successful, failed} ->
+        link_info = Map.get(link_command_map, link_id)
+        link = link_info.link
+
+        handle_link_result(
+          link_info,
+          link,
+          successful,
+          failed,
+          results,
+          ordered_link_ids,
+          link_command_map
+        )
+      end)
+
+    {successful_links, failed_links}
+  end
+
+  defp handle_link_result(
+         %{skipped: true},
+         link,
+         successful,
+         failed,
+         _results,
+         _ordered_link_ids,
+         _link_command_map
+       ) do
+    {[link | successful], failed}
+  end
+
+  defp handle_link_result(
+         %{invalid: true} = link_info,
+         _link,
+         successful,
+         failed,
+         _results,
+         _ordered_link_ids,
+         _link_command_map
+       ) do
+    {successful, [link_info.link | failed]}
+  end
+
+  defp handle_link_result(
+         %{commands: commands} = link_info,
+         link,
+         successful,
+         failed,
+         results,
+         ordered_link_ids,
+         link_command_map
+       )
+       when is_list(commands) and length(commands) > 0 do
+    {start_idx, end_idx} =
+      find_command_range_for_link_by_order(link_info.link.id, ordered_link_ids, link_command_map)
+
+    link_results = Enum.slice(results, start_idx, end_idx - start_idx)
+
+    if all_commands_successful?(link_results) do
+      {[link | successful], failed}
+    else
+      failed_link = Map.put(link, :error_reason, :partial_failure)
+      {successful, [failed_link | failed]}
+    end
+  end
+
+  defp handle_link_result(
+         _link_info,
+         link,
+         successful,
+         failed,
+         _results,
+         _ordered_link_ids,
+         _link_command_map
+       ) do
+    {[link | successful], failed}
+  end
+
+  defp find_command_range_for_link_by_order(link_id, ordered_link_ids, link_command_map) do
+    {start_idx, _found} =
+      Enum.reduce_while(ordered_link_ids, {0, false}, fn current_link_id, {idx, _found} ->
+        current_link_commands =
+          Map.get(link_command_map, current_link_id) |> Map.get(:commands, [])
+
+        if current_link_id == link_id do
+          {:halt, {idx, true}}
+        else
+          {:cont, {idx + length(current_link_commands), false}}
+        end
+      end)
+
+    link_commands = Map.get(link_command_map, link_id) |> Map.get(:commands, [])
+    end_idx = start_idx + length(link_commands)
+    {start_idx, end_idx}
+  end
+
+  defp all_commands_successful?(results) do
+    Enum.all?(results, &command_successful?/1)
+  end
+
+  defp command_successful?(result) do
+    case result do
+      n when is_integer(n) -> n >= 0
+      "OK" -> true
+      {:ok, _} -> true
+      true -> true
+      :ok -> true
+      _ -> false
+    end
+  end
+
+  defp publish_batch_events_dynamic(successful_links, link_command_map, results) do
+    events =
+      successful_links
+      |> Enum.flat_map(fn link ->
+        link_info = Map.get(link_command_map, link.id)
+
+        if link_info && !Map.get(link_info, :skipped, false) do
+          extract_sadd_events_for_link(link, link_info, results, link_command_map)
+        else
+          []
+        end
+      end)
+      |> Enum.uniq()
+
+    if length(events) > 0 do
+      Publisher.publish(events)
+    end
+  end
+
+  defp extract_sadd_events_for_link(link, link_info, all_results, link_command_map) do
+    %{
+      id: id,
+      source_type: source_type,
+      source_id: source_id,
+      target_type: target_type,
+      target_id: target_id
+    } = link
+
+    {start_idx, _end_idx} = calculate_command_indices_for_link(link.id, link_command_map)
+
+    link_info.commands
+    |> Enum.with_index()
+    |> Enum.flat_map(fn {cmd, cmd_idx} ->
+      case cmd do
+        ["SADD", key, "link:" <> _] ->
+          result_idx = start_idx + cmd_idx
+          result = Enum.at(all_results, result_idx, 0)
+
+          cond do
+            key == "#{source_type}:#{source_id}:links" and command_successful?(result) ->
+              [
+                create_add_link_event(
+                  source_type,
+                  source_type,
+                  source_id,
+                  target_type,
+                  target_id,
+                  id
+                )
+              ]
+
+            key == "#{target_type}:#{target_id}:links" and command_successful?(result) ->
+              [
+                create_add_link_event(
+                  target_type,
+                  source_type,
+                  source_id,
+                  target_type,
+                  target_id,
+                  id
+                )
+              ]
+
+            true ->
+              []
+          end
+
+        _ ->
+          []
+      end
+    end)
+  end
+
+  defp calculate_command_indices_for_link(target_link_id, link_command_map) do
+    {start_idx, _found} =
+      Enum.reduce_while(Map.keys(link_command_map), {0, false}, fn current_link_id,
+                                                                   {idx, _found} ->
+        current_link_commands =
+          Map.get(link_command_map, current_link_id) |> Map.get(:commands, [])
+
+        if current_link_id == target_link_id do
+          {:halt, {idx, true}}
+        else
+          {:cont, {idx + length(current_link_commands), false}}
+        end
+      end)
+
+    target_link_commands = Map.get(link_command_map, target_link_id) |> Map.get(:commands, [])
+    end_idx = start_idx + length(target_link_commands)
+    {start_idx, end_idx}
+  end
+
+  defp create_add_link_event(stream_type, source_type, source_id, target_type, target_id, link_id) do
+    %{
+      stream: "#{stream_type}:events",
+      event: "add_link",
+      link: "link:#{link_id}",
+      source: "#{source_type}:#{source_id}",
+      target: "#{target_type}:#{target_id}"
+    }
+  end
+
   defp validate_origin(%{origin: origin} = link) when is_binary(origin),
     do: link
 
@@ -258,33 +606,37 @@ defmodule TdCache.LinkCache do
   defp maybe_link_tags_commands(commands, %{tags: []}), do: commands
 
   defp maybe_link_tags_commands(commands, %{id: id, tags: tags}) do
-    commands ++
-      [["SADD", "link:#{id}:tags"] ++ tags]
+    commands ++ [["SADD", "link:#{id}:tags"] ++ tags]
   end
 
   defp maybe_link_tags_commands(commands, _), do: commands
 
-  defp maybe_origin_field([del_command, hset_command | tail_commands], %{origin: origin}) do
+  defp maybe_origin_field([del_command, hset_command | tail_commands], %{origin: origin})
+       when is_binary(origin) do
     [del_command, hset_command ++ ["origin", origin] | tail_commands]
   end
 
   defp maybe_origin_field(commands, _), do: commands
 
   defp delete_link(id, opts) do
-    {:ok, keys} = Redix.command(["HMGET", "link:#{id}", "source", "target"])
-    result = do_delete_link(id, keys, opts)
-
-    unless opts[:publish] == false do
-      if did_delete?(result) do
-        Publisher.publish(%{
-          stream: "link:commands",
-          event: "delete_link",
-          link_id: id
-        })
+    with {:ok, keys} <- Redix.command(["HMGET", "link:#{id}", "source", "target"]),
+         result <- do_delete_link(id, keys, opts) do
+      unless opts[:publish] == false do
+        publish_delete_event_if_needed(result, id)
       end
-    end
 
-    result
+      result
+    end
+  end
+
+  defp publish_delete_event_if_needed(result, id) do
+    if did_delete?(result) do
+      Publisher.publish(%{
+        stream: "link:commands",
+        event: "delete_link",
+        link_id: id
+      })
+    end
   end
 
   def did_delete?({:ok, [count, _]}), do: count > 0
@@ -315,9 +667,34 @@ defmodule TdCache.LinkCache do
     [source_del_count, target_del_count, _, _, _, _] = results
 
     unless opts[:publish] == false do
-      # Publish events if link count has decremented
-      [source_del_count, target_del_count]
-      |> Enum.zip(["#{source_type}:events", "#{target_type}:events"])
+      publish_delete_events(
+        source_del_count,
+        target_del_count,
+        source_type,
+        target_type,
+        source,
+        target,
+        id
+      )
+    end
+
+    {:ok, results}
+  end
+
+  defp publish_delete_events(
+         source_del_count,
+         target_del_count,
+         source_type,
+         target_type,
+         source,
+         target,
+         id
+       ) do
+    events =
+      [
+        {source_del_count, "#{source_type}:events"},
+        {target_del_count, "#{target_type}:events"}
+      ]
       |> Enum.flat_map(fn {n, stream} ->
         conditional_events(n > 0, %{
           stream: stream,
@@ -328,10 +705,8 @@ defmodule TdCache.LinkCache do
         })
       end)
       |> Enum.uniq()
-      |> Publisher.publish()
-    end
 
-    {:ok, results}
+    Publisher.publish(events)
   end
 
   defp do_delete_resource_links(source_type, source_id) do
@@ -343,8 +718,6 @@ defmodule TdCache.LinkCache do
         ["SMEMBERS", links_key],
         ["RENAME", links_key, "_:#{links_key}"]
       ])
-
-    # TODO: The "_:#{links_key}" key should be deleted after resource links have been removed
 
     commands =
       links
@@ -379,41 +752,43 @@ defmodule TdCache.LinkCache do
   defp publish_bulk_events(results_zip_commands, source_key) do
     {:ok, event_ids} =
       results_zip_commands
-      |> Enum.filter(fn {_, [c | [key | _]]} ->
-        c == "SREM" and String.ends_with?(key, ":links")
-      end)
+      |> Enum.filter(&srem_link_command?/1)
       |> Enum.reject(fn {count, _command} -> count == 0 end)
       |> Enum.map(fn {_, [_, target_links_key, link_key]} -> {target_links_key, link_key} end)
-      |> Enum.filter(fn {target_links_key, _link_key} ->
-        String.ends_with?(target_links_key, ":links")
-      end)
-      |> Enum.map(fn {target_links_key, link_key} ->
-        {extract_type(target_links_key), remove_suffix(target_links_key), link_key}
-      end)
-      |> Enum.map(&create_event(&1, "remove_link", source_key))
+      |> Enum.filter(&valid_links_key?/1)
+      |> Enum.map(&create_remove_event(&1, source_key))
       |> Publisher.publish()
 
     event_ids
   end
 
-  defp remove_suffix(key, sufix \\ ":links") do
-    String.replace_suffix(key, sufix, "")
+  defp srem_link_command?({_, ["SREM", key | _]}) do
+    String.ends_with?(key, ":links")
+  end
+
+  defp srem_link_command?(_), do: false
+
+  defp valid_links_key?({key, _}) do
+    String.ends_with?(key, ":links")
+  end
+
+  defp create_remove_event({target_links_key, link_key}, source_key) do
+    target_type = extract_type(target_links_key)
+    target_key = String.replace_suffix(target_links_key, ":links", "")
+
+    %{
+      event: "remove_link",
+      link: link_key,
+      source: source_key,
+      target: target_key,
+      stream: "#{target_type}:events"
+    }
   end
 
   defp extract_type(key) when is_binary(key) do
     key
     |> String.split(":", parts: 2)
     |> hd()
-  end
-
-  defp create_event({target_type, target_key, link_key}, event, source_key) do
-    %{
-      event: event,
-      link: link_key,
-      source: source_key,
-      target: target_key,
-      stream: "#{target_type}:events"
-    }
   end
 
   defp conditional_events(false, _), do: []
@@ -461,31 +836,22 @@ defmodule TdCache.LinkCache do
 
   defp read_source({["business_concept", business_concept_id], tags, id, origin}, opts) do
     case ConceptCache.get(business_concept_id, opts) do
-      {:ok, nil} ->
-        nil
-
-      {:ok, concept} ->
-        resource_with_tags(concept, :concept, tags, id, origin)
+      {:ok, nil} -> nil
+      {:ok, concept} -> resource_with_tags(concept, :concept, tags, id, origin)
     end
   end
 
   defp read_source({["data_structure", structure_id], tags, id, origin}, _opts) do
     case StructureCache.get(structure_id) do
-      {:ok, nil} ->
-        nil
-
-      {:ok, structure} ->
-        resource_with_tags(structure, :data_structure, tags, id, origin)
+      {:ok, nil} -> nil
+      {:ok, structure} -> resource_with_tags(structure, :data_structure, tags, id, origin)
     end
   end
 
   defp read_source({["ingest", ingest_id], tags, id, origin}, _opts) do
     case IngestCache.get(ingest_id) do
-      {:ok, nil} ->
-        nil
-
-      {:ok, ingest} ->
-        resource_with_tags(ingest, :ingest, tags, id, origin)
+      {:ok, nil} -> nil
+      {:ok, ingest} -> resource_with_tags(ingest, :ingest, tags, id, origin)
     end
   end
 

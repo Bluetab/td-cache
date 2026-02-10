@@ -1,5 +1,11 @@
 # Changelog
 
+[Unreleased]
+
+### Added
+
+- [TD-7883] Added "put_many" funcion to add multiple values to redis
+
 [7.12.0] 2025-10-28
 
 ### Added

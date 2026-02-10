@@ -296,6 +296,504 @@ defmodule TdCache.LinkCacheTest do
     end
   end
 
+  describe "put_many/2" do
+    test "inserts multiple links in batch successfully" do
+      links = [
+        make_link(%{id: 1, source_id: 100, target_id: 200}),
+        make_link(%{id: 2, source_id: 101, target_id: 201}),
+        make_link(%{id: 3, source_id: 102, target_id: 202})
+      ]
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      assert {:ok, successful, []} = LinkCache.put_many(links)
+      assert length(successful) == 3
+
+      Enum.each(links, fn link ->
+        {:ok, cached_link} = LinkCache.get(link.id)
+        assert cached_link.id == "#{link.id}"
+        assert cached_link.source == "#{link.source_type}:#{link.source_id}"
+        assert cached_link.target == "#{link.target_type}:#{link.target_id}"
+      end)
+    end
+
+    test "handles empty list" do
+      assert {:ok, [], []} = LinkCache.put_many([])
+    end
+
+    test "respects batch_size option" do
+      links =
+        Enum.map(1..5, fn id ->
+          make_link(%{id: id, source_id: 100 + id, target_id: 200 + id})
+        end)
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      assert {:ok, successful, []} = LinkCache.put_many(links, batch_size: 2)
+      assert length(successful) == 5
+
+      Enum.each(links, fn link ->
+        {:ok, cached_link} = LinkCache.get(link.id)
+        assert cached_link.id == "#{link.id}"
+      end)
+    end
+
+    test "returns failed links when redis transaction fails" do
+      original_redix = Application.get_env(:td_cache, :redix_module)
+
+      original_transaction_pipeline = &Redix.transaction_pipeline/1
+
+      failing_redix =
+        defmodule MockFailingRedix do
+          def transaction_pipeline(_commands) do
+            {:error, :connection_error}
+          end
+        end
+
+      try do
+        Application.put_env(:td_cache, :redix_module, failing_redix)
+
+        links = [
+          make_link(%{id: 1, source_id: 100, target_id: 200}),
+          make_link(%{id: 2, source_id: 101, target_id: 201})
+        ]
+
+        assert {:ok, [], failed} = LinkCache.put_many(links, batch_size: 2)
+        assert length(failed) == 2
+
+        Enum.each(failed, fn link ->
+          assert Map.has_key?(link, :error_reason)
+          assert link.error_reason == :connection_error
+        end)
+
+        Enum.each(links, fn link ->
+          Application.put_env(:td_cache, :redix_module, original_redix)
+          {:ok, cached_link} = LinkCache.get(link.id)
+          assert is_nil(cached_link)
+          Application.put_env(:td_cache, :redix_module, failing_redix)
+        end)
+      after
+        Application.put_env(:td_cache, :redix_module, original_redix)
+      end
+    end
+
+    test "handles partial failures in batch" do
+      links = [
+        make_link(%{id: 1, source_id: 100, target_id: 200}),
+        %{id: 2, updated_at: DateTime.utc_now(), invalid: "structure"},
+        make_link(%{id: 3, source_id: 102, target_id: 202})
+      ]
+
+      valid_links = [Enum.at(links, 0), Enum.at(links, 2)]
+
+      on_exit(fn ->
+        Enum.each(valid_links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      assert {:ok, successful, failed} = LinkCache.put_many(links)
+
+      assert length(successful) == 2
+      assert length(failed) == 1
+
+      Enum.each(valid_links, fn link ->
+        {:ok, cached_link} = LinkCache.get(link.id)
+        assert cached_link.id == "#{link.id}"
+      end)
+
+      failed_link = hd(failed)
+      assert Map.get(failed_link, :error_reason) == :invalid_link_structure
+    end
+
+    test "skips links that are already up-to-date" do
+      link1 = make_link(%{id: 1, source_id: 100, target_id: 200})
+      {:ok, _} = LinkCache.put(link1)
+
+      link1_dup = Map.put(link1, :id, 1)
+
+      link2 = make_link(%{id: 2, source_id: 101, target_id: 201})
+
+      links = [link1_dup, link2]
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      assert {:ok, successful, []} = LinkCache.put_many(links)
+
+      assert length(successful) == 2
+
+      Enum.each(links, fn link ->
+        {:ok, cached_link} = LinkCache.get(link.id)
+        assert cached_link.id == "#{link.id}"
+      end)
+    end
+
+    test "publishes events for successful batch inserts" do
+      links = [
+        make_link(%{id: 1, source_id: 100, target_id: 200}),
+        make_link(%{id: 2, source_id: 101, target_id: 201})
+      ]
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+        Redix.command(["DEL", "foo:events", "bar:events"])
+      end)
+
+      Stream.trim("foo:events", 0)
+      Stream.trim("bar:events", 0)
+
+      assert {:ok, _, []} = LinkCache.put_many(links, publish: true)
+
+      {:ok, events} = Stream.read(:redix, ["foo:events", "bar:events"], transform: true)
+
+      assert length(events) == 4
+
+      assert Enum.all?(events, &(&1.event == "add_link"))
+
+      Enum.each(links, fn link ->
+        link_key = "link:#{link.id}"
+        source_key = "#{link.source_type}:#{link.source_id}"
+        target_key = "#{link.target_type}:#{link.target_id}"
+
+        assert Enum.any?(events, &(&1.link == link_key and &1.source == source_key))
+        assert Enum.any?(events, &(&1.link == link_key and &1.target == target_key))
+      end)
+    end
+
+    test "does not publish events when publish: false" do
+      links = [
+        make_link(%{id: 1, source_id: 100, target_id: 200}),
+        make_link(%{id: 2, source_id: 101, target_id: 201})
+      ]
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+        Redix.command(["DEL", "foo:events", "bar:events"])
+      end)
+
+      Stream.trim("foo:events", 0)
+      Stream.trim("bar:events", 0)
+
+      assert {:ok, _, []} = LinkCache.put_many(links, publish: false)
+
+      {:ok, events} = Stream.read(:redix, ["foo:events", "bar:events"], transform: true)
+      assert events == []
+    end
+
+    test "handles links with tags in batch" do
+      links = [
+        make_link(%{id: 1, source_id: 100, target_id: 200, tags: ["tag1", "tag2"]}),
+        make_link(%{id: 2, source_id: 101, target_id: 201, tags: ["tag3"]}),
+        make_link(%{id: 3, source_id: 102, target_id: 202})
+      ]
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      assert {:ok, successful, []} = LinkCache.put_many(links)
+      assert length(successful) == 3
+
+      {:ok, link1} = LinkCache.get(1)
+      assert_lists_equal(link1.tags, ["tag1", "tag2"])
+
+      {:ok, link2} = LinkCache.get(2)
+      assert link2.tags == ["tag3"]
+
+      {:ok, link3} = LinkCache.get(3)
+      assert link3.tags == []
+    end
+
+    test "handles links with origin in batch" do
+      links = [
+        make_link(%{id: 1, source_id: 100, target_id: 200, origin: "origin1"}),
+        make_link(%{id: 2, source_id: 101, target_id: 201}),
+        make_link(%{id: 3, source_id: 102, target_id: 202})
+      ]
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      assert {:ok, successful, []} = LinkCache.put_many(links)
+      assert length(successful) == 3
+
+      {:ok, link1} = LinkCache.get(1)
+      assert link1.origin == "origin1"
+
+      {:ok, link2} = LinkCache.get(2)
+
+      assert link2.origin == "some_origin"
+
+      {:ok, link3} = LinkCache.get(3)
+      assert link3.origin == "some_origin"
+    end
+
+    test "performance comparison with individual puts" do
+      num_links = 50
+
+      links =
+        Enum.map(1..num_links, fn id ->
+          make_link(%{id: id, source_id: 1000 + id, target_id: 2000 + id})
+        end)
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      {_batch_time, {:ok, batch_successful, batch_failed}} =
+        :timer.tc(fn -> LinkCache.put_many(links, batch_size: 25) end)
+
+      Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+
+      :timer.tc(fn ->
+        Enum.each(links, fn link -> LinkCache.put(link, publish: false) end)
+      end)
+
+      assert length(batch_successful) == num_links
+      assert batch_failed == []
+    end
+
+    test "handles very large batch" do
+      num_links = 150
+
+      links =
+        Enum.map(1..num_links, fn id ->
+          make_link(%{id: id, source_id: 5000 + id, target_id: 6000 + id})
+        end)
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      assert {:ok, successful, []} = LinkCache.put_many(links)
+      assert length(successful) == num_links
+
+      sample_links = Enum.take_random(links, 10)
+
+      Enum.each(sample_links, fn link ->
+        {:ok, cached_link} = LinkCache.get(link.id)
+        assert cached_link.id == "#{link.id}"
+      end)
+    end
+
+    test "processes links in correct batches according to batch_size" do
+      links =
+        Enum.map(1..7, fn id ->
+          make_link(%{id: id, source_id: 100 + id, target_id: 200 + id})
+        end)
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      assert {:ok, successful, []} = LinkCache.put_many(links, batch_size: 3)
+      assert length(successful) == 7
+
+      Enum.each(links, fn link ->
+        {:ok, cached_link} = LinkCache.get(link.id)
+        assert cached_link.id == "#{link.id}"
+      end)
+    end
+
+    test "handles multiple batches where one batch fails" do
+      links =
+        Enum.map(1..9, fn id ->
+          make_link(%{id: id, source_id: 100 + id, target_id: 200 + id})
+        end)
+
+      on_exit(fn ->
+        successful_ids = [1, 2, 3, 7, 8, 9]
+        Enum.each(successful_ids, fn id -> LinkCache.delete(id) end)
+      end)
+
+      original_redix = Application.get_env(:td_cache, :redix_module)
+
+      defmodule BatchFailingRedix do
+        @batch_count 0
+
+        def transaction_pipeline(commands) do
+          current_count = Process.get(:batch_count, 0)
+          Process.put(:batch_count, current_count + 1)
+
+          if current_count == 1 do
+            {:error, :batch_2_failure}
+          else
+            generate_mock_results(commands)
+          end
+        end
+
+        defp generate_mock_results(commands) do
+          num_results = length(commands)
+
+          mock_results =
+            Enum.map(1..num_results, fn _ ->
+              case :rand.uniform(3) do
+                1 -> 1
+                2 -> "OK"
+                3 -> {:ok, "result"}
+              end
+            end)
+
+          {:ok, mock_results}
+        end
+      end
+
+      try do
+        Application.put_env(:td_cache, :redix_module, BatchFailingRedix)
+        Process.put(:batch_count, 0)
+
+        assert {:ok, successful, failed} = LinkCache.put_many(links, batch_size: 3)
+
+        assert length(successful) >= 3
+        assert length(failed) >= 3
+
+        successful_ids = Enum.map(successful, & &1.id)
+        failed_ids = Enum.map(failed, & &1.id)
+
+        assert 1 in successful_ids
+        assert 2 in successful_ids
+        assert 3 in successful_ids
+
+        assert 4 in failed_ids
+        assert 5 in failed_ids
+        assert 6 in failed_ids
+
+        Enum.each(failed, fn link ->
+          assert Map.get(link, :error_reason) == :batch_2_failure
+        end)
+      after
+        Application.put_env(:td_cache, :redix_module, original_redix)
+        Process.delete(:batch_count)
+      end
+    end
+
+    test "continues processing after batch failure when publish is false" do
+      links =
+        Enum.map(1..6, fn id ->
+          make_link(%{id: id, source_id: 100 + id, target_id: 200 + id})
+        end)
+
+      on_exit(fn ->
+        successful_ids = [1, 2, 3, 4, 5, 6]
+        Enum.each(successful_ids, fn id -> LinkCache.delete(id) end)
+      end)
+
+      original_redix = Application.get_env(:td_cache, :redix_module)
+
+      defmodule ConditionalFailingRedix do
+        def transaction_pipeline(_commands) do
+          current_count = Process.get(:batch_count, 0)
+          Process.put(:batch_count, current_count + 1)
+
+          case current_count do
+            1 ->
+              {:error, :conditional_failure}
+
+            _ ->
+              {:ok, [1, 1, 1, 1, 1, 1]}
+          end
+        end
+      end
+
+      try do
+        Application.put_env(:td_cache, :redix_module, ConditionalFailingRedix)
+        Process.put(:batch_count, 0)
+
+        assert {:ok, successful, failed} =
+                 LinkCache.put_many(links, batch_size: 2, publish: false)
+
+        assert length(successful) == 4
+
+        assert length(failed) == 2
+
+        successful_ids = Enum.map(successful, & &1.id)
+        failed_ids = Enum.map(failed, & &1.id)
+
+        assert 1 in successful_ids
+        assert 2 in successful_ids
+        assert 3 in failed_ids
+        assert 4 in failed_ids
+        assert 5 in successful_ids
+        assert 6 in successful_ids
+      after
+        Application.put_env(:td_cache, :redix_module, original_redix)
+        Process.delete(:batch_count)
+      end
+    end
+
+    test "handles mix of valid, invalid, and already-cached links across batches" do
+      cached_link = make_link(%{id: 1, source_id: 101, target_id: 201})
+      {:ok, _} = LinkCache.put(cached_link, publish: false)
+
+      valid_links = [
+        make_link(%{id: 2, source_id: 102, target_id: 202}),
+        make_link(%{id: 3, source_id: 103, target_id: 203}),
+        make_link(%{id: 5, source_id: 105, target_id: 205}),
+        make_link(%{id: 6, source_id: 106, target_id: 206}),
+        make_link(%{id: 8, source_id: 108, target_id: 208}),
+        make_link(%{id: 9, source_id: 109, target_id: 209})
+      ]
+
+      invalid_links = [
+        %{id: 4, updated_at: DateTime.utc_now(), invalid: "structure"},
+        %{id: 7, updated_at: DateTime.utc_now(), also_invalid: true}
+      ]
+
+      all_links = [
+        Enum.at(valid_links, 0),
+        Enum.at(valid_links, 1),
+        Enum.at(invalid_links, 0),
+        cached_link,
+        Enum.at(valid_links, 2),
+        Enum.at(valid_links, 3),
+        Enum.at(invalid_links, 1),
+        Enum.at(valid_links, 4),
+        Enum.at(valid_links, 5)
+      ]
+
+      on_exit(fn ->
+        all_ids = 1..9 |> Enum.to_list()
+        Enum.each(all_ids, fn id -> LinkCache.delete(id) end)
+      end)
+
+      assert {:ok, successful, failed} = LinkCache.put_many(all_links, batch_size: 3)
+
+      assert length(successful) == 7
+      assert length(failed) == 2
+
+      successful_ids = Enum.map(successful, & &1.id)
+      failed_ids = Enum.map(failed, & &1.id)
+
+      assert 1 in successful_ids
+      assert 2 in successful_ids
+      assert 3 in successful_ids
+      assert 5 in successful_ids
+      assert 6 in successful_ids
+      assert 8 in successful_ids
+      assert 9 in successful_ids
+
+      assert 4 in failed_ids
+      assert 7 in failed_ids
+
+      Enum.each(failed, fn link ->
+        assert Map.get(link, :error_reason) == :invalid_link_structure
+      end)
+
+      Enum.each([2, 3, 5, 6, 8, 9], fn id ->
+        {:ok, cached_link} = LinkCache.get(id)
+        assert cached_link.id == "#{id}"
+      end)
+
+      {:ok, link1} = LinkCache.get(1)
+      assert link1.id == "1"
+    end
+  end
+
   defp make_link(params \\ %{}) do
     %{
       id: System.unique_integer([:positive]),
