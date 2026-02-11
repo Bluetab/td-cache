@@ -128,7 +128,7 @@ defmodule TdCache.LinkCacheTest do
       assert {:ok, 1} == LinkCache.count(target_key, link.source_type)
       {:ok, _} = LinkCache.delete(link.id)
       assert {:ok, 0} == LinkCache.count(source_key, link.target_type)
-      assert {:ok, 0} == LinkCache.count(target_key, link.source_type)
+      assert {:ok, 0} == LinkCache.count(target_key, link.target_type)
     end
 
     test "returns the tags of the source and target type" do
@@ -345,17 +345,8 @@ defmodule TdCache.LinkCacheTest do
     test "returns failed links when redis transaction fails" do
       original_redix = Application.get_env(:td_cache, :redix_module)
 
-      original_transaction_pipeline = &Redix.transaction_pipeline/1
-
-      failing_redix =
-        defmodule MockFailingRedix do
-          def transaction_pipeline(_commands) do
-            {:error, :connection_error}
-          end
-        end
-
       try do
-        Application.put_env(:td_cache, :redix_module, failing_redix)
+        Application.put_env(:td_cache, :redix_module, TdCache.MockFailingRedix)
 
         links = [
           make_link(%{id: 1, source_id: 100, target_id: 200}),
@@ -374,7 +365,7 @@ defmodule TdCache.LinkCacheTest do
           Application.put_env(:td_cache, :redix_module, original_redix)
           {:ok, cached_link} = LinkCache.get(link.id)
           assert is_nil(cached_link)
-          Application.put_env(:td_cache, :redix_module, failing_redix)
+          Application.put_env(:td_cache, :redix_module, TdCache.MockFailingRedix)
         end)
       after
         Application.put_env(:td_cache, :redix_module, original_redix)
@@ -526,7 +517,6 @@ defmodule TdCache.LinkCacheTest do
       assert link1.origin == "origin1"
 
       {:ok, link2} = LinkCache.get(2)
-
       assert link2.origin == "some_origin"
 
       {:ok, link3} = LinkCache.get(3)
@@ -613,38 +603,8 @@ defmodule TdCache.LinkCacheTest do
 
       original_redix = Application.get_env(:td_cache, :redix_module)
 
-      defmodule BatchFailingRedix do
-        @batch_count 0
-
-        def transaction_pipeline(commands) do
-          current_count = Process.get(:batch_count, 0)
-          Process.put(:batch_count, current_count + 1)
-
-          if current_count == 1 do
-            {:error, :batch_2_failure}
-          else
-            generate_mock_results(commands)
-          end
-        end
-
-        defp generate_mock_results(commands) do
-          num_results = length(commands)
-
-          mock_results =
-            Enum.map(1..num_results, fn _ ->
-              case :rand.uniform(3) do
-                1 -> 1
-                2 -> "OK"
-                3 -> {:ok, "result"}
-              end
-            end)
-
-          {:ok, mock_results}
-        end
-      end
-
       try do
-        Application.put_env(:td_cache, :redix_module, BatchFailingRedix)
+        Application.put_env(:td_cache, :redix_module, TdCache.BatchFailingRedix)
         Process.put(:batch_count, 0)
 
         assert {:ok, successful, failed} = LinkCache.put_many(links, batch_size: 3)
@@ -685,23 +645,8 @@ defmodule TdCache.LinkCacheTest do
 
       original_redix = Application.get_env(:td_cache, :redix_module)
 
-      defmodule ConditionalFailingRedix do
-        def transaction_pipeline(_commands) do
-          current_count = Process.get(:batch_count, 0)
-          Process.put(:batch_count, current_count + 1)
-
-          case current_count do
-            1 ->
-              {:error, :conditional_failure}
-
-            _ ->
-              {:ok, [1, 1, 1, 1, 1, 1]}
-          end
-        end
-      end
-
       try do
-        Application.put_env(:td_cache, :redix_module, ConditionalFailingRedix)
+        Application.put_env(:td_cache, :redix_module, TdCache.ConditionalFailingRedix)
         Process.put(:batch_count, 0)
 
         assert {:ok, successful, failed} =
@@ -791,6 +736,63 @@ defmodule TdCache.LinkCacheTest do
 
       {:ok, link1} = LinkCache.get(1)
       assert link1.id == "1"
+    end
+
+    test "handles errors that occur after Redis insert during result processing" do
+      links = [
+        make_link(%{id: 1, source_id: 100, target_id: 200}),
+        make_link(%{id: 2, source_id: 101, target_id: 201})
+      ]
+
+      on_exit(fn ->
+        successful_ids = [1]
+        Enum.each(successful_ids, fn id -> LinkCache.delete(id) end)
+      end)
+
+      original_redix = Application.get_env(:td_cache, :redix_module)
+
+      try do
+        Application.put_env(:td_cache, :redix_module, TdCache.ResultProcessingErrorRedix)
+
+        assert {:ok, successful, failed} =
+                 LinkCache.put_many(links, batch_size: 2)
+
+        assert length(successful) + length(failed) == 2
+
+        Enum.each(failed, fn link ->
+          assert Map.has_key?(link, :error_reason)
+        end)
+      after
+        Application.put_env(:td_cache, :redix_module, original_redix)
+      end
+    end
+
+    test "handles post-insert validation errors in batch processing" do
+      links = [
+        make_link(%{id: 1, source_id: 100, target_id: 200}),
+        make_link(%{id: 2, source_id: 101, target_id: 201})
+      ]
+
+      on_exit(fn ->
+        Enum.each(links, fn link -> LinkCache.delete(link.id) end)
+      end)
+
+      original_redix = Application.get_env(:td_cache, :redix_module)
+
+      try do
+        Application.put_env(:td_cache, :redix_module, TdCache.PostInsertValidationErrorRedix)
+
+        assert {:ok, successful, failed} = LinkCache.put_many(links, batch_size: 2)
+
+        assert length(successful) + length(failed) == 2
+
+        Enum.each(failed, fn link ->
+          assert Map.has_key?(link, :error_reason)
+          assert link.error_reason == :partial_failure
+        end)
+      after
+        Application.put_env(:td_cache, :redix_module, original_redix)
+      end
     end
   end
 
