@@ -280,7 +280,7 @@ defmodule TdCache.LinkCache do
   defp process_batch(links, publish) do
     {commands, link_command_map, ordered_link_ids} = prepare_batch_commands(links)
 
-    if length(commands) > 0 do
+    if length(commands) != [] do
       process_batch_with_commands(links, link_command_map, ordered_link_ids, commands, publish)
     else
       {links, []}
@@ -293,7 +293,7 @@ defmodule TdCache.LinkCache do
         {successful_links, failed_links} =
           process_batch_results_dynamic_by_order(ordered_link_ids, link_command_map, results)
 
-        if publish and length(successful_links) > 0 do
+        if publish and length(successful_links) != [] do
           publish_batch_events_dynamic(successful_links, link_command_map, results)
         end
 
@@ -434,7 +434,7 @@ defmodule TdCache.LinkCache do
          ordered_link_ids,
          link_command_map
        )
-       when is_list(commands) and length(commands) > 0 do
+       when is_list(commands) and length(commands) != [] do
     {start_idx, end_idx} =
       find_command_range_for_link_by_order(link_info.link.id, ordered_link_ids, link_command_map)
 
@@ -507,7 +507,7 @@ defmodule TdCache.LinkCache do
       end)
       |> Enum.uniq()
 
-    if length(events) > 0 do
+    if length(events) != [] do
       Publisher.publish(events)
     end
   end
