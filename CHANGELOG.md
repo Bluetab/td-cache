@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-- [TD-7718] Set graph dependency as optional (to avoid conflict in td-ai)
+### Changed
+
+- [TD-7718] Rename `Graph` module to `Bluetab.Graph`
 
 [7.12.0] 2025-10-28
 
