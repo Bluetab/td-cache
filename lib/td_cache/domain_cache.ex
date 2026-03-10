@@ -229,22 +229,22 @@ defmodule TdCache.DomainCache do
   defp to_id(id) when is_binary(id), do: String.to_integer(id)
 
   defp create_graph(entries) do
-    create_graph(Graph.new([], acyclic: true), entries)
+    create_graph(Bluetab.Graph.new([], acyclic: true), entries)
   end
 
   defp create_graph(graph, []), do: graph
 
   defp create_graph(graph, [child_id, child_id | entries]) do
     graph
-    |> Graph.add_vertex(child_id)
+    |> Bluetab.Graph.add_vertex(child_id)
     |> create_graph(entries)
   end
 
   defp create_graph(graph, [child_id, parent_id | entries]) do
     graph
-    |> Graph.add_vertex(child_id)
-    |> Graph.add_vertex(parent_id)
-    |> Graph.add_edge(parent_id, child_id)
+    |> Bluetab.Graph.add_vertex(child_id)
+    |> Bluetab.Graph.add_vertex(parent_id)
+    |> Bluetab.Graph.add_edge(parent_id, child_id)
     |> create_graph(entries)
   end
 

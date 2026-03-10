@@ -109,8 +109,8 @@ defmodule TdCache.TaxonomyCache do
   defp do_get_reaching_ids(domain_id, tree) do
     domain_id
     |> List.wrap()
-    |> Enum.filter(&Graph.has_vertex?(tree, &1))
-    |> Graph.Traversal.reaching(tree)
+    |> Enum.filter(&Bluetab.Graph.has_vertex?(tree, &1))
+    |> Bluetab.Graph.Traversal.reaching(tree)
     |> Enum.reject(&(&1 == 0))
     |> Enum.reverse()
   end
@@ -118,8 +118,8 @@ defmodule TdCache.TaxonomyCache do
   defp do_get_reachable_ids(domain_id, tree) do
     domain_id
     |> List.wrap()
-    |> Enum.filter(&Graph.has_vertex?(tree, &1))
-    |> Graph.Traversal.reachable(tree)
+    |> Enum.filter(&Bluetab.Graph.has_vertex?(tree, &1))
+    |> Bluetab.Graph.Traversal.reachable(tree)
   end
 
   defp to_integer(id) when is_integer(id), do: id
