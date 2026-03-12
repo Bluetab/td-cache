@@ -4,6 +4,7 @@ defmodule TdCache.TaxonomyCache do
   """
   use GenServer
 
+  alias Bluetab.Graph
   alias TdCache.AclCache
   alias TdCache.DomainCache
 

@@ -108,14 +108,14 @@ defmodule TdCache.DomainCacheTest do
       domains: domains,
       children: children
     } do
-      assert %Graph{} = tree = DomainCache.tree()
-      ids = Graph.out_neighbours(tree, 0)
+      assert %Bluetab.Graph{} = tree = DomainCache.tree()
+      ids = Bluetab.Graph.out_neighbours(tree, 0)
       assert_lists_equal(ids, parents, &(&1 == &2.id))
-      ids = Enum.flat_map(ids, &Graph.out_neighbours(tree, &1))
+      ids = Enum.flat_map(ids, &Bluetab.Graph.out_neighbours(tree, &1))
       assert_lists_equal(ids, domains, &(&1 == &2.id))
-      ids = Enum.flat_map(ids, &Graph.out_neighbours(tree, &1))
+      ids = Enum.flat_map(ids, &Bluetab.Graph.out_neighbours(tree, &1))
       assert_lists_equal(ids, children, &(&1 == &2.id))
-      ids = Enum.flat_map(ids, &Graph.out_neighbours(tree, &1))
+      ids = Enum.flat_map(ids, &Bluetab.Graph.out_neighbours(tree, &1))
       assert ids == []
     end
   end

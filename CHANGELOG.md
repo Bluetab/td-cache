@@ -1,5 +1,11 @@
 # Changelog
 
+## [8.3.0] 2026-03-12
+
+### Changed
+
+- [TD-7718] Rename `Graph` module to `Bluetab.Graph`
+
 [7.12.0] 2025-10-28
 
 ### Added
