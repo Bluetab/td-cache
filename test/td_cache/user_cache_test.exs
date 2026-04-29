@@ -250,8 +250,70 @@ defmodule TdCache.UserCacheTest do
     end
   end
 
+  describe "user_groups" do
+    test "put_group returns OK" do
+      group = build(:group)
+      assert {:ok, [_, 2, 1, 1]} = put_user_group(group)
+    end
+
+    test "get_group returns a map with name and alias" do
+      group = build(:group)
+      put_user_group(group)
+      {:ok, g} = UserCache.get_group(group.id)
+      assert g == Map.take(group, [:name, :alias, :id])
+    end
+
+    test "get_group_by_name returns a map with name and alias " do
+      group = build(:group)
+      put_user_group(group)
+      {:ok, g} = UserCache.get_group_by_name(group.name)
+      assert g == Map.take(group, [:name, :alias, :id])
+    end
+
+    test "get_group_by_name returns groups from a list of names" do
+      group1 = build(:group)
+      group2 = build(:group)
+      put_user_group(group1)
+      put_user_group(group2)
+
+      {:ok, groups} = UserCache.get_group_by_name([group1.name, group2.name])
+
+      assert groups == [
+               Map.take(group1, [:name, :alias, :id]),
+               Map.take(group2, [:name, :alias, :id])
+             ]
+    end
+
+    test "get_group_by_name returns groups from a list of group names and user names" do
+      group1 = build(:group)
+      group2 = build(:group)
+      put_user_group(group1)
+      put_user_group(group2)
+
+      user1 = build(:user)
+      user2 = build(:user)
+      put_user(user1)
+      put_user(user2)
+
+      {:ok, groups} =
+        UserCache.get_group_by_name([group1.name, group2.name, user1.user_name, user2.user_name])
+
+      assert groups == [
+               Map.take(group1, [:name, :alias, :id]),
+               Map.take(group2, [:name, :alias, :id]),
+               nil,
+               nil
+             ]
+    end
+  end
+
   defp put_user(%{id: id} = user) do
     on_exit(fn -> UserCache.delete(id) end)
     UserCache.put(user)
+  end
+
+  defp put_user_group(%{id: id} = group) do
+    on_exit(fn -> UserCache.delete_group(id) end)
+    UserCache.put_group(group)
   end
 end

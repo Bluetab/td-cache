@@ -27,6 +27,8 @@ defmodule TdCache.UserCache do
       "user:#{id}:roles"
     end
 
+    def user_group_name_to_id, do: "user_group:user_group_name_to_id"
+
     def user_group(id) do
       "user_group:#{id}"
     end
@@ -118,6 +120,10 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:get_group, id})
   end
 
+  def get_group_by_name(name) do
+    GenServer.call(__MODULE__, {:get_group_by_name, name})
+  end
+
   def put(user) do
     GenServer.call(__MODULE__, {:put, user})
   end
@@ -188,6 +194,11 @@ defmodule TdCache.UserCache do
 
   def handle_call({:get_group, id}, _from, state) do
     group = read_group(id)
+    {:reply, {:ok, group}, state}
+  end
+
+  def handle_call({:get_group_by_name, name}, _from, state) do
+    group = read_group_by_name(name)
     {:reply, {:ok, group}, state}
   end
 
@@ -276,6 +287,17 @@ defmodule TdCache.UserCache do
     case Redix.command!(["HGET", Keys.external_id_to_id(), external_id]) do
       nil -> nil
       id -> read_user(id)
+    end
+  end
+
+  defp read_group_by_name(names) when is_list(names), do: Enum.map(names, &read_group_by_name/1)
+
+  defp read_group_by_name(name) when is_binary(name) do
+    name = String.replace_prefix(name, "group:", "")
+
+    case Redix.command!(["HGET", Keys.user_group_name_to_id(), name]) do
+      nil -> nil
+      id -> read_group(id)
     end
   end
 
@@ -416,20 +438,36 @@ defmodule TdCache.UserCache do
     end)
   end
 
-  defp do_put_group(%{id: id, name: name}) do
+  defp do_put_group(%{id: id, name: name, alias: alias} = group) do
     [
       ["DEL", Keys.user_group(id)],
-      ["HSET", Keys.user_group(id), %{name: name}],
+      ["HSET", Keys.user_group(id), %{name: name, alias: alias}],
       ["SADD", Keys.group_ids(), id]
     ]
+    |> add_group_name(group)
     |> Redix.transaction_pipeline()
   end
 
+  defp add_group_name(pipeline, %{id: id, name: name}) do
+    pipeline ++ [["HSET", Keys.user_group_name_to_id(), name, id]]
+  end
+
   defp do_delete_group(id) do
-    Redix.transaction_pipeline([
-      ["DEL", Keys.user_group(id)],
-      ["DEL", Keys.user_group_roles(id)],
-      ["SREM", Keys.group_ids(), id]
-    ])
+    case Redix.command!(["HMGET", Keys.user_group(id), "alias", "name"]) do
+      [nil, nil] ->
+        Redix.transaction_pipeline([
+          ["DEL", Keys.user_group(id)],
+          ["DEL", Keys.user_group_roles(id)],
+          ["SREM", Keys.group_ids(), id]
+        ])
+
+      [_alias, name] ->
+        Redix.transaction_pipeline([
+          ["DEL", Keys.user_group(id)],
+          ["DEL", Keys.user_group_roles(id)],
+          ["SREM", Keys.group_ids(), id],
+          ["HDEL", Keys.user_group_name_to_id(), name]
+        ])
+    end
   end
 end
