@@ -212,5 +212,40 @@ defmodule TdCache.Templates.PreprocessorTest do
                }
              }
     end
+
+    test "preprocess_template/2 enriches group role fields with groups only" do
+      %{id: domain_id} = CacheHelpers.insert_domain()
+      %{id: user_id} = CacheHelpers.insert_user()
+      %{id: group_id, alias: group_alias} = CacheHelpers.insert_group()
+
+      AclCache.set_acl_roles("domain", domain_id, [@role_name])
+      AclCache.set_acl_group_roles("domain", domain_id, [@role_name])
+      AclCache.set_acl_role_users("domain", domain_id, @role_name, [user_id])
+      AclCache.set_acl_role_groups("domain", domain_id, @role_name, [group_id])
+
+      ctx = %{domain_ids: [domain_id], claims: %{user_id: user_id}}
+
+      fields = [
+        %{
+          "name" => "group_field",
+          "type" => "group",
+          "values" => %{"role_groups" => @role_name}
+        }
+      ]
+
+      template = %{content: [%{"name" => "group1", "fields" => fields}]}
+
+      assert %{content: [%{"fields" => [group_field]}]} =
+               Preprocessor.preprocess_template(template, ctx)
+
+      assert group_field == %{
+               "name" => "group_field",
+               "type" => "group",
+               "values" => %{
+                 "role_groups" => @role_name,
+                 "processed_groups" => [group_alias]
+               }
+             }
+    end
   end
 end

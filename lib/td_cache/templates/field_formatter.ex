@@ -19,6 +19,11 @@ defmodule TdCache.Templates.FieldFormatter do
     apply_role_meta(field, claims, role_name, user_roles)
   end
 
+  def format(%{"type" => "group", "values" => %{"role_groups" => role_name}} = field, ctx) do
+    user_group_roles = Map.get(ctx, :user_group_roles, %{})
+    apply_user_group_meta(field, role_name, user_group_roles)
+  end
+
   def format(%{"type" => "user_group", "values" => %{"role_groups" => role_name}} = field, ctx) do
     claims = Map.get(ctx, :claims, nil)
     user_roles = Map.get(ctx, :user_roles, %{})
