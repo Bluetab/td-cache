@@ -77,10 +77,13 @@ defmodule TdCache.Templates.FieldFormatter do
        )
        when not is_nil(role_name) do
     groups = Map.get(user_group_roles, role_name, [])
-    names = Enum.map(groups, & &1.name)
+    names = Enum.map(groups, &group_name_or_alias/1)
     values = Map.put(values, "processed_groups", names)
     Map.put(field, "values", values)
   end
 
   defp apply_user_group_meta(field, _role, _user_roles), do: field
+
+  defp group_name_or_alias(%{alias: alias, name: name}) when alias in [nil, ""], do: name
+  defp group_name_or_alias(%{alias: alias}), do: alias
 end

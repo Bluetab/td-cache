@@ -445,12 +445,19 @@ defmodule TdCache.UserCache do
       ["SADD", Keys.group_ids(), id]
     ]
     |> add_group_name(group)
+    |> add_group_alias(group)
     |> Redix.transaction_pipeline()
   end
 
   defp add_group_name(pipeline, %{id: id, name: name}) do
     pipeline ++ [["HSET", Keys.user_group_name_to_id(), name, id]]
   end
+
+  defp add_group_alias(pipeline, %{id: id, alias: alias}) when alias not in [nil, ""] do
+    pipeline ++ [["HSET", Keys.user_group_name_to_id(), alias, id]]
+  end
+
+  defp add_group_alias(pipeline, _), do: pipeline
 
   defp do_delete_group(id) do
     case Redix.command!(["HMGET", Keys.user_group(id), "alias", "name"]) do
@@ -461,13 +468,21 @@ defmodule TdCache.UserCache do
           ["SREM", Keys.group_ids(), id]
         ])
 
-      [_alias, name] ->
-        Redix.transaction_pipeline([
+      [alias, name] ->
+        [
           ["DEL", Keys.user_group(id)],
           ["DEL", Keys.user_group_roles(id)],
-          ["SREM", Keys.group_ids(), id],
-          ["HDEL", Keys.user_group_name_to_id(), name]
-        ])
+          ["SREM", Keys.group_ids(), id]
+        ]
+        |> delete_group_name(name)
+        |> delete_group_name(alias)
+        |> Redix.transaction_pipeline()
     end
   end
+
+  defp delete_group_name(pipeline, name) when name not in [nil, ""] do
+    pipeline ++ [["HDEL", Keys.user_group_name_to_id(), name]]
+  end
+
+  defp delete_group_name(pipeline, _), do: pipeline
 end
