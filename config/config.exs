@@ -20,6 +20,16 @@ import Config
 #
 #     config :logger, level: :info
 #
+config :git_hooks,
+  auto_install: true,
+  hooks: [
+    pre_commit: [
+      tasks: [
+        {:cmd, "mix format --check-formatted"}
+      ]
+    ]
+  ]
+
 config :td_cache,
   redis_host: System.get_env("REDIS_HOST", "redis"),
   port: String.to_integer(System.get_env("REDIS_PORT", "6380"))
