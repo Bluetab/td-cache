@@ -119,6 +119,36 @@ defmodule TdCache.UserCacheTest do
 
       assert UserCache.id_to_email_map() == %{}
     end
+
+    test "clear_users_cache removes all user cache keys and keeps group keys" do
+      user = build(:user)
+      other_user = build(:user)
+      group = build(:group)
+
+      put_user(user)
+      put_user(other_user)
+      put_user_group(group)
+
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+      assert {:ok, %{id: id}} = UserCache.get(other_user.id)
+      assert id == other_user.id
+      assert {:ok, %{id: id}} = UserCache.get_by_name(user.full_name)
+      assert id == user.id
+      assert {:ok, %{id: id}} = UserCache.get_by_user_name(other_user.user_name)
+      assert id == other_user.id
+      assert {:ok, %{id: id}} = UserCache.get_group(group.id)
+      assert id == group.id
+
+      assert {:ok, _} = UserCache.clear_users_cache()
+
+      assert {:ok, nil} = UserCache.get(user.id)
+      assert {:ok, nil} = UserCache.get(other_user.id)
+      assert {:ok, nil} = UserCache.get_by_name(user.full_name)
+      assert {:ok, nil} = UserCache.get_by_user_name(other_user.user_name)
+      assert {:ok, %{id: id}} = UserCache.get_group(group.id)
+      assert id == group.id
+    end
   end
 
   describe "refresh_all_roles/1 refresh_resource_roles/3 and get_roles/1" do
@@ -394,6 +424,36 @@ defmodule TdCache.UserCacheTest do
       assert {:ok, _} = UserCache.delete_group(group.id)
 
       assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+    end
+
+    test "clear_groups_cache removes all group cache keys and keeps user keys" do
+      group = build(:group)
+      other_group = build(:group)
+      user = build(:user)
+
+      put_user_group(group)
+      put_user_group(other_group)
+      put_user(user)
+
+      assert {:ok, %{id: id}} = UserCache.get_group(group.id)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get_group(other_group.id)
+      assert id == other_group.id
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.name)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(other_group.alias)
+      assert id == other_group.id
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+
+      assert {:ok, _} = UserCache.clear_groups_cache()
+
+      assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, nil} = UserCache.get_group(other_group.id)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.name)
+      assert {:ok, nil} = UserCache.get_group_by_name(other_group.alias)
       assert {:ok, %{id: id}} = UserCache.get(user.id)
       assert id == user.id
     end
