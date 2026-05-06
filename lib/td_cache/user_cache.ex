@@ -293,9 +293,9 @@ defmodule TdCache.UserCache do
   defp read_group_by_name(names) when is_list(names), do: Enum.map(names, &read_group_by_name/1)
 
   defp read_group_by_name(name) when is_binary(name) do
-    name = String.replace_prefix(name, "group:", "")
+    name_without_prefix = String.replace_prefix(name, "group:", "")
 
-    case Redix.command!(["HGET", Keys.user_group_name_to_id(), name]) do
+    case Redix.command!(["HGET", Keys.user_group_name_to_id(), name_without_prefix]) do
       nil -> nil
       id -> read_group(id)
     end
@@ -438,10 +438,10 @@ defmodule TdCache.UserCache do
     end)
   end
 
-  defp do_put_group(%{id: id, name: name, alias: alias} = group) do
+  defp do_put_group(%{id: id, name: name, alias: group_alias} = group) do
     [
       ["DEL", Keys.user_group(id)],
-      ["HSET", Keys.user_group(id), %{name: name, alias: alias}],
+      ["HSET", Keys.user_group(id), %{name: name, alias: group_alias}],
       ["SADD", Keys.group_ids(), id]
     ]
     |> add_group_name(group)
@@ -453,8 +453,9 @@ defmodule TdCache.UserCache do
     pipeline ++ [["HSET", Keys.user_group_name_to_id(), name, id]]
   end
 
-  defp add_group_alias(pipeline, %{id: id, alias: alias}) when alias not in [nil, ""] do
-    pipeline ++ [["HSET", Keys.user_group_name_to_id(), alias, id]]
+  defp add_group_alias(pipeline, %{id: id, alias: group_alias})
+       when group_alias not in [nil, ""] do
+    pipeline ++ [["HSET", Keys.user_group_name_to_id(), group_alias, id]]
   end
 
   defp add_group_alias(pipeline, _), do: pipeline
@@ -468,14 +469,14 @@ defmodule TdCache.UserCache do
           ["SREM", Keys.group_ids(), id]
         ])
 
-      [alias, name] ->
+      [group_alias, name] ->
         [
           ["DEL", Keys.user_group(id)],
           ["DEL", Keys.user_group_roles(id)],
           ["SREM", Keys.group_ids(), id]
         ]
         |> delete_group_name(name)
-        |> delete_group_name(alias)
+        |> delete_group_name(group_alias)
         |> Redix.transaction_pipeline()
     end
   end

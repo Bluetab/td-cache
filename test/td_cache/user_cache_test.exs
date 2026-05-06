@@ -314,6 +314,56 @@ defmodule TdCache.UserCacheTest do
                nil
              ]
     end
+
+    test "delete_group removes group lookups by name and alias" do
+      group = build(:group)
+      put_user_group(group)
+
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.name)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.alias)
+      assert id == group.id
+
+      assert {:ok, _} = UserCache.delete_group(group.id)
+
+      assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.name)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.alias)
+    end
+
+    test "delete_group removes group name lookup when alias is nil" do
+      group = :group |> build() |> Map.put(:alias, nil)
+
+      put_user_group(group)
+
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.name)
+      assert id == group.id
+
+      assert {:ok, _} = UserCache.delete_group(group.id)
+
+      assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.name)
+    end
+
+    test "delete_group does not delete user cache with same id" do
+      group = build(:group)
+
+      user = :user |> build() |> Map.put(:id, group.id)
+
+      put_user_group(group)
+      put_user(user)
+
+      assert {:ok, %{id: id}} = UserCache.get_group(group.id)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+
+      assert {:ok, _} = UserCache.delete_group(group.id)
+
+      assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+    end
   end
 
   defp put_user(%{id: id} = user) do
