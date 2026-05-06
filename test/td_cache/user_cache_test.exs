@@ -315,6 +315,39 @@ defmodule TdCache.UserCacheTest do
              ]
     end
 
+    test "put_group updates name and alias indexes when values change" do
+      group = build(:group)
+      put_user_group(group)
+
+      updated_group = %{
+        group
+        | name: "#{group.name}_updated",
+          alias: "#{group.alias}_updated"
+      }
+
+      assert {:ok, _} = UserCache.put_group(updated_group)
+
+      assert {:ok, nil} = UserCache.get_group_by_name(group.name)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.alias)
+
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(updated_group.name)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(updated_group.alias)
+      assert id == group.id
+    end
+
+    test "put_group removes previous alias index when alias becomes nil" do
+      group = build(:group)
+      put_user_group(group)
+
+      updated_group = %{group | alias: nil}
+      assert {:ok, _} = UserCache.put_group(updated_group)
+
+      assert {:ok, nil} = UserCache.get_group_by_name(group.alias)
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.name)
+      assert id == group.id
+    end
+
     test "delete_group removes group lookups by name and alias" do
       group = build(:group)
       put_user_group(group)

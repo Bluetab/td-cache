@@ -439,11 +439,15 @@ defmodule TdCache.UserCache do
   end
 
   defp do_put_group(%{id: id, name: name, alias: group_alias} = group) do
+    [old_name, old_alias] = Redix.command!(["HMGET", Keys.user_group(id), "name", "alias"])
+
     [
       ["DEL", Keys.user_group(id)],
       ["HSET", Keys.user_group(id), %{name: name, alias: group_alias}],
       ["SADD", Keys.group_ids(), id]
     ]
+    |> remove_group_name_if_changed(old_name, name)
+    |> remove_group_name_if_changed(old_alias, group_alias)
     |> add_group_name(group)
     |> add_group_alias(group)
     |> Redix.transaction_pipeline()
@@ -459,6 +463,13 @@ defmodule TdCache.UserCache do
   end
 
   defp add_group_alias(pipeline, _), do: pipeline
+
+  defp remove_group_name_if_changed(pipeline, old_value, new_value)
+       when old_value not in [nil, ""] and old_value != new_value do
+    pipeline ++ [["HDEL", Keys.user_group_name_to_id(), old_value]]
+  end
+
+  defp remove_group_name_if_changed(pipeline, _old_value, _new_value), do: pipeline
 
   defp do_delete_group(id) do
     case Redix.command!(["HMGET", Keys.user_group(id), "alias", "name"]) do
