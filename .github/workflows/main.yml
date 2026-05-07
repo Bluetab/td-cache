@@ -23,7 +23,7 @@ jobs:
           otp-version: "27.2"
           elixir-version: "1.18.1"
       - run: mix deps.get
-      - run: mix credo --strict
+      - run: mix quality
       - run: mix test
         env:
           REDIS_HOST: localhost

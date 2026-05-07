@@ -8,6 +8,7 @@ defmodule TdCache.MixProject do
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      aliases: aliases(),
       deps: deps()
     ]
   end
@@ -35,6 +36,12 @@ defmodule TdCache.MixProject do
       {:graph, git: "https://github.com/Bluetab/graph.git", tag: "8.3.0"},
       {:jason, "~> 1.4"},
       {:redix, "~> 1.5"}
+    ]
+  end
+
+  defp aliases do
+    [
+      quality: ["format --check-formatted", "credo --strict"]
     ]
   end
 end
