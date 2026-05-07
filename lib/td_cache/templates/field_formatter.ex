@@ -89,6 +89,8 @@ defmodule TdCache.Templates.FieldFormatter do
 
   defp apply_user_group_meta(field, _role, _user_roles), do: field
 
-  defp group_name_or_alias(%{alias: alias, name: name}) when alias in [nil, ""], do: name
-  defp group_name_or_alias(%{alias: alias}), do: alias
+  defp group_name_or_alias(%{alias: group_alias, name: name}) when group_alias in [nil, ""],
+    do: name
+
+  defp group_name_or_alias(%{alias: group_alias}), do: group_alias
 end
