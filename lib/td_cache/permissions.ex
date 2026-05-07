@@ -1,6 +1,6 @@
 defmodule TdCache.Permissions do
   @moduledoc """
-  Shared cache for permissions.
+  Shared cache for permissionss.
   """
 
   alias TdCache.AclCache
