@@ -25,7 +25,7 @@ config :git_hooks,
   hooks: [
     pre_commit: [
       tasks: [
-        {:cmd, "mix format --check-formatted"}
+        {:file, "scripts/pre_commit.sh"}
       ]
     ]
   ]
