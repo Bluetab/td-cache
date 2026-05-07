@@ -13,7 +13,6 @@ defmodule TdCache.Audit do
 
     events
     |> Enum.map(&create_event/1)
-    
     |> Publisher.publish(stream(), maxlen: maxlen)
   end
 

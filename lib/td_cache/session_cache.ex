@@ -8,7 +8,6 @@ defmodule TdCache.SessionCache do
 
   @spec put(map()) :: :ok | {:error, any()}
   def put(%{"jti" => jti, "exp" => exp}) do
-
     put(jti, exp)
   end
 
