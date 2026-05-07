@@ -320,9 +320,10 @@ defmodule TdCache.UserCache do
   end
 
   defp read_group(id) when is_binary(id) do
-    id
-    |> String.to_integer()
-    |> read_group()
+    case Integer.parse(id) do
+      {parsed_id, ""} -> read_group(parsed_id)
+      _ -> nil
+    end
   end
 
   defp read_group(id) do
