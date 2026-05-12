@@ -82,7 +82,7 @@ defmodule TdCache.Templates.AclLoader do
     |> Enum.map(fn group_id ->
       case UserCache.get_group(group_id) do
         {:ok, nil} -> nil
-        {:ok, group} -> Map.take(group, [:id, :name])
+        {:ok, group} -> Map.take(group, [:id, :name, :alias])
       end
     end)
     |> Enum.reject(&is_nil/1)

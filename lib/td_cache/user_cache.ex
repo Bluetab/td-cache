@@ -27,6 +27,8 @@ defmodule TdCache.UserCache do
       "user:#{id}:roles"
     end
 
+    def user_group_name_to_id, do: "user_group:user_group_name_to_id"
+
     def user_group(id) do
       "user_group:#{id}"
     end
@@ -118,6 +120,10 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:get_group, id})
   end
 
+  def get_group_by_name(name) do
+    GenServer.call(__MODULE__, {:get_group_by_name, name})
+  end
+
   def put(user) do
     GenServer.call(__MODULE__, {:put, user})
   end
@@ -142,12 +148,20 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:delete, id})
   end
 
+  def clear_users_cache do
+    GenServer.call(__MODULE__, :clear_users_cache)
+  end
+
   def put_group(group) do
     GenServer.call(__MODULE__, {:put_group, group})
   end
 
   def delete_group(id) do
     GenServer.call(__MODULE__, {:delete_group, id})
+  end
+
+  def clear_groups_cache do
+    GenServer.call(__MODULE__, :clear_groups_cache)
   end
 
   def ids_key, do: Keys.ids()
@@ -191,6 +205,11 @@ defmodule TdCache.UserCache do
     {:reply, {:ok, group}, state}
   end
 
+  def handle_call({:get_group_by_name, name}, _from, state) do
+    group = read_group_by_name(name)
+    {:reply, {:ok, group}, state}
+  end
+
   def handle_call({:put, user}, _from, state) do
     reply = put_user(user)
     {:reply, reply, state}
@@ -223,6 +242,11 @@ defmodule TdCache.UserCache do
     {:reply, reply, state}
   end
 
+  def handle_call(:clear_users_cache, _from, state) do
+    reply = do_clear_users_cache()
+    {:reply, reply, state}
+  end
+
   def handle_call({:put_group, group}, _from, state) do
     reply = do_put_group(group)
     {:reply, reply, state}
@@ -230,6 +254,11 @@ defmodule TdCache.UserCache do
 
   def handle_call({:delete_group, id}, _from, state) do
     reply = do_delete_group(id)
+    {:reply, reply, state}
+  end
+
+  def handle_call(:clear_groups_cache, _from, state) do
+    reply = do_clear_groups_cache()
     {:reply, reply, state}
   end
 
@@ -279,10 +308,22 @@ defmodule TdCache.UserCache do
     end
   end
 
+  defp read_group_by_name(names) when is_list(names), do: Enum.map(names, &read_group_by_name/1)
+
+  defp read_group_by_name(name) when is_binary(name) do
+    name_without_prefix = String.replace_prefix(name, "group:", "")
+
+    case Redix.command!(["HGET", Keys.user_group_name_to_id(), name_without_prefix]) do
+      nil -> nil
+      id -> read_group(id)
+    end
+  end
+
   defp read_group(id) when is_binary(id) do
-    id
-    |> String.to_integer()
-    |> read_group()
+    case Integer.parse(id) do
+      {parsed_id, ""} -> read_group(parsed_id)
+      _ -> nil
+    end
   end
 
   defp read_group(id) do
@@ -416,20 +457,114 @@ defmodule TdCache.UserCache do
     end)
   end
 
-  defp do_put_group(%{id: id, name: name}) do
+  defp do_put_group(%{id: id, name: name, alias: group_alias} = group) do
+    [old_name, old_alias] = Redix.command!(["HMGET", Keys.user_group(id), "name", "alias"])
+
     [
       ["DEL", Keys.user_group(id)],
-      ["HSET", Keys.user_group(id), %{name: name}],
+      ["HSET", Keys.user_group(id), %{name: name, alias: group_alias}],
       ["SADD", Keys.group_ids(), id]
     ]
+    |> remove_group_name_if_changed(old_name, name)
+    |> remove_group_name_if_changed(old_alias, group_alias)
+    |> add_group_name(group)
+    |> add_group_alias(group)
     |> Redix.transaction_pipeline()
   end
 
+  defp add_group_name(pipeline, %{id: id, name: name}) do
+    pipeline ++ [["HSET", Keys.user_group_name_to_id(), name, id]]
+  end
+
+  defp add_group_alias(pipeline, %{id: id, alias: group_alias})
+       when group_alias not in [nil, ""] do
+    pipeline ++ [["HSET", Keys.user_group_name_to_id(), group_alias, id]]
+  end
+
+  defp add_group_alias(pipeline, _), do: pipeline
+
+  defp remove_group_name_if_changed(pipeline, old_value, new_value)
+       when old_value not in [nil, ""] and old_value != new_value do
+    pipeline ++ [["HDEL", Keys.user_group_name_to_id(), old_value]]
+  end
+
+  defp remove_group_name_if_changed(pipeline, _old_value, _new_value), do: pipeline
+
   defp do_delete_group(id) do
-    Redix.transaction_pipeline([
-      ["DEL", Keys.user_group(id)],
-      ["DEL", Keys.user_group_roles(id)],
-      ["SREM", Keys.group_ids(), id]
-    ])
+    case Redix.command!(["HMGET", Keys.user_group(id), "alias", "name"]) do
+      [nil, nil] ->
+        Redix.transaction_pipeline([
+          ["DEL", Keys.user_group(id)],
+          ["DEL", Keys.user_group_roles(id)],
+          ["SREM", Keys.group_ids(), id]
+        ])
+
+      [group_alias, name] ->
+        [
+          ["DEL", Keys.user_group(id)],
+          ["DEL", Keys.user_group_roles(id)],
+          ["SREM", Keys.group_ids(), id]
+        ]
+        |> delete_group_name(name)
+        |> delete_group_name(group_alias)
+        |> Redix.transaction_pipeline()
+    end
+  end
+
+  defp delete_group_name(pipeline, name) when name not in [nil, ""] do
+    pipeline ++ [["HDEL", Keys.user_group_name_to_id(), name]]
+  end
+
+  defp delete_group_name(pipeline, _), do: pipeline
+
+  defp do_clear_users_cache do
+    cached_ids = Redix.command!(["SMEMBERS", Keys.ids()])
+
+    user_keys =
+      ["KEYS", "user:*"]
+      |> Redix.command!()
+      |> Enum.reject(&String.contains?(&1, ":roles"))
+
+    user_roles_keys = Redix.command!(["KEYS", "user:*:roles*"])
+
+    cmds =
+      [
+        ["DEL", Keys.ids()],
+        ["DEL", Keys.name_to_id()],
+        ["DEL", Keys.user_name_to_id()],
+        ["DEL", Keys.external_id_to_id()]
+      ] ++
+        Enum.map(user_keys ++ user_roles_keys, &["DEL", &1])
+
+    reply = Redix.transaction_pipeline(cmds)
+
+    Enum.each(cached_ids, fn id ->
+      ConCache.delete(:users, id)
+
+      case Integer.parse(id) do
+        {int_id, ""} -> ConCache.delete(:users, int_id)
+        _ -> :ok
+      end
+    end)
+
+    reply
+  end
+
+  defp do_clear_groups_cache do
+    group_keys =
+      ["KEYS", "user_group:*"]
+      |> Redix.command!()
+      |> Enum.reject(&String.ends_with?(&1, ":roles"))
+
+    group_roles_keys = Redix.command!(["KEYS", "user_group:*:roles"])
+
+    cmds =
+      [
+        ["DEL", Keys.group_ids()],
+        ["DEL", Keys.user_group_name_to_id()]
+      ] ++
+        Enum.map(group_keys ++ group_roles_keys, &["DEL", &1])
+
+    Redix.transaction_pipeline(cmds)
   end
 end

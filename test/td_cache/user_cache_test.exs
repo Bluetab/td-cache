@@ -119,6 +119,36 @@ defmodule TdCache.UserCacheTest do
 
       assert UserCache.id_to_email_map() == %{}
     end
+
+    test "clear_users_cache removes all user cache keys and keeps group keys" do
+      user = build(:user)
+      other_user = build(:user)
+      group = build(:group)
+
+      put_user(user)
+      put_user(other_user)
+      put_user_group(group)
+
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+      assert {:ok, %{id: id}} = UserCache.get(other_user.id)
+      assert id == other_user.id
+      assert {:ok, %{id: id}} = UserCache.get_by_name(user.full_name)
+      assert id == user.id
+      assert {:ok, %{id: id}} = UserCache.get_by_user_name(other_user.user_name)
+      assert id == other_user.id
+      assert {:ok, %{id: id}} = UserCache.get_group(group.id)
+      assert id == group.id
+
+      assert {:ok, _} = UserCache.clear_users_cache()
+
+      assert {:ok, nil} = UserCache.get(user.id)
+      assert {:ok, nil} = UserCache.get(other_user.id)
+      assert {:ok, nil} = UserCache.get_by_name(user.full_name)
+      assert {:ok, nil} = UserCache.get_by_user_name(other_user.user_name)
+      assert {:ok, %{id: id}} = UserCache.get_group(group.id)
+      assert id == group.id
+    end
   end
 
   describe "refresh_all_roles/1 refresh_resource_roles/3 and get_roles/1" do
@@ -250,8 +280,192 @@ defmodule TdCache.UserCacheTest do
     end
   end
 
+  describe "user_groups" do
+    test "put_group returns OK" do
+      group = build(:group)
+      assert {:ok, [_, 2, 1, 1, 1]} = put_user_group(group)
+    end
+
+    test "get_group returns a map with name and alias" do
+      group = build(:group)
+      put_user_group(group)
+      {:ok, g} = UserCache.get_group(group.id)
+      assert g == Map.take(group, [:name, :alias, :id])
+    end
+
+    test "get_group_by_name returns a map with name and alias " do
+      group = build(:group)
+      put_user_group(group)
+      {:ok, g} = UserCache.get_group_by_name(group.name)
+      assert g == Map.take(group, [:name, :alias, :id])
+    end
+
+    test "get_group_by_name returns a group by alias" do
+      group = build(:group)
+      put_user_group(group)
+
+      {:ok, g} = UserCache.get_group_by_name(group.alias)
+
+      assert g == Map.take(group, [:name, :alias, :id])
+    end
+
+    test "get_group_by_name returns groups from a list of names" do
+      group1 = build(:group)
+      group2 = build(:group)
+      put_user_group(group1)
+      put_user_group(group2)
+
+      {:ok, groups} = UserCache.get_group_by_name([group1.name, group2.name])
+
+      assert groups == [
+               Map.take(group1, [:name, :alias, :id]),
+               Map.take(group2, [:name, :alias, :id])
+             ]
+    end
+
+    test "get_group_by_name returns groups from a list of group names and user names" do
+      group1 = build(:group)
+      group2 = build(:group)
+      put_user_group(group1)
+      put_user_group(group2)
+
+      user1 = build(:user)
+      user2 = build(:user)
+      put_user(user1)
+      put_user(user2)
+
+      {:ok, groups} =
+        UserCache.get_group_by_name([group1.name, group2.name, user1.user_name, user2.user_name])
+
+      assert groups == [
+               Map.take(group1, [:name, :alias, :id]),
+               Map.take(group2, [:name, :alias, :id]),
+               nil,
+               nil
+             ]
+    end
+
+    test "put_group updates name and alias indexes when values change" do
+      group = build(:group)
+      put_user_group(group)
+
+      updated_group = %{
+        group
+        | name: "#{group.name}_updated",
+          alias: "#{group.alias}_updated"
+      }
+
+      assert {:ok, _} = UserCache.put_group(updated_group)
+
+      assert {:ok, nil} = UserCache.get_group_by_name(group.name)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.alias)
+
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(updated_group.name)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(updated_group.alias)
+      assert id == group.id
+    end
+
+    test "put_group removes previous alias index when alias becomes nil" do
+      group = build(:group)
+      put_user_group(group)
+
+      updated_group = %{group | alias: nil}
+      assert {:ok, _} = UserCache.put_group(updated_group)
+
+      assert {:ok, nil} = UserCache.get_group_by_name(group.alias)
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.name)
+      assert id == group.id
+    end
+
+    test "delete_group removes group lookups by name and alias" do
+      group = build(:group)
+      put_user_group(group)
+
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.name)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.alias)
+      assert id == group.id
+
+      assert {:ok, _} = UserCache.delete_group(group.id)
+
+      assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.name)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.alias)
+    end
+
+    test "delete_group removes group name lookup when alias is nil" do
+      group = :group |> build() |> Map.put(:alias, nil)
+
+      put_user_group(group)
+
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.name)
+      assert id == group.id
+
+      assert {:ok, _} = UserCache.delete_group(group.id)
+
+      assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.name)
+    end
+
+    test "delete_group does not delete user cache with same id" do
+      group = build(:group)
+
+      user = :user |> build() |> Map.put(:id, group.id)
+
+      put_user_group(group)
+      put_user(user)
+
+      assert {:ok, %{id: id}} = UserCache.get_group(group.id)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+
+      assert {:ok, _} = UserCache.delete_group(group.id)
+
+      assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+    end
+
+    test "clear_groups_cache removes all group cache keys and keeps user keys" do
+      group = build(:group)
+      other_group = build(:group)
+      user = build(:user)
+
+      put_user_group(group)
+      put_user_group(other_group)
+      put_user(user)
+
+      assert {:ok, %{id: id}} = UserCache.get_group(group.id)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get_group(other_group.id)
+      assert id == other_group.id
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(group.name)
+      assert id == group.id
+      assert {:ok, %{id: id}} = UserCache.get_group_by_name(other_group.alias)
+      assert id == other_group.id
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+
+      assert {:ok, _} = UserCache.clear_groups_cache()
+
+      assert {:ok, nil} = UserCache.get_group(group.id)
+      assert {:ok, nil} = UserCache.get_group(other_group.id)
+      assert {:ok, nil} = UserCache.get_group_by_name(group.name)
+      assert {:ok, nil} = UserCache.get_group_by_name(other_group.alias)
+      assert {:ok, %{id: id}} = UserCache.get(user.id)
+      assert id == user.id
+    end
+  end
+
   defp put_user(%{id: id} = user) do
     on_exit(fn -> UserCache.delete(id) end)
     UserCache.put(user)
+  end
+
+  defp put_user_group(%{id: id} = group) do
+    on_exit(fn -> UserCache.delete_group(id) end)
+    UserCache.put_group(group)
   end
 end

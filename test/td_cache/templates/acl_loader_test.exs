@@ -45,6 +45,16 @@ defmodule TdCache.Templates.AclLoaderTest do
                  %{id: user_id_2, full_name: user_name_2}
                ]
     end
+
+    test "ignores users not present in cache" do
+      domain = CacheHelpers.insert_domain()
+      missing_user_id = System.unique_integer([:positive])
+
+      AclCache.set_acl_roles("domain", domain.id, ["role1"])
+      AclCache.set_acl_role_users("domain", domain.id, "role1", [missing_user_id])
+
+      assert %{"role1" => []} = AclLoader.get_roles_and_users([domain.id])
+    end
   end
 
   describe "get_roles_and_groups/1" do
@@ -78,6 +88,16 @@ defmodule TdCache.Templates.AclLoaderTest do
              } = AclLoader.get_roles_and_groups([domain1.id, domain2.id])
 
       assert Enum.sort([id1, id2]) == Enum.sort([group_id_1, group_id_2])
+    end
+
+    test "ignores groups not present in cache" do
+      domain = CacheHelpers.insert_domain()
+      missing_group_id = System.unique_integer([:positive])
+
+      AclCache.set_acl_group_roles("domain", domain.id, ["role1"])
+      AclCache.set_acl_role_groups("domain", domain.id, "role1", [missing_group_id])
+
+      assert %{"role1" => []} = AclLoader.get_roles_and_groups([domain.id])
     end
   end
 end
