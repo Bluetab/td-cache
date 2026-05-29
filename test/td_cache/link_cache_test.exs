@@ -43,7 +43,7 @@ defmodule TdCache.LinkCacheTest do
       link_key = "link:#{link.id}"
       source_key = "#{link.source_type}:#{link.source_id}"
       target_key = "#{link.target_type}:#{link.target_id}"
-      assert {:ok, [0, 4, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, 6, 1, 1, 1, 1, 1]} == LinkCache.put(link)
 
       {:ok, events} = Stream.read(:redix, ["foo:events", "bar:events"], transform: true)
       assert Enum.count(events) == 2
@@ -62,7 +62,7 @@ defmodule TdCache.LinkCacheTest do
 
     test "writes a link entry with tags in redis and reads it back", context do
       link = context[:tagged_link]
-      assert {:ok, [0, 4, 1, 1, 1, 1, 1, 3]} == LinkCache.put(link)
+      assert {:ok, [0, 6, 1, 1, 1, 1, 1, 3]} == LinkCache.put(link)
 
       {:ok, l} = LinkCache.get(link.id)
       assert l.source == "#{link.source_type}:#{link.source_id}"
@@ -74,7 +74,7 @@ defmodule TdCache.LinkCacheTest do
 
     test "writes a link without origin if no origin", context do
       link = context[:link] |> Map.delete(:origin)
-      assert {:ok, [0, 3, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, 5, 1, 1, 1, 1, 1]} == LinkCache.put(link)
 
       {:ok, l} = LinkCache.get(link.id)
       assert is_nil(l.origin)
@@ -82,7 +82,7 @@ defmodule TdCache.LinkCacheTest do
 
     test "writes a link with nil origin", context do
       link = context[:link] |> Map.put(:origin, nil)
-      assert {:ok, [0, 3, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, 5, 1, 1, 1, 1, 1]} == LinkCache.put(link)
 
       {:ok, l} = LinkCache.get(link.id)
       assert is_nil(l.origin)
@@ -90,10 +90,10 @@ defmodule TdCache.LinkCacheTest do
 
     test "only rewrites a link entry if it's update timestamp has changed", context do
       link = context[:link]
-      assert {:ok, [0, 4, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, [0, 6, 1, 1, 1, 1, 1]} == LinkCache.put(link)
       assert {:ok, []} == LinkCache.put(link)
 
-      assert {:ok, [1, 4, 0, 0, 0, 0, 0]} ==
+      assert {:ok, [1, 6, 0, 0, 0, 0, 0]} ==
                LinkCache.put(Map.put(link, :updated_at, DateTime.utc_now()))
     end
 
@@ -293,6 +293,48 @@ defmodule TdCache.LinkCacheTest do
         LinkCache.list_rand_links("data_structure", structure.id, "business_concept", 3)
 
       assert Enum.count(links) == 3
+    end
+
+    test "writes disabled_at and disabled_reason in redis and reads them back", context do
+      disabled_at = ~U[2026-05-10 12:00:00.000000Z]
+
+      link =
+        context[:link]
+        |> Map.put(:disabled_at, disabled_at)
+        |> Map.put(:disabled_reason, "data_structure:deleted")
+
+      assert {:ok, [0, 6, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+
+      {:ok, l} = LinkCache.get(link.id)
+      assert l.disabled_at == "#{disabled_at}"
+      assert l.disabled_reason == "data_structure:deleted"
+    end
+
+    test "writes empty strings when disabled fields are nil", context do
+      link =
+        context[:link]
+        |> Map.put(:disabled_at, nil)
+        |> Map.put(:disabled_reason, nil)
+
+      assert {:ok, [0, 6, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+
+      {:ok, l} = LinkCache.get(link.id)
+      assert l.disabled_at == ""
+      assert l.disabled_reason == ""
+    end
+
+    test "updates a cached link when disabled_at has changed", context do
+      link = context[:link]
+      assert {:ok, [0, 6, 1, 1, 1, 1, 1]} == LinkCache.put(link)
+      assert {:ok, []} == LinkCache.put(link)
+
+      disabled_at = DateTime.utc_now()
+
+      assert {:ok, [1, 6, 0, 0, 0, 0, 0]} ==
+               LinkCache.put(Map.put(link, :disabled_at, disabled_at))
+
+      {:ok, l} = LinkCache.get(link.id)
+      assert l.disabled_at == "#{disabled_at}"
     end
   end
 
