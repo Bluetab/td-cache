@@ -104,8 +104,11 @@ defmodule TdCache.Templates.FieldFormatter do
     %{
       "id" => id,
       "name" => name,
-      "alias" => group_alias,
+      "alias" => normalize_group_alias(group_alias),
       "display_name" => Map.get(group, :display_name) || group_name_or_alias(group)
     }
   end
+
+  defp normalize_group_alias(group_alias) when group_alias in [nil, ""], do: nil
+  defp normalize_group_alias(group_alias), do: group_alias
 end
