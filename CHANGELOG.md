@@ -1,5 +1,11 @@
 # Changelog
 
+## [8.6.2] 2026-06-01
+
+### Added
+
+- [TD-8083] Add group name legacy
+
 ## [8.6.1] 2026-05-20
 
 ### Fixed
