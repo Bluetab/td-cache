@@ -459,10 +459,11 @@ defmodule TdCache.UserCache do
 
   defp do_put_group(%{id: id, name: name, alias: group_alias} = group) do
     [old_name, old_alias] = Redix.command!(["HMGET", Keys.user_group(id), "name", "alias"])
+    display_name = Map.get(group, :display_name) || if(group_alias in [nil, ""], do: name, else: group_alias)
 
     [
       ["DEL", Keys.user_group(id)],
-      ["HSET", Keys.user_group(id), %{name: name, alias: group_alias}],
+      ["HSET", Keys.user_group(id), %{name: name, alias: group_alias, display_name: display_name}],
       ["SADD", Keys.group_ids(), id]
     ]
     |> remove_group_name_if_changed(old_name, name)

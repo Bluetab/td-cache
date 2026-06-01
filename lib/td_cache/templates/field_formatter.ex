@@ -83,7 +83,13 @@ defmodule TdCache.Templates.FieldFormatter do
        when not is_nil(role_name) do
     groups = Map.get(user_group_roles, role_name, [])
     names = Enum.map(groups, &group_name_or_alias/1)
-    values = Map.put(values, "processed_groups", names)
+    details = Enum.map(groups, &group_details/1)
+
+    values =
+      values
+      |> Map.put("processed_groups", names)
+      |> Map.put("processed_groups_details", details)
+
     Map.put(field, "values", values)
   end
 
@@ -93,4 +99,13 @@ defmodule TdCache.Templates.FieldFormatter do
     do: name
 
   defp group_name_or_alias(%{alias: group_alias}), do: group_alias
+
+  defp group_details(%{id: id, name: name, alias: group_alias} = group) do
+    %{
+      "id" => id,
+      "name" => name,
+      "alias" => group_alias,
+      "display_name" => Map.get(group, :display_name) || group_name_or_alias(group)
+    }
+  end
 end
