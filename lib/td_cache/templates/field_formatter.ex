@@ -100,12 +100,11 @@ defmodule TdCache.Templates.FieldFormatter do
 
   defp group_name_or_alias(%{alias: group_alias}), do: group_alias
 
-  defp group_details(%{id: id, name: name, alias: group_alias} = group) do
+  defp group_details(%{id: id, name: name, alias: group_alias}) do
     %{
       "id" => id,
       "name" => name,
-      "alias" => normalize_group_alias(group_alias),
-      "display_name" => Map.get(group, :display_name) || group_name_or_alias(group)
+      "alias" => normalize_group_alias(group_alias)
     }
   end
 

@@ -283,7 +283,7 @@ defmodule TdCache.UserCacheTest do
   describe "user_groups" do
     test "put_group returns OK" do
       group = build(:group)
-      assert {:ok, [_, 3, 1, 1, 1]} = put_user_group(group)
+      assert {:ok, [_, 2, 1, 1, 1]} = put_user_group(group)
     end
 
     test "get_group returns a map with name and alias" do
@@ -469,11 +469,7 @@ defmodule TdCache.UserCacheTest do
     UserCache.put_group(group)
   end
 
-  defp expected_group_cache(%{id: id, name: name, alias: group_alias} = group) do
-    display_name =
-      Map.get(group, :display_name) ||
-        if(group_alias in [nil, ""], do: name, else: group_alias)
-
-    %{id: id, name: name, alias: group_alias, display_name: display_name}
+  defp expected_group_cache(%{id: id, name: name, alias: group_alias}) do
+    %{id: id, name: name, alias: group_alias}
   end
 end

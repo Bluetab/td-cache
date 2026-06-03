@@ -66,8 +66,8 @@ defmodule TdCache.Templates.FieldFormatterTest do
           "role_groups" => "owner",
           "processed_groups" => ["Group 1", "group_2"],
           "processed_groups_details" => [
-            %{"id" => 1, "name" => "group_1", "alias" => "Group 1", "display_name" => "Group 1"},
-            %{"id" => 2, "name" => "group_2", "alias" => nil, "display_name" => "group_2"}
+            %{"id" => 1, "name" => "group_1", "alias" => "Group 1"},
+            %{"id" => 2, "name" => "group_2", "alias" => nil}
           ]
         }
       }
@@ -88,7 +88,7 @@ defmodule TdCache.Templates.FieldFormatterTest do
           "role_groups" => "owner",
           "processed_groups" => ["group_1"],
           "processed_groups_details" => [
-            %{"id" => 1, "name" => "group_1", "alias" => nil, "display_name" => "group_1"}
+            %{"id" => 1, "name" => "group_1", "alias" => nil}
           ]
         }
       }

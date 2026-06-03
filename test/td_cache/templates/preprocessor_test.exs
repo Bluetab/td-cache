@@ -88,8 +88,7 @@ defmodule TdCache.Templates.PreprocessorTest do
                    %{
                      "id" => group_id,
                      "name" => group_name,
-                     "alias" => group_alias,
-                     "display_name" => group_alias
+                     "alias" => group_alias
                    }
                  ]
                }
@@ -219,8 +218,7 @@ defmodule TdCache.Templates.PreprocessorTest do
                    %{
                      "id" => group_id,
                      "name" => group_name,
-                     "alias" => group_alias,
-                     "display_name" => group_alias
+                     "alias" => group_alias
                    }
                  ],
                  "processed_users" => [full_name],
@@ -264,8 +262,7 @@ defmodule TdCache.Templates.PreprocessorTest do
                    %{
                      "id" => group_id,
                      "name" => group_name,
-                     "alias" => group_alias,
-                     "display_name" => group_alias
+                     "alias" => group_alias
                    }
                  ]
                }
