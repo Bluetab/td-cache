@@ -124,6 +124,10 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:get_group_by_name, name})
   end
 
+  def list_groups do
+    GenServer.call(__MODULE__, :list_groups)
+  end
+
   def put(user) do
     GenServer.call(__MODULE__, {:put, user})
   end
@@ -208,6 +212,16 @@ defmodule TdCache.UserCache do
   def handle_call({:get_group_by_name, name}, _from, state) do
     group = read_group_by_name(name)
     {:reply, {:ok, group}, state}
+  end
+
+  def handle_call(:list_groups, _from, state) do
+    groups =
+      case Redix.command(["SMEMBERS", Keys.group_ids()]) do
+        {:ok, ids} -> ids |> Enum.map(&read_group/1) |> Enum.reject(&is_nil/1)
+        _ -> []
+      end
+
+    {:reply, {:ok, groups}, state}
   end
 
   def handle_call({:put, user}, _from, state) do
