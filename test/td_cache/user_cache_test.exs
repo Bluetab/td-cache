@@ -290,14 +290,14 @@ defmodule TdCache.UserCacheTest do
       group = build(:group)
       put_user_group(group)
       {:ok, g} = UserCache.get_group(group.id)
-      assert g == Map.take(group, [:name, :alias, :id])
+      assert g == expected_group_cache(group)
     end
 
     test "get_group_by_name returns a map with name and alias " do
       group = build(:group)
       put_user_group(group)
       {:ok, g} = UserCache.get_group_by_name(group.name)
-      assert g == Map.take(group, [:name, :alias, :id])
+      assert g == expected_group_cache(group)
     end
 
     test "get_group_by_name returns a group by alias" do
@@ -306,7 +306,7 @@ defmodule TdCache.UserCacheTest do
 
       {:ok, g} = UserCache.get_group_by_name(group.alias)
 
-      assert g == Map.take(group, [:name, :alias, :id])
+      assert g == expected_group_cache(group)
     end
 
     test "get_group_by_name returns groups from a list of names" do
@@ -318,8 +318,8 @@ defmodule TdCache.UserCacheTest do
       {:ok, groups} = UserCache.get_group_by_name([group1.name, group2.name])
 
       assert groups == [
-               Map.take(group1, [:name, :alias, :id]),
-               Map.take(group2, [:name, :alias, :id])
+               expected_group_cache(group1),
+               expected_group_cache(group2)
              ]
     end
 
@@ -338,8 +338,8 @@ defmodule TdCache.UserCacheTest do
         UserCache.get_group_by_name([group1.name, group2.name, user1.user_name, user2.user_name])
 
       assert groups == [
-               Map.take(group1, [:name, :alias, :id]),
-               Map.take(group2, [:name, :alias, :id]),
+               expected_group_cache(group1),
+               expected_group_cache(group2),
                nil,
                nil
              ]
@@ -467,5 +467,9 @@ defmodule TdCache.UserCacheTest do
   defp put_user_group(%{id: id} = group) do
     on_exit(fn -> UserCache.delete_group(id) end)
     UserCache.put_group(group)
+  end
+
+  defp expected_group_cache(%{id: id, name: name, alias: group_alias}) do
+    %{id: id, name: name, alias: group_alias}
   end
 end

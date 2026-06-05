@@ -1,5 +1,11 @@
 # Changelog
 
+## [8.6.2] 2026-06-05
+
+### Added
+
+- [TD-8083] Add processed_groups_details
+
 ## [8.6.1] 2026-05-20
 
 ### Fixed
