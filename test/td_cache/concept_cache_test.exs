@@ -5,6 +5,7 @@ defmodule TdCache.ConceptCacheTest do
 
   alias TdCache.CacheHelpers
   alias TdCache.ConceptCache
+  alias TdCache.LinkCache
   alias TdCache.Redix
   alias TdCache.Redix.Stream
 
@@ -296,6 +297,31 @@ defmodule TdCache.ConceptCacheTest do
       assert %{"data_owner" => _} = c.content
       assert c.status == "#{concept.status}"
     end
+
+    test "excludes disabled links from link_count", %{concept: concept} do
+      {:ok, _} = ConceptCache.put(concept)
+
+      active_link = put_concept_structure_link(concept.id)
+
+      _disabled_link =
+        put_concept_structure_link(concept.id,
+          disabled_at: DateTime.utc_now(),
+          disabled_reason: "data_structure:deleted"
+        )
+
+      assert {:ok, %{link_count: 1}} = ConceptCache.get(concept.id)
+
+      assert {:ok, _} =
+               LinkCache.put(
+                 Map.merge(active_link, %{
+                   disabled_at: DateTime.utc_now(),
+                   disabled_reason: "data_structure:deleted"
+                 }),
+                 publish: false
+               )
+
+      assert {:ok, %{link_count: 0}} = ConceptCache.get(concept.id)
+    end
   end
 
   test "put confidential/public concept updates confidential ids list", context do
@@ -323,4 +349,23 @@ defmodule TdCache.ConceptCacheTest do
   end
 
   defp random_id, do: System.unique_integer([:positive])
+
+  defp put_concept_structure_link(concept_id, attrs \\ []) do
+    id = System.unique_integer([:positive])
+
+    link =
+      %{
+        id: id,
+        source_id: concept_id,
+        target_id: System.unique_integer([:positive]),
+        updated_at: DateTime.utc_now(),
+        source_type: "business_concept",
+        target_type: "data_structure"
+      }
+      |> Map.merge(Map.new(attrs))
+
+    on_exit(fn -> LinkCache.delete(id, publish: false) end)
+    {:ok, _} = LinkCache.put(link, publish: false)
+    link
+  end
 end

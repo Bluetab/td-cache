@@ -131,6 +131,24 @@ defmodule TdCache.LinkCacheTest do
       assert {:ok, 0} == LinkCache.count(target_key, link.source_type)
     end
 
+    test "excludes disabled links from count", context do
+      link = context[:link]
+      source_key = "#{link.source_type}:#{link.source_id}"
+      disabled_at = DateTime.utc_now()
+
+      {:ok, _} = LinkCache.put(link)
+      assert {:ok, 1} == LinkCache.count(source_key, link.target_type)
+
+      assert {:ok, _} =
+               LinkCache.put(Map.put(link, :disabled_at, disabled_at))
+
+      assert {:ok, 0} == LinkCache.count(source_key, link.target_type)
+
+      assert {:ok, _} = LinkCache.put(Map.put(link, :disabled_at, nil))
+
+      assert {:ok, 1} == LinkCache.count(source_key, link.target_type)
+    end
+
     test "returns the tags of the source and target type" do
       assert {:ok, []} = LinkCache.tags("foo:123", "bar")
       assert {:ok, []} = LinkCache.tags("bar:456", "foo")

@@ -71,14 +71,14 @@ defmodule TdCache.LinkCache do
   end
 
   @doc """
-  Counts links for a given key and target type.
+  Counts active links for a given key and target type.
+
+  Links with a non-empty `disabled_at` value are excluded.
   """
   def count(key, target_type) do
-    IO.inspect(key, label: "key")
-    IO.inspect(target_type, label: "target_type")
-
-    Redix.command(["SCARD", "#{key}:links:#{target_type}"])
-    |> IO.inspect(label: "count-->")
+    "#{key}:links:#{target_type}"
+    |> list_link_keys()
+    |> count_active_links()
   end
 
   @doc """
@@ -314,7 +314,6 @@ defmodule TdCache.LinkCache do
 
   defp delete_link(id, opts) do
     {:ok, keys} = Redix.command(["HMGET", "link:#{id}", "source", "target"])
-    IO.inspect(keys, label: "keys-->")
     result = do_delete_link(id, keys, opts)
 
     unless opts[:publish] == false do
@@ -461,6 +460,32 @@ defmodule TdCache.LinkCache do
 
   defp conditional_events(false, _), do: []
   defp conditional_events(_true, e), do: [e]
+
+  defp list_link_keys(links_key) do
+    case Redix.command(["SMEMBERS", links_key]) do
+      {:ok, link_keys} -> link_keys
+      _ -> []
+    end
+  end
+
+  defp count_active_links([]), do: {:ok, 0}
+
+  defp count_active_links(link_keys) do
+    commands = Enum.map(link_keys, &["HGET", &1, "disabled_at"])
+
+    case Redix.transaction_pipeline(commands) do
+      {:ok, disabled_values} ->
+        count = Enum.count(disabled_values, &link_active?/1)
+        {:ok, count}
+
+      _ ->
+        {:ok, 0}
+    end
+  end
+
+  defp link_active?(nil), do: true
+  defp link_active?(""), do: true
+  defp link_active?(_), do: false
 
   defp linked_resources(key, target_type, opts) do
     ["SMEMBERS", "#{key}:links:#{target_type}"]
