@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- [TD-7655] Enhance link structure and caching with disabled fields
+
 ## [8.6.2] 2026-06-05
 
 ### Added
