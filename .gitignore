@@ -25,3 +25,4 @@ td_cache-*.tar
 
 .iex.exs
 .tool-versions
+CLAUDE.md

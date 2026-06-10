@@ -6,6 +6,25 @@
 
 - [TD-8168] Add code quality control
 
+## [8.6.2] 2026-06-05
+
+### Added
+
+- [TD-8083] Add processed_groups_details
+
+## [8.6.1] 2026-05-20
+
+### Fixed
+
+-[TD-8162] Vulnerabilities
+
+
+## [8.6.0] 2026-05-12
+
+### Added
+
+- [TD-8083] Add user group management features
+
 ## [8.3.0] 2026-03-12
 
 ### Changed
