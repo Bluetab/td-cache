@@ -71,10 +71,14 @@ defmodule TdCache.LinkCache do
   end
 
   @doc """
-  Counts links for a given key and target type.
+  Counts active links for a given key and target type.
+
+  Links with a non-empty `disabled_at` value are excluded.
   """
   def count(key, target_type) do
-    Redix.command(["SCARD", "#{key}:links:#{target_type}"])
+    "#{key}:links:#{target_type}"
+    |> list_link_keys()
+    |> count_active_links()
   end
 
   @doc """
@@ -164,16 +168,32 @@ defmodule TdCache.LinkCache do
     get_link("link:#{id}")
   end
 
-  defp put_link(%{id: id, updated_at: updated_at} = link, opts) do
-    last_updated = Redix.command!(["HGET", "link:#{id}", :updated_at])
+  defp put_link(%{id: id} = link, opts) do
+    [last_updated, last_disabled_at, last_disabled_reason] =
+      Redix.command!([
+        "HMGET",
+        "link:#{id}",
+        :updated_at,
+        :disabled_at,
+        :disabled_reason
+      ])
 
     link
-    |> Map.put(:updated_at, "#{updated_at}")
+    |> Map.put_new(:disabled_at, nil)
+    |> Map.put_new(:disabled_reason, nil)
+    |> normalize_link_fields()
     |> validate_origin
-    |> put_link(last_updated, opts)
+    |> put_link(last_updated, last_disabled_at, last_disabled_reason, opts)
   end
 
-  defp put_link(%{updated_at: ts}, ts, _opts), do: {:ok, []}
+  defp put_link(
+         %{updated_at: ts, disabled_at: da, disabled_reason: dr},
+         ts,
+         da,
+         dr,
+         _opts
+       ),
+       do: {:ok, []}
 
   defp put_link(
          %{
@@ -181,9 +201,13 @@ defmodule TdCache.LinkCache do
            source_type: source_type,
            source_id: source_id,
            target_type: target_type,
-           target_id: target_id
+           target_id: target_id,
+           disabled_at: disabled_at,
+           disabled_reason: disabled_reason
          } = link,
          _last_updated,
+         _last_disabled_at,
+         _last_disabled_reason,
          opts
        ) do
     commands = put_link_commands(link)
@@ -204,7 +228,9 @@ defmodule TdCache.LinkCache do
             event: "add_link",
             link: "link:#{id}",
             source: "#{source_type}:#{source_id}",
-            target: "#{target_type}:#{target_id}"
+            target: "#{target_type}:#{target_id}",
+            disabled_at: disabled_at,
+            disabled_reason: disabled_reason
           }
         )
       end)
@@ -222,7 +248,9 @@ defmodule TdCache.LinkCache do
            source_id: source_id,
            target_type: target_type,
            target_id: target_id,
-           updated_at: updated_at
+           updated_at: updated_at,
+           disabled_at: disabled_at,
+           disabled_reason: disabled_reason
          } = link
        ) do
     [
@@ -235,7 +263,11 @@ defmodule TdCache.LinkCache do
         "target",
         "#{target_type}:#{target_id}",
         "updated_at",
-        "#{updated_at}"
+        updated_at,
+        "disabled_at",
+        disabled_at,
+        "disabled_reason",
+        disabled_reason
       ],
       ["SADD", "#{source_type}:#{source_id}:links", "link:#{id}"],
       ["SADD", "#{target_type}:#{target_id}:links", "link:#{id}"],
@@ -246,6 +278,16 @@ defmodule TdCache.LinkCache do
     |> maybe_link_tags_commands(link)
     |> maybe_origin_field(link)
   end
+
+  defp normalize_link_fields(link) do
+    link
+    |> Map.update!(:updated_at, &"#{&1}")
+    |> Map.update!(:disabled_at, &cache_field/1)
+    |> Map.update!(:disabled_reason, &cache_field/1)
+  end
+
+  defp cache_field(nil), do: ""
+  defp cache_field(value), do: "#{value}"
 
   defp validate_origin(%{origin: origin} = link) when is_binary(origin),
     do: link
@@ -418,6 +460,32 @@ defmodule TdCache.LinkCache do
 
   defp conditional_events(false, _), do: []
   defp conditional_events(_true, e), do: [e]
+
+  defp list_link_keys(links_key) do
+    case Redix.command(["SMEMBERS", links_key]) do
+      {:ok, link_keys} -> link_keys
+      _ -> []
+    end
+  end
+
+  defp count_active_links([]), do: {:ok, 0}
+
+  defp count_active_links(link_keys) do
+    commands = Enum.map(link_keys, &["HGET", &1, "disabled_at"])
+
+    case Redix.transaction_pipeline(commands) do
+      {:ok, disabled_values} ->
+        count = Enum.count(disabled_values, &link_active?/1)
+        {:ok, count}
+
+      _ ->
+        {:ok, 0}
+    end
+  end
+
+  defp link_active?(nil), do: true
+  defp link_active?(""), do: true
+  defp link_active?(_), do: false
 
   defp linked_resources(key, target_type, opts) do
     ["SMEMBERS", "#{key}:links:#{target_type}"]
