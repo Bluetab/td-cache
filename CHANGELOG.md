@@ -4,6 +4,12 @@
 
 - [TD-7655] Enhance link structure and caching with disabled fields
 
+## [8.7.0] 2026-06-10
+
+### Added
+
+- [TD-8168] Add code quality control
+
 ## [8.6.2] 2026-06-05
 
 ### Added
