@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unchanged]
+
+### Added
+
+- [TD-8426] Cache user-group membership for grant requests
+
 ## [8.7.1] 2026-06-11
 
 - [TD-7655] Enhance link structure and caching with disabled fields
