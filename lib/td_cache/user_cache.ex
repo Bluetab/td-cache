@@ -37,6 +37,14 @@ defmodule TdCache.UserCache do
       "user_group:#{id}:roles"
     end
 
+    def user_group_user_ids(id) do
+      "user_group:#{id}:user_ids"
+    end
+
+    def user_group_ids(id) do
+      "user:#{id}:group_ids"
+    end
+
     def user_resource_roles(user_id, resource_type) do
       "user:#{user_id}:roles:#{resource_type}"
     end
@@ -164,6 +172,18 @@ defmodule TdCache.UserCache do
     GenServer.call(__MODULE__, {:delete_group, id})
   end
 
+  def put_group_users(group_id, user_ids) when is_list(user_ids) do
+    GenServer.call(__MODULE__, {:put_group_users, group_id, user_ids})
+  end
+
+  def get_group_user_ids(group_id) do
+    GenServer.call(__MODULE__, {:get_group_user_ids, group_id})
+  end
+
+  def get_user_group_ids(user_id) do
+    GenServer.call(__MODULE__, {:get_user_group_ids, user_id})
+  end
+
   def clear_groups_cache do
     GenServer.call(__MODULE__, :clear_groups_cache)
   end
@@ -269,6 +289,19 @@ defmodule TdCache.UserCache do
   def handle_call({:delete_group, id}, _from, state) do
     reply = do_delete_group(id)
     {:reply, reply, state}
+  end
+
+  def handle_call({:put_group_users, group_id, user_ids}, _from, state) do
+    reply = do_put_group_users(group_id, user_ids)
+    {:reply, reply, state}
+  end
+
+  def handle_call({:get_group_user_ids, group_id}, _from, state) do
+    {:reply, {:ok, read_group_user_ids(group_id)}, state}
+  end
+
+  def handle_call({:get_user_group_ids, user_id}, _from, state) do
+    {:reply, {:ok, read_user_group_ids(user_id)}, state}
   end
 
   def handle_call(:clear_groups_cache, _from, state) do
@@ -389,23 +422,30 @@ defmodule TdCache.UserCache do
   end
 
   defp delete_user(id) do
+    membership_cmds =
+      delete_user_membership_cmds(id)
+
     case Redix.command!(["HMGET", Keys.user(id), "full_name", "user_name", "external_id"]) do
       [nil, nil, nil] ->
-        Redix.transaction_pipeline([
-          ["DEL", Keys.user(id)],
-          ["DEL", Keys.user_roles(id)],
-          ["SREM", Keys.ids(), id]
-        ])
+        Redix.transaction_pipeline(
+          [
+            ["DEL", Keys.user(id)],
+            ["DEL", Keys.user_roles(id)],
+            ["SREM", Keys.ids(), id]
+          ] ++ membership_cmds
+        )
 
       [full_name, user_name, external_id] ->
-        Redix.transaction_pipeline([
-          ["DEL", Keys.user(id)],
-          ["DEL", Keys.user_roles(id)],
-          ["HDEL", Keys.name_to_id(), full_name],
-          ["HDEL", Keys.user_name_to_id(), user_name],
-          ["HDEL", Keys.external_id_to_id(), external_id],
-          ["SREM", Keys.ids(), id]
-        ])
+        Redix.transaction_pipeline(
+          [
+            ["DEL", Keys.user(id)],
+            ["DEL", Keys.user_roles(id)],
+            ["HDEL", Keys.name_to_id(), full_name],
+            ["HDEL", Keys.user_name_to_id(), user_name],
+            ["HDEL", Keys.external_id_to_id(), external_id],
+            ["SREM", Keys.ids(), id]
+          ] ++ membership_cmds
+        )
     end
   end
 
@@ -505,13 +545,17 @@ defmodule TdCache.UserCache do
   defp remove_group_name_if_changed(pipeline, _old_value, _new_value), do: pipeline
 
   defp do_delete_group(id) do
+    membership_cmds = delete_group_membership_cmds(id)
+
     case Redix.command!(["HMGET", Keys.user_group(id), "alias", "name"]) do
       [nil, nil] ->
-        Redix.transaction_pipeline([
-          ["DEL", Keys.user_group(id)],
-          ["DEL", Keys.user_group_roles(id)],
-          ["SREM", Keys.group_ids(), id]
-        ])
+        Redix.transaction_pipeline(
+          [
+            ["DEL", Keys.user_group(id)],
+            ["DEL", Keys.user_group_roles(id)],
+            ["SREM", Keys.group_ids(), id]
+          ] ++ membership_cmds
+        )
 
       [group_alias, name] ->
         [
@@ -521,6 +565,7 @@ defmodule TdCache.UserCache do
         ]
         |> delete_group_name(name)
         |> delete_group_name(group_alias)
+        |> then(&(&1 ++ membership_cmds))
         |> Redix.transaction_pipeline()
     end
   end
@@ -531,6 +576,51 @@ defmodule TdCache.UserCache do
 
   defp delete_group_name(pipeline, _), do: pipeline
 
+  defp do_put_group_users(group_id, user_ids) do
+    new_ids = Enum.uniq(user_ids)
+    removed_ids = read_group_user_ids(group_id) -- new_ids
+
+    cmds =
+      Enum.map(removed_ids, &["SREM", Keys.user_group_ids(&1), group_id]) ++
+        [["DEL", Keys.user_group_user_ids(group_id)]] ++
+        add_group_users_cmds(group_id, new_ids)
+
+    Redix.transaction_pipeline(cmds)
+  end
+
+  defp add_group_users_cmds(_group_id, []), do: []
+
+  defp add_group_users_cmds(group_id, user_ids) do
+    [
+      ["SADD", Keys.user_group_user_ids(group_id) | user_ids]
+    ] ++
+      Enum.map(user_ids, &["SADD", Keys.user_group_ids(&1), group_id])
+  end
+
+  defp read_group_user_ids(group_id) do
+    group_id
+    |> Keys.user_group_user_ids()
+    |> then(&Redix.command!(["SMEMBERS", &1]))
+    |> Redix.to_integer_list!()
+  end
+
+  defp read_user_group_ids(user_id) do
+    user_id
+    |> Keys.user_group_ids()
+    |> then(&Redix.command!(["SMEMBERS", &1]))
+    |> Redix.to_integer_list!()
+  end
+
+  defp delete_group_membership_cmds(group_id) do
+    Enum.map(read_group_user_ids(group_id), &["SREM", Keys.user_group_ids(&1), group_id]) ++
+      [["DEL", Keys.user_group_user_ids(group_id)]]
+  end
+
+  defp delete_user_membership_cmds(user_id) do
+    Enum.map(read_user_group_ids(user_id), &["SREM", Keys.user_group_user_ids(&1), user_id]) ++
+      [["DEL", Keys.user_group_ids(user_id)]]
+  end
+
   defp do_clear_users_cache do
     cached_ids = Redix.command!(["SMEMBERS", Keys.ids()])
 
@@ -540,6 +630,7 @@ defmodule TdCache.UserCache do
       |> Enum.reject(&String.contains?(&1, ":roles"))
 
     user_roles_keys = Redix.command!(["KEYS", "user:*:roles*"])
+    group_user_ids_keys = Redix.command!(["KEYS", "user_group:*:user_ids"])
 
     cmds =
       [
@@ -548,7 +639,7 @@ defmodule TdCache.UserCache do
         ["DEL", Keys.user_name_to_id()],
         ["DEL", Keys.external_id_to_id()]
       ] ++
-        Enum.map(user_keys ++ user_roles_keys, &["DEL", &1])
+        Enum.map(user_keys ++ user_roles_keys ++ group_user_ids_keys, &["DEL", &1])
 
     reply = Redix.transaction_pipeline(cmds)
 
@@ -571,13 +662,14 @@ defmodule TdCache.UserCache do
       |> Enum.reject(&String.ends_with?(&1, ":roles"))
 
     group_roles_keys = Redix.command!(["KEYS", "user_group:*:roles"])
+    user_group_ids_keys = Redix.command!(["KEYS", "user:*:group_ids"])
 
     cmds =
       [
         ["DEL", Keys.group_ids()],
         ["DEL", Keys.user_group_name_to_id()]
       ] ++
-        Enum.map(group_keys ++ group_roles_keys, &["DEL", &1])
+        Enum.map(group_keys ++ group_roles_keys ++ user_group_ids_keys, &["DEL", &1])
 
     Redix.transaction_pipeline(cmds)
   end

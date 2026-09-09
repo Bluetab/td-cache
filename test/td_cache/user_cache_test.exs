@@ -459,6 +459,119 @@ defmodule TdCache.UserCacheTest do
     end
   end
 
+  describe "group membership" do
+    test "put_group_users indexes members bidirectionally without changing get_group" do
+      group = build(:group)
+      user1 = build(:user)
+      user2 = build(:user)
+
+      put_user_group(group)
+      put_user(user1)
+      put_user(user2)
+
+      assert {:ok, _} = UserCache.put_group_users(group.id, [user1.id, user2.id])
+
+      assert {:ok, user_ids} = UserCache.get_group_user_ids(group.id)
+      assert Enum.sort(user_ids) == Enum.sort([user1.id, user2.id])
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user1.id)
+      assert group.id in group_ids
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user2.id)
+      assert group.id in group_ids
+
+      assert {:ok, g} = UserCache.get_group(group.id)
+      assert g == expected_group_cache(group)
+      refute Map.has_key?(g, :users)
+      refute Map.has_key?(g, :user_ids)
+    end
+
+    test "put_group_users replaces previous members" do
+      group = build(:group)
+      user1 = build(:user)
+      user2 = build(:user)
+      user3 = build(:user)
+
+      put_user_group(group)
+      put_user(user1)
+      put_user(user2)
+      put_user(user3)
+
+      assert {:ok, _} = UserCache.put_group_users(group.id, [user1.id, user2.id])
+      assert {:ok, _} = UserCache.put_group_users(group.id, [user3.id])
+
+      assert {:ok, user_ids} = UserCache.get_group_user_ids(group.id)
+      assert Enum.sort(user_ids) == [user3.id]
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user1.id)
+      refute group.id in group_ids
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user2.id)
+      refute group.id in group_ids
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user3.id)
+      assert group.id in group_ids
+    end
+
+    test "put_group_users with empty list clears members" do
+      group = build(:group)
+      user1 = build(:user)
+      user2 = build(:user)
+
+      put_user_group(group)
+      put_user(user1)
+      put_user(user2)
+
+      assert {:ok, _} = UserCache.put_group_users(group.id, [user1.id, user2.id])
+      assert {:ok, _} = UserCache.put_group_users(group.id, [])
+
+      assert {:ok, []} = UserCache.get_group_user_ids(group.id)
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user1.id)
+      refute group.id in group_ids
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user2.id)
+      refute group.id in group_ids
+    end
+
+    test "delete_group clears membership and keeps user cache" do
+      group = build(:group)
+      user1 = build(:user)
+      user2 = build(:user)
+
+      put_user_group(group)
+      put_user(user1)
+      put_user(user2)
+
+      assert {:ok, _} = UserCache.put_group_users(group.id, [user1.id, user2.id])
+      assert {:ok, _} = UserCache.delete_group(group.id)
+
+      assert {:ok, []} = UserCache.get_group_user_ids(group.id)
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user1.id)
+      refute group.id in group_ids
+
+      assert {:ok, group_ids} = UserCache.get_user_group_ids(user2.id)
+      refute group.id in group_ids
+
+      assert {:ok, %{id: id}} = UserCache.get(user1.id)
+      assert id == user1.id
+      assert {:ok, %{id: id}} = UserCache.get(user2.id)
+      assert id == user2.id
+    end
+
+    test "get_group_user_ids and get_user_group_ids are empty without membership" do
+      group = build(:group)
+      user = build(:user)
+
+      put_user_group(group)
+      put_user(user)
+
+      assert {:ok, []} = UserCache.get_group_user_ids(group.id)
+      assert {:ok, []} = UserCache.get_user_group_ids(user.id)
+    end
+  end
+
   defp put_user(%{id: id} = user) do
     on_exit(fn -> UserCache.delete(id) end)
     UserCache.put(user)
