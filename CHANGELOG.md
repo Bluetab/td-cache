@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- [TD-8491] Add `AclCache.clear_cache/0` to delete ACL-related Redis keys
+
 ## [8.11.0] 2026-09-09
 
 ### Added
