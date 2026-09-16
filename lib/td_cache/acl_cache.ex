@@ -156,4 +156,16 @@ defmodule TdCache.AclCache do
     key = Keys.acl_role_groups_key(resource_type, resource_id, role)
     Redix.command(["SREM", key, group_id])
   end
+
+  def clear_cache do
+    case Redix.del!([
+           "acl_roles:*",
+           "acl_role_users:*",
+           "acl_group_roles:*",
+           "acl_role_groups:*"
+         ]) do
+      {:ok, count} -> {:ok, count}
+      count when is_integer(count) -> {:ok, count}
+    end
+  end
 end

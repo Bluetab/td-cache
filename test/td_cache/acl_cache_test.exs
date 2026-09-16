@@ -206,4 +206,18 @@ defmodule TdCache.AclCacheTest do
       refute AclCache.has_role?(@resource_type, @resource_id, @role, 49)
     end
   end
+
+  test "clear_cache deletes acl roles, users and groups keys" do
+    AclCache.set_acl_roles(@resource_type, @resource_id, @roles)
+    AclCache.set_acl_role_users(@resource_type, @resource_id, @role, @user_ids)
+    AclCache.set_acl_group_roles(@resource_type, @resource_id, @roles)
+    AclCache.set_acl_role_groups(@resource_type, @resource_id, @role, @group_ids)
+
+    assert {:ok, _} = AclCache.clear_cache()
+
+    refute Redix.exists?(AclCache.Keys.acl_roles_key(@resource_type, @resource_id))
+    refute Redix.exists?(AclCache.Keys.acl_role_users_key(@resource_type, @resource_id, @role))
+    refute Redix.exists?(AclCache.Keys.acl_group_roles_key(@resource_type, @resource_id))
+    refute Redix.exists?(AclCache.Keys.acl_role_groups_key(@resource_type, @resource_id, @role))
+  end
 end
