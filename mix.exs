@@ -4,7 +4,7 @@ defmodule TdCache.MixProject do
   def project do
     [
       app: :td_cache,
-      version: "8.11.1",
+      version: "8.14.0",
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -28,7 +28,7 @@ defmodule TdCache.MixProject do
     [
       {:assertions, "~> 0.20", only: :test},
       {:con_cache, "~> 1.1"},
-      {:decimal, "~> 3.0"},
+      {:decimal, "~> 3.1.2"},
       {:credo, "~> 1.7.11", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: :dev, runtime: false},
       {:ex_machina, "~> 2.8", only: :test},
