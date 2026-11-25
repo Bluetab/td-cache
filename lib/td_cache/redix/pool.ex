@@ -14,7 +14,13 @@ defmodule TdCache.Redix.Pool do
     children =
       for i <- 0..(@pool_size - 1) do
         Supervisor.child_spec(
-          {Redix, host: redis_host, port: port, password: password, name: :"redix_#{i}"},
+          {Redix,
+           TdCache.Redix.connection_opts(
+             host: redis_host,
+             port: port,
+             password: password,
+             name: :"redix_#{i}"
+           )},
           id: {Redix, i}
         )
       end

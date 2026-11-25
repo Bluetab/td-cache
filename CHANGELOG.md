@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- [TD-8673] Do not pass `password: nil` to Redix when no Redis password is configured. `nimble_options` 1.2.0 rejects a `nil` password, which stopped `td_cache` from starting when `REDIS_PASSWORD` was unset
+
 ## [8.15.0] 2026-11-25
 
 ### Changed

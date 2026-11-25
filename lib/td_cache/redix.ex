@@ -8,6 +8,16 @@ defmodule TdCache.Redix do
   alias TdCache.Redix.Commands
   alias TdCache.Redix.Pool
 
+  @doc """
+  Prepares the options used to start a Redix connection.
+
+  `nimble_options` 1.2.0 rejects `password: nil`, so the `:password` key is left
+  out when no password is configured.
+  """
+  def connection_opts(opts) do
+    Keyword.reject(opts, fn {key, value} -> key == :password and is_nil(value) end)
+  end
+
   def command(pid, command) do
     Redix.command(pid, Commands.transform(command))
   end

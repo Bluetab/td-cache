@@ -84,7 +84,12 @@ defmodule TdCache.EventStream.Consumer do
     redis_host = Keyword.get(opts, :redis_host, "redis")
     port = Keyword.get(opts, :port, 6379)
     password = Keyword.get(opts, :password)
-    {:ok, redix} = Redix.start_link(host: redis_host, port: port, password: password)
+
+    {:ok, redix} =
+      Redix.start_link(
+        TdCache.Redix.connection_opts(host: redis_host, port: port, password: password)
+      )
+
     redix
   end
 
