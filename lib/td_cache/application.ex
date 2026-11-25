@@ -11,7 +11,13 @@ defmodule TdCache.Application do
 
     children =
       [
-        {Redix, host: redis_host, port: port, password: password, name: :redix},
+        {Redix,
+         TdCache.Redix.connection_opts(
+           host: redis_host,
+           port: port,
+           password: password,
+           name: :redix
+         )},
         {TdCache.Redix.Pool, redis_host: redis_host, port: port, password: password},
         TdCache.ConceptCache,
         TdCache.HierarchyCache,

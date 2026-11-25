@@ -1,5 +1,15 @@
 # Changelog
 
+## [8.15.1] 2026-11-25
+
+### Changed
+
+- [TD-8673] Update Mix dependencies: `decimal` to 3.2.0 and `assertions` to 0.22, plus `redix` 1.10.0, `nimble_options` 1.2.0 and `telemetry` 1.4.3 in the lockfile
+
+### Fixed
+
+- [TD-8673] Do not pass `password: nil` to Redix when no Redis password is configured. `nimble_options` 1.2.0 rejects a `nil` password, which stopped `td_cache` from starting when `REDIS_PASSWORD` was unset
+
 ## [8.15.0] 2026-11-25
 
 ### Changed
