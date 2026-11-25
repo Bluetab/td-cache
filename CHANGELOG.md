@@ -1,6 +1,10 @@
 # Changelog
 
-## [Unreleased]
+## [8.15.1] 2026-11-25
+
+### Changed
+
+- [TD-8673] Update Mix dependencies: `decimal` to 3.2.0 and `assertions` to 0.22, plus `redix` 1.10.0, `nimble_options` 1.2.0 and `telemetry` 1.4.3 in the lockfile
 
 ### Fixed
 
